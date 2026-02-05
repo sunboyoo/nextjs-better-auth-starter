@@ -1,0 +1,16 @@
+
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/admin",
+        destination: "/admin/users",
+        permanent: false,
+      },
+    ];
+  },
+};
+
+export default nextConfig;
