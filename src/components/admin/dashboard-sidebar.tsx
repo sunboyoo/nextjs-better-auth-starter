@@ -1,91 +1,110 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Users, Settings, LogOut, GalleryVerticalEnd, Building2, Box, UserCog, UserPlus, Key, MonitorSmartphone, ShieldCheck } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
+import {
+  Users,
+  Settings,
+  GalleryVerticalEnd,
+  Building2,
+  Box,
+  UserCog,
+  UserPlus,
+  Key,
+  MonitorSmartphone,
+  ShieldCheck,
+} from "lucide-react";
 import { SessionRevokeOtherDialog } from "./session-revoke-other-dialog";
+import { NavMain } from "./nav-main";
+import { NavSecondary } from "./nav-secondary";
+import { NavUser } from "./nav-user";
 
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const sidebarNavItems = [
+const navMainItems = [
   {
-    href: "/admin/users",
+    title: "Users",
+    url: "/admin/users",
     icon: Users,
-    label: "Users",
   },
   {
-    href: "/admin/user-roles",
+    title: "User Roles",
+    url: "/admin/user-roles",
     icon: ShieldCheck,
-    label: "User Roles",
   },
   {
-    href: "/admin/sessions",
+    title: "Sessions",
+    url: "/admin/sessions",
     icon: Key,
-    label: "Sessions",
   },
   {
-    href: "/admin/organizations",
+    title: "Organizations",
+    url: "/admin/organizations",
     icon: Building2,
-    label: "Organizations",
   },
   {
-    href: "/admin/apps",
+    title: "Apps",
+    url: "/admin/apps",
     icon: Box,
-    label: "Apps",
   },
   {
-    href: "/admin/organization-app-roles",
+    title: "Org App Roles",
+    url: "/admin/organization-app-roles",
     icon: UserCog,
-    label: "Org App Roles",
   },
   {
-    href: "/admin/assign-roles-to-members",
+    title: "Assign Roles",
+    url: "/admin/assign-roles-to-members",
     icon: UserPlus,
-    label: "Assign Roles",
   },
 ];
 
+// Mock user data - in real app, this would come from session context
+const mockUser = {
+  name: "Admin User",
+  email: "admin@example.com",
+  avatar: "",
+};
+
 export function DashboardSidebar() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { signOut } = authClient;
   const [isRevokeOtherDialogOpen, setIsRevokeOtherDialogOpen] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      router.push("/auth/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+  const navSecondaryItems = [
+    {
+      title: "Settings",
+      url: "/admin/settings",
+      icon: Settings,
+    },
+    {
+      title: "Sign Out Other Devices",
+      icon: MonitorSmartphone,
+      onClick: () => setIsRevokeOtherDialogOpen(true),
+    },
+  ];
 
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <a href="#">
+            <SidebarMenuButton
+              asChild
+              size="lg"
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
+              <a href="/admin">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <GalleryVerticalEnd className="size-4" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold">Admin Panel</span>
-                  <span className="">v1.0.0</span>
                 </div>
               </a>
             </SidebarMenuButton>
@@ -93,61 +112,11 @@ export function DashboardSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sidebarNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.label}
-                    className="text-muted-foreground"
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain items={navMainItems} />
+        <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
-              <Link href="/admin/settings">
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              tooltip="Sign out from other devices"
-              className="cursor-pointer"
-              onClick={() => setIsRevokeOtherDialogOpen(true)}
-            >
-              <MonitorSmartphone className="h-4 w-4" />
-              <span>Sign Out Other Devices</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              tooltip="Logout"
-              className="cursor-pointer"
-            >
-              <button onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </button>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <NavUser user={mockUser} />
       </SidebarFooter>
 
       <SessionRevokeOtherDialog
