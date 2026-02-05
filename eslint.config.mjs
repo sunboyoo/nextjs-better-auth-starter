@@ -5,6 +5,8 @@ const eslintConfig = [
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
+      // TanStack Table's useReactTable() returns functions that cannot be safely memoized by React Compiler
+      "react-hooks/incompatible-library": "off",
     },
   },
 ];
