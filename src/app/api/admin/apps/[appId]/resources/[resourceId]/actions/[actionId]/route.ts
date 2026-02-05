@@ -1,0 +1,122 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { actions, resources } from "@/db/schema";
+import { eq, sql } from "drizzle-orm";
+import { requireAdmin } from "@/lib/api/auth-guard";
+import { handleApiError } from "@/lib/api/error-handler";
+import { z } from "zod";
+
+// GET /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Get action details
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+) {
+    const authResult = await requireAdmin();
+    if (!authResult.success) return authResult.response;
+
+    const { actionId } = await params;
+
+    try {
+        const action = await db
+            .select({
+                id: actions.id,
+                appId: actions.appId,
+                resourceId: actions.resourceId,
+                key: actions.key,
+                name: actions.name,
+                description: actions.description,
+                createdAt: actions.createdAt,
+                updatedAt: actions.updatedAt,
+                resourceName: sql<string>`(SELECT name FROM ${resources} WHERE ${resources.id} = ${actions.resourceId})`,
+                resourceKey: sql<string>`(SELECT key FROM ${resources} WHERE ${resources.id} = ${actions.resourceId})`,
+            })
+            .from(actions)
+            .where(eq(actions.id, actionId))
+            .limit(1);
+
+        if (action.length === 0) {
+            return NextResponse.json({ error: "Action not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ action: action[0] });
+    } catch (error) {
+        return handleApiError(error, "fetch action");
+    }
+}
+
+// PUT /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Update action
+export async function PUT(
+    request: NextRequest,
+    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+) {
+    const authResult = await requireAdmin();
+    if (!authResult.success) return authResult.response;
+
+    const { actionId } = await params;
+
+    try {
+        const body = await request.json();
+        const schema = z.object({
+            name: z.string().trim().min(1).max(100).optional(),
+            description: z.string().trim().max(1000).optional().nullable(),
+        });
+        const result = schema.safeParse(body);
+        if (!result.success) {
+            return NextResponse.json({ error: result.error.issues }, { status: 400 });
+        }
+        const { name, description } = result.data;
+
+        const existing = await db
+            .select({ id: actions.id })
+            .from(actions)
+            .where(eq(actions.id, actionId))
+            .limit(1);
+
+        if (existing.length === 0) {
+            return NextResponse.json({ error: "Action not found" }, { status: 404 });
+        }
+
+        const updateData: Partial<typeof actions.$inferInsert> = {};
+        if (name !== undefined) updateData.name = name;
+        if (description !== undefined) updateData.description = description;
+
+        const updated = await db
+            .update(actions)
+            .set(updateData)
+            .where(eq(actions.id, actionId))
+            .returning();
+
+        return NextResponse.json({ action: updated[0] });
+    } catch (error) {
+        return handleApiError(error, "update action");
+    }
+}
+
+// DELETE /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Delete action
+export async function DELETE(
+    request: NextRequest,
+    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+) {
+    const authResult = await requireAdmin();
+    if (!authResult.success) return authResult.response;
+
+    const { actionId } = await params;
+
+    try {
+        const existing = await db
+            .select({ id: actions.id })
+            .from(actions)
+            .where(eq(actions.id, actionId))
+            .limit(1);
+
+        if (existing.length === 0) {
+            return NextResponse.json({ error: "Action not found" }, { status: 404 });
+        }
+
+        await db.delete(actions).where(eq(actions.id, actionId));
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return handleApiError(error, "delete action");
+    }
+}
