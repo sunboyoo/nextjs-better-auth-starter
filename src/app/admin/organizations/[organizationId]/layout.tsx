@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
-import { OrganizationInfoCard } from "@/components/admin/organization-info-card";
-import { OrganizationDetailTabs } from "@/components/admin/organization-detail-tabs";
+import { OrganizationInfoCard } from "../../_components/organizations/organization-info-card";
+import { OrganizationDetailTabs } from "../../_components/organizations/organization-detail-tabs";
 
 export const metadata: Metadata = {
     title: "Organization Details | Admin Dashboard",

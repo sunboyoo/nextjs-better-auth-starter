@@ -1,4 +1,4 @@
-import { MembersTable } from "@/components/admin/members-table";
+import { MembersTable } from "../../../_components/organizations/members-table";
 
 interface MembersPageProps {
     params: Promise<{ organizationId: string }>;

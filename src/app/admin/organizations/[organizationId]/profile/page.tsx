@@ -1,4 +1,4 @@
-import { OrganizationProfileTab } from "@/components/admin/organization-profile-tab";
+import { OrganizationProfileTab } from "../../../_components/organizations/organization-profile-tab";
 
 interface ProfilePageProps {
     params: Promise<{ organizationId: string }>;

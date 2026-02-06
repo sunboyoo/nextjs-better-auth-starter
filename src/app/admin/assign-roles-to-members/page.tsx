@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AssignRolesToMembers } from "@/components/admin/assign-roles-to-members/assign-roles-to-members";
+import { AssignRolesToMembers } from "../_components/assign-roles-to-members/assign-roles-to-members";
 
 export const metadata: Metadata = {
     title: "Assign Roles to Members | Admin Dashboard",

@@ -34,7 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserWithDetails } from "@/utils/users";
-import { GithubIcon, GoogleIcon } from "../ui/icons";
+import { GithubIcon, GoogleIcon } from "@/components/ui/icons";
 import { UserActions } from "./user-actions";
 import {
   Select,

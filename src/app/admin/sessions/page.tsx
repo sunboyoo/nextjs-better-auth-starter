@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SessionsTable } from "@/components/admin/sessions-table";
+import { SessionsTable } from "../_components/sessions/sessions-table";
 
 export const metadata: Metadata = {
     title: "Sessions | Admin Dashboard",

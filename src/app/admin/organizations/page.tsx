@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OrganizationsTable } from "@/components/admin/organizations-table";
+import { OrganizationsTable } from "../_components/organizations/organizations-table";
 
 export const metadata: Metadata = {
     title: "Organizations | Admin Dashboard",

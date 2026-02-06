@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OrganizationAppRolesTable } from "@/components/admin/organization-app-roles/organization-app-roles-table";
+import { OrganizationAppRolesTable } from "../_components/organization-app-roles/organization-app-roles-table";
 
 export const metadata: Metadata = {
     title: "Organization App Roles | Admin Dashboard",

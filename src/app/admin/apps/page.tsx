@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AppsTable } from "@/components/admin/apps/apps-table";
+import { AppsTable } from "../_components/apps/apps-table";
 
 export const metadata: Metadata = {
     title: "Applications | Admin Dashboard",

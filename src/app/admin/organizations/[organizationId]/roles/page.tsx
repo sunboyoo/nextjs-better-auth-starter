@@ -1,4 +1,4 @@
-import { OrganizationRoleTable } from "@/components/admin/organization-role-table";
+import { OrganizationRoleTable } from "../../../_components/organizations/organization-role-table";
 
 interface RolesPageProps {
     params: Promise<{ organizationId: string }>;

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import DashboardLayout from "@/components/admin/dashboard-layout";
+import { redirect } from "next/navigation";
+import DashboardLayout from "./_components/dashboard/dashboard-layout";
 
 export default async function AdminLayout({
   children,

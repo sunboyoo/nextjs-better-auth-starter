@@ -1,4 +1,4 @@
-import { OrganizationMemberInvitationsTable } from "@/components/admin/organization-member-invitations-table";
+import { OrganizationMemberInvitationsTable } from "../../../_components/organizations/organization-member-invitations-table";
 
 interface InvitationsPageProps {
     params: Promise<{ organizationId: string }>;

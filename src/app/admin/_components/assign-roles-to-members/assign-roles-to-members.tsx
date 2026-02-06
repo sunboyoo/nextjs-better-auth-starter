@@ -28,7 +28,7 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select";
-import { OrgAppSelector } from "@/components/admin/org-app-selector";
+import { OrgAppSelector } from "./org-app-selector";
 import {
     Dialog,
     DialogContent,

@@ -1,13 +1,13 @@
-import { AppSidebar } from "@/components/dashboard-01/app-sidebar"
-import { SiteHeader } from "@/components/dashboard-01/site-header"
+import { AppSidebar } from "./_components/dashboard/app-sidebar"
+import { SiteHeader } from "./_components/dashboard/site-header"
 import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-import ActiveOrganizationCard from "@/components/dashboard/active-organization-card"
-import UserInvitationsCard from "@/components/dashboard/user-invitations-card"
-import EmailChangeCard from "@/components/dashboard/email-change-card"
+import ActiveOrganizationCard from "./_components/dashboard-home/active-organization-card"
+import UserInvitationsCard from "./_components/dashboard-home/user-invitations-card"
+import EmailChangeCard from "./_components/dashboard-home/email-change-card"
 
 export default function DashboardPage() {
   return (

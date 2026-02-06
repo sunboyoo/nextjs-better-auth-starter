@@ -8,12 +8,12 @@ import {
     IconShield,
     IconUsers,
     IconHelp,
-    IconInnerShadowTop,
+    IconUser,
 } from "@tabler/icons-react"
 
-import { NavMain } from "@/components/dashboard-01/nav-main"
-import { NavSecondary } from "@/components/dashboard-01/nav-secondary"
-import { NavUser } from "@/components/dashboard-01/nav-user"
+import { NavMain } from "./nav-main"
+import { NavSecondary } from "./nav-secondary"
+import { NavUser } from "./nav-user"
 import {
     Sidebar,
     SidebarContent,
@@ -24,12 +24,30 @@ import {
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-const data = {
-    navMain: [
+const staticNavSecondary = [
+    {
+        title: "Settings",
+        url: "/dashboard/settings",
+        icon: IconSettings,
+    },
+    {
+        title: "Help",
+        url: "#",
+        icon: IconHelp,
+    },
+]
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const navMain = [
         {
             title: "Dashboard",
             url: "/dashboard",
             icon: IconDashboard,
+        },
+        {
+            title: "My Profile",
+            url: "/dashboard/user-profile",
+            icon: IconUser,
         },
         {
             title: "Admin Panel",
@@ -41,22 +59,8 @@ const data = {
             url: "/admin/organization",
             icon: IconUsers,
         },
-    ],
-    navSecondary: [
-        {
-            title: "Settings",
-            url: "/dashboard/settings",
-            icon: IconSettings,
-        },
-        {
-            title: "Help",
-            url: "#",
-            icon: IconHelp,
-        },
-    ],
-}
+    ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     return (
         <Sidebar collapsible="offcanvas" {...props}>
             <SidebarHeader>
@@ -66,17 +70,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             asChild
                             className="data-[slot=sidebar-menu-button]:!p-1.5"
                         >
-                            <Link href="/">
-                                <IconInnerShadowTop className="!size-5" />
-                                <span className="text-base font-semibold">Better Auth</span>
+                            <Link href="/" className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary">
+                                    <span className="text-primary-foreground font-bold text-xs">ID</span>
+                                </div>
+                                <span className="text-base font-semibold">Next.js Better Auth Starter</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
-                <NavMain items={data.navMain} />
-                <NavSecondary items={data.navSecondary} className="mt-auto" />
+                <NavMain items={navMain} />
+                <NavSecondary items={staticNavSecondary} className="mt-auto" />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />

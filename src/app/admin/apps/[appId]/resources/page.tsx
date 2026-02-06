@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { ResourcesTable } from "@/components/admin/apps/resources-table";
+import { ResourcesTable } from "../../../_components/apps/resources-table";
 
 export const metadata: Metadata = {
     title: "Resources | Admin Dashboard",

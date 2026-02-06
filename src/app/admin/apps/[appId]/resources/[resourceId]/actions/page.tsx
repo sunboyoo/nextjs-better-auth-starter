@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { ActionsTable } from "@/components/admin/apps/actions-table";
+import { ActionsTable } from "../../../../../_components/apps/actions-table";
 
 export const metadata: Metadata = {
     title: "Actions | Admin Dashboard",
