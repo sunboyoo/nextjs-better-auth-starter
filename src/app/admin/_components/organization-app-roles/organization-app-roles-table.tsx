@@ -13,7 +13,8 @@ import {
     Key,
 } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -113,11 +114,17 @@ interface Action {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+type MutationInput = {
+    url: string;
+    method: "POST" | "PUT" | "DELETE";
+    body?: unknown;
+};
 
 export function OrganizationAppRolesTable() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const urlPage = parseInt(searchParams.get("page") || String(DEFAULT_PAGE));
     const urlLimit = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT));
@@ -152,17 +159,23 @@ export function OrganizationAppRolesTable() {
     const [toggleStatusRole, setToggleStatusRole] = useState<{ id: string; name: string; newStatus: boolean } | null>(null);
 
     // Fetch available actions for the selected app
-    const { data: actionsData } = useSWR(
-        selectedAppId ? `/api/admin/apps/${selectedAppId}/actions?limit=200` : null,
-        fetcher
-    );
+    const actionsUrl = selectedAppId
+        ? `/api/admin/apps/${selectedAppId}/actions?limit=200`
+        : null;
+    const { data: actionsData } = useQuery({
+        queryKey: adminKeys.appActions(actionsUrl),
+        queryFn: () => fetcher(actionsUrl!),
+        enabled: Boolean(actionsUrl),
+    });
     const availableActions: Action[] = actionsData?.actions || [];
 
     // Fetch selected app details for name
-    const { data: appData } = useSWR(
-        selectedAppId ? `/api/admin/apps/${selectedAppId}` : null,
-        fetcher
-    );
+    const appUrl = selectedAppId ? `/api/admin/apps/${selectedAppId}` : null;
+    const { data: appData } = useQuery({
+        queryKey: adminKeys.app(appUrl),
+        queryFn: () => fetcher(appUrl!),
+        enabled: Boolean(appUrl),
+    });
     const appName = appData?.app?.name || "App";
 
     // Debounce search
@@ -196,9 +209,22 @@ export function OrganizationAppRolesTable() {
         return `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles?${params.toString()}`;
     }, [selectedOrgId, selectedAppId, debouncedSearch, statusFilter, page, limit]);
 
-    const { data, error, isLoading, mutate } = useSWR(buildSwrKey(), fetcher, {
-        revalidateOnFocus: false,
-        dedupingInterval: 2000,
+    const rolesUrl = buildSwrKey();
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organizationAppRoles(rolesUrl),
+        queryFn: () => fetcher(rolesUrl!),
+        enabled: Boolean(rolesUrl),
+        refetchOnWindowFocus: false,
+        staleTime: 2000,
+    });
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
     });
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -210,15 +236,15 @@ export function OrganizationAppRolesTable() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles`,
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     key: newRoleKey,
                     name: newRoleName,
                     description: newRoleDescription || null,
                     actionIds: selectedActionIds,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -232,7 +258,9 @@ export function OrganizationAppRolesTable() {
             setNewRoleName("");
             setNewRoleDescription("");
             setSelectedActionIds([]);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+            });
         } catch (error) {
             console.error("Error creating role:", error);
             alert("Failed to create role");
@@ -248,13 +276,13 @@ export function OrganizationAppRolesTable() {
 
         try {
             // Update role details
-            const response = await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}`,
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     name: editRoleName,
                     description: editRoleDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -264,12 +292,12 @@ export function OrganizationAppRolesTable() {
             }
 
             // Update role actions
-            await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}/actions`, {
+            await requestMutation.mutateAsync({
+                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}/actions`,
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     actionIds: editSelectedActionIds,
-                }),
+                },
             });
 
             setIsEditDialogOpen(false);
@@ -278,7 +306,9 @@ export function OrganizationAppRolesTable() {
             setEditRoleName("");
             setEditRoleDescription("");
             setEditSelectedActionIds([]);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+            });
         } catch (error) {
             console.error("Error updating role:", error);
             alert("Failed to update role");
@@ -291,7 +321,8 @@ export function OrganizationAppRolesTable() {
         if (!deleteRoleId) return;
 
         try {
-            const response = await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${deleteRoleId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${deleteRoleId}`,
                 method: "DELETE",
             });
 
@@ -301,7 +332,9 @@ export function OrganizationAppRolesTable() {
             }
 
             setDeleteRoleId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+            });
         } catch (error) {
             console.error("Error deleting role:", error);
             alert("Failed to delete role");
@@ -312,10 +345,10 @@ export function OrganizationAppRolesTable() {
         if (!toggleStatusRole) return;
 
         try {
-            const response = await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${toggleStatusRole.id}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${toggleStatusRole.id}`,
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isActive: toggleStatusRole.newStatus }),
+                body: { isActive: toggleStatusRole.newStatus },
             });
 
             if (!response.ok) {
@@ -324,7 +357,9 @@ export function OrganizationAppRolesTable() {
             }
 
             setToggleStatusRole(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+            });
         } catch (error) {
             console.error("Error updating status:", error);
             alert("Failed to update status");

@@ -9,7 +9,8 @@ import {
     Search,
     Plus,
 } from "lucide-react";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { SELECTOR_PAGE_LIMIT } from "@/lib/constants";
@@ -81,11 +82,17 @@ interface RoleAssignment {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+type MutationInput = {
+    url: string;
+    method: "POST" | "DELETE";
+    body?: unknown;
+};
 
 export function AssignRolesToMembers() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const urlPage = parseInt(searchParams.get("page") || String(DEFAULT_PAGE));
     const urlLimit = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT));
@@ -108,12 +115,15 @@ export function AssignRolesToMembers() {
     const [dialogMemberSearchQuery, setDialogMemberSearchQuery] = useState("");
 
     // Fetch members with pagination
-    const { data: membersData } = useSWR(
+    const membersUrl =
         selectedOrgId && selectedOrgId !== "all"
             ? `/api/admin/organizations/${selectedOrgId}/members?page=${page}&limit=${limit}`
-            : null,
-        fetcher
-    );
+            : null;
+    const { data: membersData } = useQuery({
+        queryKey: adminKeys.organizationMembers(membersUrl),
+        queryFn: () => fetcher(membersUrl!),
+        enabled: Boolean(membersUrl),
+    });
     const members: Member[] = membersData?.members || [];
     const totalMembers = membersData?.total || 0;
     const totalPages = membersData?.totalPages || 1;
@@ -129,12 +139,15 @@ export function AssignRolesToMembers() {
     }, [selectedOrgId, selectedAppId, page, limit, router, pathname]);
 
     // Fetch roles for selected org + app
-    const { data: rolesData, mutate: mutateRoles } = useSWR(
+    const rolesUrl =
         selectedOrgId && selectedAppId
             ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles?limit=${SELECTOR_PAGE_LIMIT}`
-            : null,
-        fetcher
-    );
+            : null;
+    const { data: rolesData } = useQuery({
+        queryKey: adminKeys.organizationAppRoles(rolesUrl),
+        queryFn: () => fetcher(rolesUrl!),
+        enabled: Boolean(rolesUrl),
+    });
     const roles: Role[] = rolesData?.roles || [];
 
     // Search state
@@ -156,13 +169,25 @@ export function AssignRolesToMembers() {
     });
 
     // Fetch member-role assignments for selected org + app
-    const { data: assignmentsData, mutate: mutateAssignments } = useSWR(
+    const assignmentsUrl =
         selectedOrgId && selectedAppId
             ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/member-organization-app-roles`
-            : null,
-        fetcher
-    );
+            : null;
+    const { data: assignmentsData } = useQuery({
+        queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+        queryFn: () => fetcher(assignmentsUrl!),
+        enabled: Boolean(assignmentsUrl),
+    });
     const memberRoles: Record<string, RoleAssignment[]> = assignmentsData?.memberRoles || {};
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
+    });
 
     // Filter roles
     const filteredRoles = roles.filter(role => {
@@ -213,25 +238,24 @@ export function AssignRolesToMembers() {
 
             // Add new roles
             if (toAdd.length > 0) {
-                await fetch(
-                    `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ roleIds: toAdd }),
-                    }
-                );
+                await requestMutation.mutateAsync({
+                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles`,
+                    method: "POST",
+                    body: { roleIds: toAdd },
+                });
             }
 
             // Remove roles
             for (const roleId of toRemove) {
-                await fetch(
-                    `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles?roleId=${roleId}`,
-                    { method: "DELETE" }
-                );
+                await requestMutation.mutateAsync({
+                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles?roleId=${roleId}`,
+                    method: "DELETE",
+                });
             }
 
-            mutateAssignments();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+            });
             setEditingMember(null);
         } catch (error) {
             console.error("Error saving member roles:", error);
@@ -257,25 +281,24 @@ export function AssignRolesToMembers() {
 
             // Add role to new members
             for (const memberId of toAdd) {
-                await fetch(
-                    `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles`,
-                    {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ roleId: editingRole.id }),
-                    }
-                );
+                await requestMutation.mutateAsync({
+                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles`,
+                    method: "POST",
+                    body: { roleId: editingRole.id },
+                });
             }
 
             // Remove role from members
             for (const memberId of toRemove) {
-                await fetch(
-                    `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles?roleId=${editingRole.id}`,
-                    { method: "DELETE" }
-                );
+                await requestMutation.mutateAsync({
+                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles?roleId=${editingRole.id}`,
+                    method: "DELETE",
+                });
             }
 
-            mutateAssignments();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+            });
             setEditingRole(null);
         } catch (error) {
             console.error("Error saving role members:", error);

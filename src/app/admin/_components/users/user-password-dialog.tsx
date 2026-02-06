@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { setUserPassword } from "@/utils/auth";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";

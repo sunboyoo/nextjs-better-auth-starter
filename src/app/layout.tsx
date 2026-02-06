@@ -1,7 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "sonner";
 import { Inter } from "next/font/google";
+import { AppQueryClientProvider } from "@/components/query-client-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased bg-background`}>
-        {children}
+        <AppQueryClientProvider>{children}</AppQueryClientProvider>
         <Toaster />
       </body>
     </html>

@@ -2,7 +2,8 @@
 import { Shield, MoreHorizontal, Trash2, Pencil, Plus, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -58,6 +59,7 @@ interface OrganizationRoleTableProps {
 export function OrganizationRoleTable({ organizationId }: OrganizationRoleTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const [search, setSearch] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -69,11 +71,19 @@ export function OrganizationRoleTable({ organizationId }: OrganizationRoleTableP
     const [updatingRole, setUpdatingRole] = useState<{ id: string; role: string; permission: string } | null>(null);
     const limit = 10;
 
-    const { data, error, isLoading, mutate } = useSWR(
-        `/api/admin/organizations/${organizationId}/roles?page=${page}&limit=${limit}`,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const rolesUrl = `/api/admin/organizations/${organizationId}/roles?page=${page}&limit=${limit}`;
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organizationRoles(rolesUrl),
+        queryFn: () => fetcher(rolesUrl),
+        refetchOnWindowFocus: false,
+    });
+
+    const deleteRoleMutation = useMutation({
+        mutationFn: async (roleId: string) =>
+            fetch(`/api/admin/organizations/${organizationId}/roles/${roleId}`, {
+                method: "DELETE",
+            }),
+    });
 
     // Filter roles based on search
     const filteredBuiltInRoles = useMemo(() => {
@@ -120,12 +130,11 @@ export function OrganizationRoleTable({ organizationId }: OrganizationRoleTableP
         setDeletingId(roleToDelete.id);
         setDeleteConfirmOpen(false);
         try {
-            const response = await fetch(
-                `/api/admin/organizations/${organizationId}/roles/${roleToDelete.id}`,
-                { method: "DELETE" }
-            );
+            const response = await deleteRoleMutation.mutateAsync(roleToDelete.id);
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizationRoles(rolesUrl),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to delete organization role");
@@ -155,6 +164,12 @@ export function OrganizationRoleTable({ organizationId }: OrganizationRoleTableP
     ];
 
     if (error) return <div>Failed to load roles</div>;
+
+    const handleRoleMutationSuccess = () => {
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.organizationRoles(rolesUrl),
+        });
+    };
 
     if (!data || isLoading) {
         return (
@@ -405,14 +420,14 @@ export function OrganizationRoleTable({ organizationId }: OrganizationRoleTableP
             <OrganizationRoleAddDialog
                 isOpen={isCreateDialogOpen}
                 onClose={() => setIsCreateDialogOpen(false)}
-                onSuccess={() => mutate()}
+                onSuccess={handleRoleMutationSuccess}
                 organizationId={organizationId}
             />
 
             <OrganizationRoleEditDialog
                 isOpen={!!updatingRole}
                 onClose={() => setUpdatingRole(null)}
-                onSuccess={() => mutate()}
+                onSuccess={handleRoleMutationSuccess}
                 organizationId={organizationId}
                 role={updatingRole}
             />

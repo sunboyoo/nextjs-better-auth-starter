@@ -1,7 +1,8 @@
 "use client";
 import { Building2, Search, Plus, Users, Trash2, Shield, FileJson, Settings2, Save, Pencil } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -67,6 +68,7 @@ interface Organization {
 export function OrganizationsTable() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const [search, setSearch] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(search);
@@ -123,9 +125,33 @@ export function OrganizationsTable() {
         return `/api/admin/organizations?${params.toString()}`;
     }, [debouncedSearch, page, limit]);
 
-    const { data, error, isLoading, mutate } = useSWR(swrKey, fetcher, {
-        revalidateOnFocus: false,
-        dedupingInterval: 2000,
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organizations(swrKey),
+        queryFn: () => fetcher(swrKey),
+        refetchOnWindowFocus: false,
+        staleTime: 2000,
+    });
+
+    const deleteOrganizationMutation = useMutation({
+        mutationFn: async (orgId: string) =>
+            fetch(`/api/admin/organizations/${orgId}`, {
+                method: "DELETE",
+            }),
+    });
+
+    const saveMetadataMutation = useMutation({
+        mutationFn: async ({
+            orgId,
+            metadata,
+        }: {
+            orgId: string;
+            metadata: unknown;
+        }) =>
+            fetch(`/api/admin/organizations/${orgId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ metadata }),
+            }),
     });
 
     const openDeleteConfirm = (orgId: string, orgName: string) => {
@@ -139,12 +165,12 @@ export function OrganizationsTable() {
         setDeletingId(orgToDelete.id);
         setDeleteConfirmOpen(false);
         try {
-            const response = await fetch(`/api/admin/organizations/${orgToDelete.id}`, {
-                method: "DELETE",
-            });
+            const response = await deleteOrganizationMutation.mutateAsync(orgToDelete.id);
 
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizations(swrKey),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to delete organization");
@@ -176,10 +202,9 @@ export function OrganizationsTable() {
         if (!orgIdForMetadata) return;
         setIsSavingMetadata(true);
         try {
-            const response = await fetch(`/api/admin/organizations/${orgIdForMetadata}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ metadata: editedMetadata }),
+            const response = await saveMetadataMutation.mutateAsync({
+                orgId: orgIdForMetadata,
+                metadata: editedMetadata,
             });
 
             const payload = await response.json().catch(() => null);
@@ -198,7 +223,9 @@ export function OrganizationsTable() {
             })();
 
             const nextMetadataClone = cloneJson(nextMetadata);
-            await mutate(); // Refresh the list
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organizations(swrKey),
+            });
             setMetadataToView(nextMetadataClone);
             setEditedMetadata(nextMetadataClone);
             setIsEditingMetadata(false);
@@ -277,6 +304,12 @@ export function OrganizationsTable() {
     };
 
     if (error) return <div>Failed to load organizations</div>;
+
+    const handleOrganizationMutationSuccess = () => {
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.organizations(swrKey),
+        });
+    };
 
     const columns = [
         { label: "Organization" },
@@ -476,13 +509,13 @@ export function OrganizationsTable() {
             <OrganizationAddDialog
                 isOpen={isAddDialogOpen}
                 onClose={() => setIsAddDialogOpen(false)}
-                onSuccess={() => mutate()}
+                onSuccess={handleOrganizationMutationSuccess}
             />
 
             <OrganizationEditDialog
                 isOpen={!!editingOrg}
                 onClose={() => setEditingOrg(null)}
-                onSuccess={() => mutate()}
+                onSuccess={handleOrganizationMutationSuccess}
                 organization={editingOrg}
             />
 

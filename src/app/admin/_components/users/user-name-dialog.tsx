@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { updateUserName } from "@/utils/auth";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";

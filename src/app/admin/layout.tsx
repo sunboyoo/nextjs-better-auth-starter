@@ -28,7 +28,7 @@ export default async function AdminLayout({
   }
 
   if (!session) {
-    return redirect("/auth/login");
+    return redirect("/auth/sign-in");
   }
 
   if (session.user.role !== "admin") {

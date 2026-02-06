@@ -1,7 +1,8 @@
 "use client";
 import { FolderOpen, Plus, Trash2, MoreHorizontal, Search, Zap, Pencil, Layers } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -64,6 +65,11 @@ const fetcher = async (url: string) => {
 };
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+type MutationInput = {
+    url: string;
+    method: "POST" | "PUT" | "DELETE";
+    body?: unknown;
+};
 
 interface Resource {
     id: string;
@@ -83,6 +89,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
+    const queryClient = useQueryClient();
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -152,11 +159,20 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
         }
     }, [page, limit, router, pathname, searchParams, debouncedSearch]);
 
-    const {
-        data,
-        mutate,
-        error
-    } = useSWR(`/api/admin/apps/${appId}/resources?page=${page}&limit=${limit}&search=${debouncedSearch}`, fetcher);
+    const resourcesUrl = `/api/admin/apps/${appId}/resources?page=${page}&limit=${limit}&search=${debouncedSearch}`;
+    const { data, error } = useQuery({
+        queryKey: adminKeys.appResources(resourcesUrl),
+        queryFn: () => fetcher(resourcesUrl),
+    });
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
+    });
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -165,13 +181,13 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources/${editId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${editId}`,
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     name: editName,
                     description: editDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -182,7 +198,9 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
 
             setIsUpdateOpen(false);
             setEditId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error updating resource:", error);
         } finally {
@@ -195,15 +213,15 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources`,
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     appId,
                     key: newKey,
                     name: newName,
                     description: newDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -216,7 +234,9 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             setNewKey("");
             setNewName("");
             setNewDescription("");
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error creating resource:", error);
         } finally {
@@ -228,11 +248,18 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
         if (!deleteId) return;
 
         try {
-            await fetch(`/api/admin/apps/${appId}/resources/${deleteId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${deleteId}`,
                 method: "DELETE",
             });
+            if (!response.ok) {
+                alert("Failed to delete resource");
+                return;
+            }
             setDeleteId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error deleting resource:", error);
         }

@@ -1,22 +1,41 @@
-import { auth } from "@/lib/auth"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import AccountSwitcher from "@/components/account-switch";
+import { auth } from "@/lib/auth";
+import OrganizationCard from "./_components/organization-card";
+import SubscriptionCard from "./_components/subscription-card";
+import UserCard from "./_components/user-card";
 
-export default async function UserProfilePage() {
-    const session = await auth.api.getSession({
-        headers: await headers(),
-    })
+export default async function Page() {
+	const requestHeaders = await headers();
 
-    if (!session) {
-        redirect("/auth/login")
-    }
+	const session = await auth.api.getSession({
+		headers: requestHeaders,
+	});
+	if (!session) {
+		redirect("/auth/sign-in");
+	}
 
-    return (
-        <div className="flex flex-1 flex-col gap-4 p-4">
-            <h1 className="text-2xl font-bold">My Profile</h1>
-            <p className="text-muted-foreground">
-                Profile content will be designed in the next steps.
-            </p>
-        </div>
-    )
+	const [activeSessions, deviceSessions] = await Promise.all([
+		auth.api.listSessions({
+			headers: requestHeaders,
+		}),
+		auth.api.listDeviceSessions({
+			headers: requestHeaders,
+		}),
+	]);
+
+	return (
+		<div className="w-full">
+			<div className="flex gap-4 flex-col">
+				<AccountSwitcher
+					deviceSessions={deviceSessions}
+					initialSession={session}
+				/>
+				<UserCard session={session} activeSessions={activeSessions} />
+				<OrganizationCard session={session} />
+				<SubscriptionCard />
+			</div>
+		</div>
+	);
 }

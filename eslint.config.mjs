@@ -1,6 +1,14 @@
 import nextConfig from "eslint-config-next";
 
 const eslintConfig = [
+  {
+    ignores: [
+      "docs/**",
+      ".docs_hidden/**",
+      ".next/**",
+      "**/.next/**",
+    ],
+  },
   ...nextConfig,
   {
     rules: {

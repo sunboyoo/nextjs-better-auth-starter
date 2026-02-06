@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { banUser } from "@/utils/auth";
 import { Label } from "@/components/ui/label";
 import { UserWithDetails } from "@/utils/users";

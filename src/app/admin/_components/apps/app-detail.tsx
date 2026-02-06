@@ -9,7 +9,8 @@ import {
     Zap,
 } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -87,7 +88,14 @@ interface AppDetailProps {
     organizationId?: string;
 }
 
+type MutationInput = {
+    url: string;
+    method: "POST" | "DELETE";
+    body?: unknown;
+};
+
 export function AppDetail({ appId, organizationId }: AppDetailProps) {
+    const queryClient = useQueryClient();
     const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
     const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
     const [isCreateActionOpen, setIsCreateActionOpen] = useState(false);
@@ -104,42 +112,52 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
     const [newActionDescription, setNewActionDescription] = useState("");
 
     // Fetch app details
-    const { data: appData, error: appError } = useSWR(
-        `/api/admin/apps/${appId}`,
-        fetcher
-    );
+    const appUrl = `/api/admin/apps/${appId}`;
+    const { data: appData, error: appError } = useQuery({
+        queryKey: adminKeys.app(appUrl),
+        queryFn: () => fetcher(appUrl),
+    });
 
     // Fetch resources
-    const {
-        data: resourcesData,
-        mutate: mutateResources,
-    } = useSWR(`/api/admin/apps/${appId}/resources`, fetcher);
+    const resourcesUrl = `/api/admin/apps/${appId}/resources`;
+    const { data: resourcesData } = useQuery({
+        queryKey: adminKeys.appResources(resourcesUrl),
+        queryFn: () => fetcher(resourcesUrl),
+    });
 
     // Fetch actions for selected resource
-    const {
-        data: actionsData,
-        mutate: mutateActions,
-    } = useSWR(
-        selectedResourceId
-            ? `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`
-            : null,
-        fetcher
-    );
+    const actionsUrl = selectedResourceId
+        ? `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`
+        : null;
+    const { data: actionsData } = useQuery({
+        queryKey: adminKeys.resourceActions(actionsUrl),
+        queryFn: () => fetcher(actionsUrl!),
+        enabled: Boolean(actionsUrl),
+    });
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
+    });
 
     const handleCreateResource = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources`,
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     appId,
                     key: newResourceKey,
                     name: newResourceName,
                     description: newResourceDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -152,7 +170,9 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             setNewResourceKey("");
             setNewResourceName("");
             setNewResourceDescription("");
-            mutateResources();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error creating resource:", error);
         } finally {
@@ -166,15 +186,15 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`,
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     resourceId: selectedResourceId,
                     key: newActionKey,
                     name: newActionName,
                     description: newActionDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -187,8 +207,12 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             setNewActionKey("");
             setNewActionName("");
             setNewActionDescription("");
-            mutateActions();
-            mutateResources();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(actionsUrl),
+            });
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error creating action:", error);
         } finally {
@@ -200,29 +224,50 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
         if (!deleteResourceId) return;
 
         try {
-            await fetch(`/api/admin/apps/${appId}/resources/${deleteResourceId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${deleteResourceId}`,
                 method: "DELETE",
             });
+            if (!response.ok) {
+                alert("Failed to delete resource");
+                return;
+            }
             setDeleteResourceId(null);
             if (selectedResourceId === deleteResourceId) {
                 setSelectedResourceId(null);
             }
-            mutateResources();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(
+                    `/api/admin/apps/${appId}/resources/${deleteResourceId}/actions`,
+                ),
+            });
         } catch (error) {
             console.error("Error deleting resource:", error);
         }
     };
 
     const handleDeleteAction = async () => {
-        if (!deleteActionId) return;
+        if (!deleteActionId || !selectedResourceId) return;
 
         try {
-            await fetch(`/api/admin/apps/${appId}/resources/${selectedResourceId}/actions/${deleteActionId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions/${deleteActionId}`,
                 method: "DELETE",
             });
+            if (!response.ok) {
+                alert("Failed to delete action");
+                return;
+            }
             setDeleteActionId(null);
-            mutateActions();
-            mutateResources();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(actionsUrl),
+            });
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.appResources(resourcesUrl),
+            });
         } catch (error) {
             console.error("Error deleting action:", error);
         }

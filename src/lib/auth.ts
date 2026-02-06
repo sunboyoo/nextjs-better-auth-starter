@@ -1,15 +1,39 @@
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { sendEmail } from "@/lib/email";
-import { betterAuth } from "better-auth";
-import { admin } from "better-auth/plugins/admin";
-import { organization } from "better-auth/plugins/organization";
 import { ac } from "@/lib/built-in-organization-role-permissions";
 import { ORGANIZATION_INVITATION_EXPIRES_IN_DAYS } from "@/lib/constants";
-import { nextCookies } from "better-auth/next-js";
+import { sendEmail } from "@/lib/email";
+import { oauthProvider } from "@better-auth/oauth-provider";
+import { passkey } from "@better-auth/passkey";
+import { scim } from "@better-auth/scim";
+import { sso } from "@better-auth/sso";
+import { stripe } from "@better-auth/stripe";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, betterAuth, type BetterAuthOptions } from "better-auth";
+import { nextCookies } from "better-auth/next-js";
+import type { Organization } from "better-auth/plugins";
+import {
+  admin,
+  bearer,
+  customSession,
+  deviceAuthorization,
+  jwt,
+  lastLoginMethod,
+  multiSession,
+  oAuthProxy,
+  oneTap,
+  openAPI,
+  organization,
+  twoFactor,
+} from "better-auth/plugins";
+import { Stripe } from "stripe";
 
 const isProduction = process.env.NODE_ENV === "production";
+const baseUrl =
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000";
+
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -33,10 +57,17 @@ const rateLimitMax = Number.isNaN(rateLimitMaxRaw)
   : Math.max(1, rateLimitMaxRaw);
 const rateLimitStorage =
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "memory" ||
-    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
-    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
+  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
+  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
     ? process.env.BETTER_AUTH_RATE_LIMIT_STORAGE
     : undefined;
+
+const enableStripe =
+  process.env.BETTER_AUTH_ENABLE_STRIPE === "true" &&
+  Boolean(process.env.STRIPE_KEY) &&
+  Boolean(process.env.STRIPE_WEBHOOK_SECRET);
+const enableSSO = process.env.BETTER_AUTH_ENABLE_SSO === "true";
+const enableSCIM = process.env.BETTER_AUTH_ENABLE_SCIM === "true";
 
 type SecondaryStorage = {
   get: (key: string) => Promise<string | null>;
@@ -72,7 +103,87 @@ const secondaryStorage =
     ? memorySecondaryStorage
     : undefined;
 
-export const auth = betterAuth({
+const socialProviders = {
+  ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+    ? {
+        github: {
+          clientId: process.env.GITHUB_CLIENT_ID,
+          clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...((
+    process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  ) &&
+  process.env.GOOGLE_CLIENT_SECRET
+    ? {
+        google: {
+          prompt: "select_account" as const,
+          clientId:
+            process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
+    ? {
+        facebook: {
+          clientId: process.env.FACEBOOK_CLIENT_ID,
+          clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
+    ? {
+        discord: {
+          clientId: process.env.DISCORD_CLIENT_ID,
+          clientSecret: process.env.DISCORD_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+    ? {
+        microsoft: {
+          clientId: process.env.MICROSOFT_CLIENT_ID,
+          clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET
+    ? {
+        twitch: {
+          clientId: process.env.TWITCH_CLIENT_ID,
+          clientSecret: process.env.TWITCH_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET
+    ? {
+        twitter: {
+          clientId: process.env.TWITTER_CLIENT_ID,
+          clientSecret: process.env.TWITTER_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET
+    ? {
+        paypal: {
+          clientId: process.env.PAYPAL_CLIENT_ID,
+          clientSecret: process.env.PAYPAL_CLIENT_SECRET,
+        },
+      }
+    : {}),
+  ...(process.env.VERCEL_CLIENT_ID && process.env.VERCEL_CLIENT_SECRET
+    ? {
+        vercel: {
+          clientId: process.env.VERCEL_CLIENT_ID,
+          clientSecret: process.env.VERCEL_CLIENT_SECRET,
+        },
+      }
+    : {}),
+};
+
+const authOptions = {
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
@@ -83,6 +194,18 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
+      trustedProviders: [
+        "email-password",
+        "facebook",
+        "github",
+        "google",
+        "discord",
+        "microsoft",
+        "twitch",
+        "twitter",
+        "paypal",
+        "vercel",
+      ],
     },
   },
   user: {
@@ -100,7 +223,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    resetPasswordTokenExpiresIn: 60 * 60, // 1 hour
+    resetPasswordTokenExpiresIn: 60 * 60,
+    async sendResetPassword({ user, url }) {
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your password",
+        text: `Click the link to reset your password: ${url}`,
+      });
+    },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
@@ -113,17 +243,7 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
   },
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
-    },
-    google: {
-      prompt: "select_account",
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-  },
+  ...(Object.keys(socialProviders).length ? { socialProviders } : {}),
   plugins: [
     nextCookies(),
     admin({
@@ -135,11 +255,10 @@ export const auth = betterAuth({
       dynamicAccessControl: {
         enabled: true,
       },
-      invitationExpiresIn: ORGANIZATION_INVITATION_EXPIRES_IN_DAYS * 24 * 60 * 60, // Convert days to seconds
+      invitationExpiresIn: ORGANIZATION_INVITATION_EXPIRES_IN_DAYS * 24 * 60 * 60,
       requireEmailVerificationOnInvitation: true,
       async sendInvitationEmail(data) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        const inviteLink = `${baseUrl}/accept-invitation/${data.id}`;
+        const inviteLink = `${baseUrl}/auth/accept-invitation/${data.id}`;
         await sendEmail({
           to: data.email,
           subject: `You've been invited to join ${data.organization.name}`,
@@ -147,6 +266,155 @@ export const auth = betterAuth({
         });
       },
     }),
+    twoFactor({
+      otpOptions: {
+        async sendOTP({ user, otp }) {
+          await sendEmail({
+            to: user.email,
+            subject: "Your two-factor authentication code",
+            text: `Your OTP code is: ${otp}`,
+          });
+        },
+      },
+    }),
+    passkey(),
+    openAPI(),
+    bearer(),
+    multiSession(),
+    deviceAuthorization({
+      expiresIn: "3min",
+      interval: "5s",
+    }),
+    lastLoginMethod(),
+    oAuthProxy({
+      productionURL: baseUrl,
+    }),
+    oneTap(),
+    jwt({
+      jwt: {
+        issuer: baseUrl,
+      },
+    }),
+    oauthProvider({
+      loginPage: "/auth/sign-in",
+      consentPage: "/auth/oauth/consent",
+      allowDynamicClientRegistration: true,
+      allowUnauthenticatedClientRegistration: true,
+      scopes: [
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        "read:organization",
+      ],
+      validAudiences: [baseUrl, `${baseUrl}/api/mcp`],
+      selectAccount: {
+        page: "/auth/oauth/select-account",
+        shouldRedirect: async ({ headers }) => {
+          const sessions = await getAllDeviceSessions(headers);
+          return sessions.length >= 1;
+        },
+      },
+      customAccessTokenClaims({ referenceId, scopes }) {
+        if (referenceId && scopes.includes("read:organization")) {
+          return {
+            [`${baseUrl}/org`]: referenceId,
+          };
+        }
+        return {};
+      },
+      postLogin: {
+        page: "/auth/oauth/select-organization",
+        async shouldRedirect({ session, scopes, headers }) {
+          const userOnlyScopes = ["openid", "profile", "email", "offline_access"];
+          if (scopes.every((scope) => userOnlyScopes.includes(scope))) {
+            return false;
+          }
+          try {
+            const organizations = (await getAllUserOrganizations(
+              headers,
+            )) as Organization[];
+            return (
+              organizations.length > 1 ||
+              !(
+                organizations.length === 1 &&
+                organizations.at(0)?.id === session.activeOrganizationId
+              )
+            );
+          } catch {
+            return true;
+          }
+        },
+        consentReferenceId({ session, scopes }) {
+          if (!scopes.includes("read:organization")) return undefined;
+          const activeOrganizationId = session?.activeOrganizationId as
+            | string
+            | undefined;
+          if (!activeOrganizationId) {
+            throw new APIError("BAD_REQUEST", {
+              error: "set_organization",
+              error_description: "must set organization for these scopes",
+            });
+          }
+          return activeOrganizationId;
+        },
+      },
+      silenceWarnings: {
+        openidConfig: true,
+        oauthAuthServerConfig: true,
+      },
+    }),
+    ...(enableStripe
+      ? [
+          stripe({
+            stripeClient: new Stripe(process.env.STRIPE_KEY || "sk_test_"),
+            stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+            subscription: {
+              enabled: true,
+              allowReTrialsForDifferentPlans: true,
+              plans: () => {
+                const proPriceId = {
+                  default:
+                    process.env.STRIPE_PRO_PRICE_ID ||
+                    "price_1RoxnRHmTADgihIt4y8c0lVE",
+                  annual:
+                    process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
+                    "price_1RoxnoHmTADgihItzFvVP8KT",
+                };
+                const plusPriceId = {
+                  default:
+                    process.env.STRIPE_PLUS_PRICE_ID ||
+                    "price_1RoxnJHmTADgihIthZTLmrPn",
+                  annual:
+                    process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
+                    "price_1Roxo5HmTADgihItEbJu5llL",
+                };
+
+                return [
+                  {
+                    name: "Plus",
+                    priceId: plusPriceId.default,
+                    annualDiscountPriceId: plusPriceId.annual,
+                    freeTrial: {
+                      days: 7,
+                    },
+                  },
+                  {
+                    name: "Pro",
+                    priceId: proPriceId.default,
+                    annualDiscountPriceId: proPriceId.annual,
+                    freeTrial: {
+                      days: 7,
+                    },
+                  },
+                ];
+              },
+            },
+          }),
+        ]
+      : []),
+    ...(enableSSO ? [sso()] : []),
+    ...(enableSCIM ? [scim()] : []),
   ],
   trustedOrigins: trustedOrigins?.length ? trustedOrigins : undefined,
   secondaryStorage,
@@ -159,4 +427,39 @@ export const auth = betterAuth({
   advanced: {
     useSecureCookies: isProduction,
   },
+} satisfies BetterAuthOptions;
+
+export const auth = betterAuth({
+  ...authOptions,
+  plugins: [
+    ...(authOptions.plugins ?? []),
+    customSession(
+      async ({ user, session }) => ({
+        user: {
+          ...user,
+          customField: "customField",
+        },
+        session,
+      }),
+      authOptions,
+      {
+        shouldMutateListDeviceSessionsEndpoint: true,
+      },
+    ),
+  ],
 });
+
+export type Session = typeof auth.$Infer.Session;
+export type ActiveOrganization = typeof auth.$Infer.ActiveOrganization;
+export type OrganizationRole = ActiveOrganization["members"][number]["role"];
+export type DeviceSession = Awaited<
+  ReturnType<typeof auth.api.listDeviceSessions>
+>[number];
+
+async function getAllDeviceSessions(headers: Headers): Promise<unknown[]> {
+  return auth.api.listDeviceSessions({ headers });
+}
+
+async function getAllUserOrganizations(headers: Headers): Promise<unknown[]> {
+  return auth.api.listOrganizations({ headers });
+}

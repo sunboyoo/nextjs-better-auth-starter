@@ -1,7 +1,8 @@
 "use client";
 import { Zap, Plus, Trash2, MoreHorizontal, Search, Pencil } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -83,11 +84,17 @@ interface ActionsTableProps {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+type MutationInput = {
+    url: string;
+    method: "POST" | "PUT" | "DELETE";
+    body?: unknown;
+};
 
 export function ActionsTable({ appId, resourceId, resourceName }: ActionsTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
+    const queryClient = useQueryClient();
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -147,26 +154,35 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
         }
     }, [page, limit, router, pathname, searchParams, debouncedSearch]);
 
-    const {
-        data,
-        mutate,
-        error
-    } = useSWR(`/api/admin/apps/${appId}/resources/${resourceId}/actions?page=${page}&limit=${limit}&search=${debouncedSearch}`, fetcher);
+    const actionsUrl = `/api/admin/apps/${appId}/resources/${resourceId}/actions?page=${page}&limit=${limit}&search=${debouncedSearch}`;
+    const { data, error } = useQuery({
+        queryKey: adminKeys.resourceActions(actionsUrl),
+        queryFn: () => fetcher(actionsUrl),
+    });
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
+    });
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources/${resourceId}/actions`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions`,
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     resourceId,
                     key: newKey,
                     name: newName,
                     description: newDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -179,7 +195,9 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
             setNewKey("");
             setNewName("");
             setNewDescription("");
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(actionsUrl),
+            });
         } catch (error) {
             console.error("Error creating action:", error);
         } finally {
@@ -194,13 +212,13 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${appId}/resources/${resourceId}/actions/${editId}`, {
-                method: "PUT", // Assuming PUT endpoint exists or will be created/is standard
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions/${editId}`,
+                method: "PUT",
+                body: {
                     name: editName,
                     description: editDescription || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -211,7 +229,9 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
 
             setIsUpdateOpen(false);
             setEditId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(actionsUrl),
+            });
         } catch (error) {
             console.error("Error updating action:", error);
         } finally {
@@ -223,11 +243,18 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
         if (!deleteId) return;
 
         try {
-            await fetch(`/api/admin/apps/${appId}/resources/${resourceId}/actions/${deleteId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions/${deleteId}`,
                 method: "DELETE",
             });
+            if (!response.ok) {
+                alert("Failed to delete action");
+                return;
+            }
             setDeleteId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.resourceActions(actionsUrl),
+            });
         } catch (error) {
             console.error("Error deleting action:", error);
         }

@@ -2,7 +2,8 @@
 
 import { Building2, Users, Shield, Calendar } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import Image from "next/image";
 import { useState, useCallback } from "react";
 
@@ -28,11 +29,12 @@ interface OrganizationInfoCardProps {
 export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardProps) {
     const [brokenLogo, setBrokenLogo] = useState(false);
 
-    const { data, error, isLoading } = useSWR(
-        `/api/admin/organizations/${organizationId}`,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const organizationUrl = `/api/admin/organizations/${organizationId}`;
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organization(organizationUrl),
+        queryFn: () => fetcher(organizationUrl),
+        refetchOnWindowFocus: false,
+    });
 
     const handleLogoError = useCallback(() => {
         setBrokenLogo(true);

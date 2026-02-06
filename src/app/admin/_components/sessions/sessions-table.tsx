@@ -13,7 +13,8 @@ import {
     User,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import useSWR from "swr";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -98,6 +99,7 @@ function UserAgentBadge({ userAgent }: { userAgent: string | null }) {
 export function SessionsTable() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     // State
     const [email, setEmail] = useState(searchParams.get("email") || "");
@@ -141,9 +143,11 @@ export function SessionsTable() {
         return `/api/admin/sessions?${params.toString()}`;
     }, [debouncedEmail, page, limit]);
 
-    const { data, error, mutate, isLoading } = useSWR(swrKey, fetcher, {
-        revalidateOnFocus: false,
-        dedupingInterval: 2000,
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.sessions(swrKey),
+        queryFn: () => fetcher(swrKey),
+        refetchOnWindowFocus: false,
+        staleTime: 2000,
     });
 
     // Group sessions by user for the revoke all feature
@@ -170,7 +174,9 @@ export function SessionsTable() {
     };
 
     const handleActionComplete = () => {
-        mutate();
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.sessions(swrKey),
+        });
     };
 
     // Filter controls

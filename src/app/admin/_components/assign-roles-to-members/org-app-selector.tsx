@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SELECTOR_PAGE_LIMIT } from "@/lib/constants";
@@ -53,11 +54,19 @@ export function OrgAppSelector({
     const [openApp, setOpenApp] = useState(false);
 
     // Fetch organizations
-    const { data: orgsData } = useSWR(`/api/admin/organizations?limit=${SELECTOR_PAGE_LIMIT}`, fetcher);
+    const organizationsUrl = `/api/admin/organizations?limit=${SELECTOR_PAGE_LIMIT}`;
+    const { data: orgsData } = useQuery({
+        queryKey: adminKeys.organizations(organizationsUrl),
+        queryFn: () => fetcher(organizationsUrl),
+    });
     const organizations: Organization[] = orgsData?.organizations || [];
 
     // Fetch apps
-    const { data: appsData } = useSWR(`/api/admin/apps?limit=${SELECTOR_PAGE_LIMIT}`, fetcher);
+    const appsUrl = `/api/admin/apps?limit=${SELECTOR_PAGE_LIMIT}`;
+    const { data: appsData } = useQuery({
+        queryKey: adminKeys.apps(appsUrl),
+        queryFn: () => fetcher(appsUrl),
+    });
     const allApps: App[] = appsData?.apps || [];
 
     return (

@@ -1,7 +1,8 @@
 "use client";
 import { Mail, MoreHorizontal, XCircle, Search, Send, UserPlus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -87,6 +88,7 @@ const getStatusBadgeClass = (status: string) => {
 export function OrganizationMemberInvitationsTable({ organizationId }: OrganizationMemberInvitationsTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const urlPage = parseInt(searchParams.get("page") || "1");
     const urlLimit = parseInt(searchParams.get("limit") || "10");
@@ -133,7 +135,31 @@ export function OrganizationMemberInvitationsTable({ organizationId }: Organizat
         return `/api/admin/organizations/${organizationId}/invitations?${params.toString()}`;
     }, [organizationId, page, limit, searchQuery, statusFilter]);
 
-    const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, { revalidateOnFocus: false });
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organizationInvitations(apiUrl),
+        queryFn: () => fetcher(apiUrl),
+        refetchOnWindowFocus: false,
+    });
+
+    const cancelInvitationMutation = useMutation({
+        mutationFn: async (invitationId: string) =>
+            fetch(`/api/admin/organizations/${organizationId}/invitations/${invitationId}`, {
+                method: "DELETE",
+            }),
+    });
+
+    const resendInvitationMutation = useMutation({
+        mutationFn: async (invitation: Invitation) =>
+            fetch(`/api/admin/organizations/${organizationId}/invitations`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: invitation.email,
+                    role: invitation.role || "member",
+                    resend: true,
+                }),
+            }),
+    });
 
     const openCancelConfirm = (invitationId: string, email: string) => {
         setInvitationToCancel({ id: invitationId, email });
@@ -146,12 +172,13 @@ export function OrganizationMemberInvitationsTable({ organizationId }: Organizat
         setCancelingId(invitationToCancel.id);
         setCancelConfirmOpen(false);
         try {
-            const response = await fetch(
-                `/api/admin/organizations/${organizationId}/invitations/${invitationToCancel.id}`,
-                { method: "DELETE" }
+            const response = await cancelInvitationMutation.mutateAsync(
+                invitationToCancel.id
             );
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizationInvitations(apiUrl),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to cancel invitation");
@@ -167,20 +194,11 @@ export function OrganizationMemberInvitationsTable({ organizationId }: Organizat
     const handleResend = async (invitation: Invitation) => {
         setResendingId(invitation.id);
         try {
-            const response = await fetch(
-                `/api/admin/organizations/${organizationId}/invitations`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: invitation.email,
-                        role: invitation.role || "member",
-                        resend: true,
-                    }),
-                }
-            );
+            const response = await resendInvitationMutation.mutateAsync(invitation);
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizationInvitations(apiUrl),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to resend invitation");
@@ -209,6 +227,11 @@ export function OrganizationMemberInvitationsTable({ organizationId }: Organizat
     const organization = data?.organization;
     const invitations: Invitation[] = data?.invitations || [];
     const total = data?.total || 0;
+    const handleInvitationSuccess = () => {
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.organizationInvitations(apiUrl),
+        });
+    };
 
     if (error) return <div>Failed to load invitations</div>;
 
@@ -419,7 +442,7 @@ export function OrganizationMemberInvitationsTable({ organizationId }: Organizat
             <OrganizationMemberInvitationSendDialog
                 isOpen={isSendDialogOpen}
                 onClose={() => setIsSendDialogOpen(false)}
-                onSuccess={() => mutate()}
+                onSuccess={handleInvitationSuccess}
                 organizationId={organizationId}
                 mode={sendDialogMode}
             />

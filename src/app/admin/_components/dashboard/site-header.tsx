@@ -3,7 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import useSWR from "swr";
+import { useQuery } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -66,18 +67,22 @@ export function SiteHeader() {
             : null;
 
     // Fetch app name if appId is present
-    const { data: appData } = useSWR(
-        appId ? `/api/admin/apps/${appId}` : null,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const appUrl = appId ? `/api/admin/apps/${appId}` : null;
+    const { data: appData } = useQuery({
+        queryKey: adminKeys.app(appUrl),
+        queryFn: () => fetcher(appUrl!),
+        enabled: Boolean(appUrl),
+        refetchOnWindowFocus: false,
+    });
 
     // Fetch resource name if resourceId is present
-    const { data: resourceData } = useSWR(
-        resourceId && appId ? `/api/admin/apps/${appId}/resources` : null,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const resourcesUrl = resourceId && appId ? `/api/admin/apps/${appId}/resources` : null;
+    const { data: resourceData } = useQuery({
+        queryKey: adminKeys.appResources(resourcesUrl),
+        queryFn: () => fetcher(resourcesUrl!),
+        enabled: Boolean(resourcesUrl),
+        refetchOnWindowFocus: false,
+    });
 
     const appName = appData?.app?.name;
     const resourceName = resourceData?.resources?.find(
@@ -85,11 +90,15 @@ export function SiteHeader() {
     )?.name;
 
     // Fetch organization name if organizationId is present
-    const { data: orgData } = useSWR(
-        organizationId ? `/api/admin/organizations/${organizationId}` : null,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const organizationUrl = organizationId
+        ? `/api/admin/organizations/${organizationId}`
+        : null;
+    const { data: orgData } = useQuery({
+        queryKey: adminKeys.organization(organizationUrl),
+        queryFn: () => fetcher(organizationUrl!),
+        enabled: Boolean(organizationUrl),
+        refetchOnWindowFocus: false,
+    });
     const orgName = orgData?.organization?.name;
 
     // Create a map of ID to name

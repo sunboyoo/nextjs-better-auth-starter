@@ -9,7 +9,7 @@ import React, { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginUser } from "../../app/auth/login/action";
+import { loginUser } from "@/app/auth-version1/login/action";
 import { FormSuccess, FormError } from "../ui/form-messages";
 import { getSafeCallbackUrl } from "@/lib/auth-callback";
 

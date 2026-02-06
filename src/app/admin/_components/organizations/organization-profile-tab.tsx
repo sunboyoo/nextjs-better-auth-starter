@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { Building2, FileJson, Pencil, Save, Settings2 } from "lucide-react";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -31,17 +32,28 @@ interface OrganizationProfileTabProps {
 }
 
 export function OrganizationProfileTab({ organizationId }: OrganizationProfileTabProps) {
+    const queryClient = useQueryClient();
     const [brokenLogo, setBrokenLogo] = useState(false);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [editedMetadata, setEditedMetadata] = useState<any>({});
     const [isSavingMetadata, setIsSavingMetadata] = useState(false);
 
-    const { data, error, isLoading, mutate } = useSWR(
-        `/api/admin/organizations/${organizationId}`,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const organizationUrl = `/api/admin/organizations/${organizationId}`;
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organization(organizationUrl),
+        queryFn: () => fetcher(organizationUrl),
+        refetchOnWindowFocus: false,
+    });
+
+    const saveMetadataMutation = useMutation({
+        mutationFn: async (metadata: unknown) =>
+            fetch(`/api/admin/organizations/${organizationId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ metadata }),
+            }),
+    });
 
     const cloneJson = (value: any) => JSON.parse(JSON.stringify(value ?? {}));
 
@@ -71,18 +83,16 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
     const handleSaveMetadata = async () => {
         setIsSavingMetadata(true);
         try {
-            const response = await fetch(`/api/admin/organizations/${organizationId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ metadata: editedMetadata }),
-            });
+            const response = await saveMetadataMutation.mutateAsync(editedMetadata);
 
             if (!response.ok) {
                 const payload = await response.json().catch(() => null);
                 throw new Error(payload?.error || "Failed to update metadata");
             }
 
-            await mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.organization(organizationUrl),
+            });
             setIsEditingMetadata(false);
         } catch (error) {
             console.error("Failed to save metadata:", error);
@@ -121,6 +131,11 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
     }
 
     const showLogo = Boolean(org.logo) && !brokenLogo;
+    const handleOrganizationProfileSuccess = () => {
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.organization(organizationUrl),
+        });
+    };
 
     return (
         <div className="space-y-6">
@@ -251,7 +266,7 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
             <OrganizationEditDialog
                 isOpen={isEditDialogOpen}
                 onClose={() => setIsEditDialogOpen(false)}
-                onSuccess={() => mutate()}
+                onSuccess={handleOrganizationProfileSuccess}
                 organization={org}
             />
         </div>

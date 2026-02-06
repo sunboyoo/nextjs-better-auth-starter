@@ -12,7 +12,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -73,6 +74,7 @@ const getAccountIcon = (account: string) => {
 export function UsersTable() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   // Filters and sort state, initialized from URL
@@ -111,13 +113,17 @@ export function UsersTable() {
     return `/api/admin/users?${params.toString()}`;
   }, [role, debouncedEmail, page, limit]);
 
-  const { data, error, mutate, isLoading } = useSWR(swrKey, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 2000,
+  const { data, error, isLoading } = useQuery({
+    queryKey: adminKeys.users(swrKey),
+    queryFn: () => fetcher(swrKey),
+    refetchOnWindowFocus: false,
+    staleTime: 2000,
   });
 
   const handleActionComplete = () => {
-    mutate();
+    void queryClient.invalidateQueries({
+      queryKey: adminKeys.users(swrKey),
+    });
   };
 
   // Filter and sort controls
@@ -542,7 +548,7 @@ export function UsersTable() {
       <UserAddDialog
         isOpen={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
-        onSuccess={() => mutate()}
+        onSuccess={handleActionComplete}
       />
     </div>
   );

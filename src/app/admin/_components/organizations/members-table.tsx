@@ -1,7 +1,8 @@
 "use client";
 import { Users, Shield, User, MoreHorizontal, Trash2, UserPlus, Search } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -70,6 +71,7 @@ interface MembersTableProps {
 export function MembersTable({ organizationId }: MembersTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     // 从 URL 获取分页参数，如果不存在则使用默认值
     const urlPage = parseInt(searchParams.get("page") || "1");
@@ -108,11 +110,34 @@ export function MembersTable({ organizationId }: MembersTableProps) {
         }
     }, [page, urlPage, searchParams, router]);
 
-    const { data, error, isLoading, mutate } = useSWR(
-        `/api/admin/organizations/${organizationId}/members?page=${page}&limit=${limit}`,
-        fetcher,
-        { revalidateOnFocus: false }
-    );
+    const membersUrl = `/api/admin/organizations/${organizationId}/members?page=${page}&limit=${limit}`;
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.organizationMembers(membersUrl),
+        queryFn: () => fetcher(membersUrl),
+        refetchOnWindowFocus: false,
+    });
+
+    const deleteMemberMutation = useMutation({
+        mutationFn: async (memberId: string) =>
+            fetch(`/api/admin/organizations/${organizationId}/members/${memberId}`, {
+                method: "DELETE",
+            }),
+    });
+
+    const updateRoleMutation = useMutation({
+        mutationFn: async ({
+            memberId,
+            newRole,
+        }: {
+            memberId: string;
+            newRole: string;
+        }) =>
+            fetch(`/api/admin/organizations/${organizationId}/members/${memberId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: newRole }),
+            }),
+    });
 
     // 获取组织的动态角色列表
     useEffect(() => {
@@ -141,12 +166,11 @@ export function MembersTable({ organizationId }: MembersTableProps) {
         setDeletingId(memberToRemove.id);
         setRemoveConfirmOpen(false);
         try {
-            const response = await fetch(
-                `/api/admin/organizations/${organizationId}/members/${memberToRemove.id}`,
-                { method: "DELETE" }
-            );
+            const response = await deleteMemberMutation.mutateAsync(memberToRemove.id);
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizationMembers(membersUrl),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to remove member");
@@ -162,16 +186,11 @@ export function MembersTable({ organizationId }: MembersTableProps) {
     const handleUpdateRole = async (memberId: string, newRole: string) => {
         setUpdatingId(memberId);
         try {
-            const response = await fetch(
-                `/api/admin/organizations/${organizationId}/members/${memberId}`,
-                {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ role: newRole }),
-                }
-            );
+            const response = await updateRoleMutation.mutateAsync({ memberId, newRole });
             if (response.ok) {
-                mutate();
+                await queryClient.invalidateQueries({
+                    queryKey: adminKeys.organizationMembers(membersUrl),
+                });
             } else {
                 const data = await response.json();
                 alert(data.error || "Failed to update role");
@@ -216,6 +235,11 @@ export function MembersTable({ organizationId }: MembersTableProps) {
     const organization = data?.organization;
     const members = useMemo(() => data?.members || [], [data?.members]);
     const total = data?.total || 0;
+    const handleMemberAddSuccess = () => {
+        void queryClient.invalidateQueries({
+            queryKey: adminKeys.organizationMembers(membersUrl),
+        });
+    };
 
     // 根据搜索条件和角色过滤成员 - 必须在早期返回之前调用以保持 Hooks 顺序
     const filteredMembers = useMemo(() => {
@@ -452,7 +476,7 @@ export function MembersTable({ organizationId }: MembersTableProps) {
             <MemberAddDialog
                 isOpen={isAddDialogOpen}
                 onClose={() => setIsAddDialogOpen(false)}
-                onSuccess={() => mutate()}
+                onSuccess={handleMemberAddSuccess}
                 organizationId={organizationId}
             />
             <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>

@@ -17,7 +17,8 @@ import {
     XCircle
 } from "lucide-react";
 import { format } from "date-fns";
-import useSWR from "swr";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Image from "next/image";
@@ -85,11 +86,17 @@ interface App {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
+type MutationInput = {
+    url: string;
+    method: "POST" | "PUT" | "DELETE";
+    body?: unknown;
+};
 
 export function AppsTable() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     // Read initial values from URL or use defaults
     const urlPage = parseInt(searchParams.get("page") || String(DEFAULT_PAGE));
@@ -169,9 +176,20 @@ export function AppsTable() {
     const isActiveQuery = statusFilter === "all" ? "" : `&isActive=${statusFilter === "active" ? "true" : "false"}`;
     const swrKey = `/api/admin/apps?search=${debouncedSearch}&page=${page}&limit=${limit}${isActiveQuery}`;
 
-    const { data, error, isLoading, mutate } = useSWR(swrKey, fetcher, {
-        revalidateOnFocus: false,
-        dedupingInterval: 2000,
+    const { data, error, isLoading } = useQuery({
+        queryKey: adminKeys.apps(swrKey),
+        queryFn: () => fetcher(swrKey),
+        refetchOnWindowFocus: false,
+        staleTime: 2000,
+    });
+
+    const requestMutation = useMutation({
+        mutationFn: async ({ url, method, body }: MutationInput) =>
+            fetch(url, {
+                method,
+                headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+                body: body === undefined ? undefined : JSON.stringify(body),
+            }),
     });
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -179,15 +197,15 @@ export function AppsTable() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch("/api/admin/apps", {
+            const response = await requestMutation.mutateAsync({
+                url: "/api/admin/apps",
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     key: newAppKey,
                     name: newAppName,
                     description: newAppDescription || null,
                     logo: newAppLogo || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -202,7 +220,9 @@ export function AppsTable() {
             setNewAppDescription("");
             setNewAppLogo("");
             setNewAppLogoInvalid(false);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.apps(swrKey),
+            });
         } catch (error) {
             console.error("Error creating app:", error);
             alert("Failed to create app");
@@ -215,7 +235,8 @@ export function AppsTable() {
         if (!deleteAppId) return;
 
         try {
-            const response = await fetch(`/api/admin/apps/${deleteAppId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${deleteAppId}`,
                 method: "DELETE",
             });
 
@@ -225,7 +246,9 @@ export function AppsTable() {
             }
 
             setDeleteAppId(null);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.apps(swrKey),
+            });
         } catch (error) {
             console.error("Error deleting app:", error);
             alert("Failed to delete app");
@@ -239,14 +262,14 @@ export function AppsTable() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/api/admin/apps/${editAppId}`, {
+            const response = await requestMutation.mutateAsync({
+                url: `/api/admin/apps/${editAppId}`,
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     name: editAppName,
                     description: editAppDescription || null,
                     logo: editAppLogo || null,
-                }),
+                },
             });
 
             if (!response.ok) {
@@ -262,7 +285,9 @@ export function AppsTable() {
             setEditAppDescription("");
             setEditAppLogo("");
             setEditAppLogoInvalid(false);
-            mutate();
+            await queryClient.invalidateQueries({
+                queryKey: adminKeys.apps(swrKey),
+            });
         } catch (error) {
             console.error("Error updating app:", error);
             alert("Failed to update app");
@@ -838,13 +863,15 @@ export function AppsTable() {
                             onClick={async () => {
                                 if (!toggleStatusApp) return;
                                 try {
-                                    const response = await fetch(`/api/admin/apps/${toggleStatusApp.id}`, {
+                                    const response = await requestMutation.mutateAsync({
+                                        url: `/api/admin/apps/${toggleStatusApp.id}`,
                                         method: "PUT",
-                                        headers: { "Content-Type": "application/json" },
-                                        body: JSON.stringify({ isActive: toggleStatusApp.newStatus }),
+                                        body: { isActive: toggleStatusApp.newStatus },
                                     });
                                     if (response.ok) {
-                                        mutate();
+                                        await queryClient.invalidateQueries({
+                                            queryKey: adminKeys.apps(swrKey),
+                                        });
                                     } else {
                                         alert("Failed to update status");
                                     }
