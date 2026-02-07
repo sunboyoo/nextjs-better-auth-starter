@@ -57,6 +57,7 @@ import { useSessionQuery } from "@/data/user/session-query";
 import { useSignOutMutation } from "@/data/user/sign-out-mutation";
 import type { Session } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import { stopImpersonationAction } from "../_actions/stop-impersonation";
 
 const UserCard = (props: {
 	session: Session | null;
@@ -282,8 +283,14 @@ const UserCard = (props: {
 						variant="secondary"
 						onClick={async () => {
 							setIsSignOut(true);
-							await authClient.admin.stopImpersonating();
+							const result = await stopImpersonationAction();
 							setIsSignOut(false);
+
+							if (!result.success) {
+								toast.error(result.error);
+								return;
+							}
+
 							toast.info("Impersonation stopped successfully");
 							router.push("/admin");
 						}}

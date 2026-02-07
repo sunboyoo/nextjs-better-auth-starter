@@ -1,7 +1,4 @@
-import { db } from "@/db"
-import { account, passkey, user, verification } from "@/db/schema"
 import { auth } from "@/lib/auth"
-import { desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import {
@@ -10,16 +7,11 @@ import {
 	Shield,
 	Link2,
 	AlertTriangle,
-	Database,
 	Activity
 } from "lucide-react"
 import {
-	AccountInformationCard,
 	PasskeyCard,
-	SessionDisplayCard,
 	SocialOAuthCard,
-	UserInformationCard,
-	VTokenCard,
 } from "./_components/feature-cards"
 import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
@@ -40,35 +32,34 @@ export default async function UserAccountPage() {
 		redirect("/auth/sign-in?callbackUrl=/dashboard/user-account")
 	}
 
-	const userId = currentSession.user.id
 	const userEmail = currentSession.user.email
 	const userName = currentSession.user.name
 	const userImage = currentSession.user.image
 
-	const [userRows, accountRows, verificationRows, passkeyRows, activeSessions] =
+	const [accountRows, passkeyRows, activeSessions] =
 		await Promise.all([
-			db.select().from(user).where(eq(user.id, userId)).limit(1),
-			db
-				.select()
-				.from(account)
-				.where(eq(account.userId, userId))
-				.orderBy(desc(account.createdAt)),
-			db
-				.select()
-				.from(verification)
-				.where(eq(verification.identifier, userEmail))
-				.orderBy(desc(verification.createdAt)),
-			db
-				.select()
-				.from(passkey)
-				.where(eq(passkey.userId, userId))
-				.orderBy(desc(passkey.createdAt)),
+			auth.api.listUserAccounts({
+				headers: requestHeaders,
+			}),
+			auth.api.listPasskeys({
+				headers: requestHeaders,
+			}),
 			auth.api.listSessions({
 				headers: requestHeaders,
 			}),
 		])
 
+	const normalizedAccountRows = accountRows.map((accountRow) => ({
+		...accountRow,
+		scope: Array.isArray(accountRow.scopes)
+			? accountRow.scopes.join(", ")
+			: accountRow.scopes,
+	}))
+
 	const socialOAuthRows = accountRows.filter(
+		(accountRow) => !nonSocialProviders.has(accountRow.providerId),
+	)
+	const normalizedSocialOAuthRows = normalizedAccountRows.filter(
 		(accountRow) => !nonSocialProviders.has(accountRow.providerId),
 	)
 
@@ -120,21 +111,21 @@ export default async function UserAccountPage() {
 				</div>
 			</section>
 
-			{/* Sessions Section */}
-			<section className="space-y-3">
-				<SectionHeader
-					title="Sessions"
-					description="Manage your active sessions across devices"
-					icon={Activity}
-					iconColor="green"
-				/>
+				{/* Sessions Section */}
+				<section className="space-y-3">
+					<SectionHeader
+						title="Sessions"
+						description="Manage your active sessions across devices"
+						icon={Activity}
+						iconColor="green"
+					/>
 					<div className="space-y-4">
 						<ActiveSessionCard
 							sessions={activeSessions}
 							currentSessionId={currentSession.session.id}
 						/>
 					</div>
-			</section>
+				</section>
 
 			{/* Security Section */}
 			<section className="space-y-3">
@@ -159,25 +150,10 @@ export default async function UserAccountPage() {
 						iconColor="purple"
 					/>
 					<div className="space-y-4">
-						<SocialOAuthCard rows={socialOAuthRows} />
+						<SocialOAuthCard rows={normalizedSocialOAuthRows} />
 					</div>
 				</section>
 			)}
-
-			{/* Account Data Section */}
-			<section className="space-y-3">
-				<SectionHeader
-					title="Account Data"
-					description="Raw account information for debugging"
-					icon={Database}
-					iconColor="orange"
-				/>
-				<div className="space-y-4">
-					<UserInformationCard userRow={userRows[0]} />
-					<AccountInformationCard rows={accountRows} />
-					<VTokenCard rows={verificationRows} />
-				</div>
-			</section>
 
 			{/* Danger Zone Section */}
 			<section className="space-y-3">

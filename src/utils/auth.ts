@@ -1,11 +1,12 @@
 import { authClient } from "@/lib/auth-client";
+import { authAdminClient } from "@/lib/auth-admin-client";
 
 export async function banUser(
   userId: string,
   banReason: string,
   banExpiresIn?: number,
 ) {
-  const res = await authClient.admin.banUser({
+  const res = await authAdminClient.admin.banUser({
     userId,
     banReason,
     banExpiresIn,
@@ -19,7 +20,7 @@ export async function banUser(
 }
 
 export async function unbanUser(userId: string) {
-  const res = await authClient.admin.unbanUser({
+  const res = await authAdminClient.admin.unbanUser({
     userId,
   });
 
@@ -31,7 +32,7 @@ export async function unbanUser(userId: string) {
 }
 
 export async function deleteUser(userId: string) {
-  const res = await authClient.admin.removeUser({
+  const res = await authAdminClient.admin.removeUser({
     userId,
   });
 
@@ -43,7 +44,7 @@ export async function deleteUser(userId: string) {
 }
 
 export async function revokeUserSessions(userId: string) {
-  const res = await authClient.admin.revokeUserSessions({
+  const res = await authAdminClient.admin.revokeUserSessions({
     userId,
   });
 
@@ -73,7 +74,7 @@ export async function createUser(data: {
     },
   };
 
-  const res = await authClient.admin.createUser(createData);
+  const res = await authAdminClient.admin.createUser(createData);
 
   if (res?.error) {
     throw new Error(res.error.message || "Failed to create user");
@@ -96,7 +97,7 @@ export async function createUser(data: {
 }
 
 export async function updateUserRole(userId: string, role: string) {
-  const res = await authClient.admin.setRole({
+  const res = await authAdminClient.admin.setRole({
     userId,
     role: role as "user" | "admin" | ("user" | "admin")[],
   });
@@ -109,7 +110,7 @@ export async function updateUserRole(userId: string, role: string) {
 }
 
 export async function updateUserName(userId: string, name: string) {
-  const res = await authClient.admin.updateUser({
+  const res = await authAdminClient.admin.updateUser({
     userId,
     data: { name },
   });
@@ -132,7 +133,7 @@ export async function updateUserEmailDirect(
     data.emailVerified = options.emailVerified;
   }
 
-  const res = await authClient.admin.updateUser({
+  const res = await authAdminClient.admin.updateUser({
     userId,
     data,
   });

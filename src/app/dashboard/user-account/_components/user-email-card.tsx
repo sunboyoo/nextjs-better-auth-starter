@@ -104,7 +104,7 @@ export function UserEmailCard({
 
     return (
         <Card className="overflow-hidden transition-all py-0 gap-0">
-            {/* Main Card Content - Clickable - Shows original data from DB */}
+            {/* Main Card Content - Clickable */}
             <CardContent
                 className="group flex cursor-pointer items-center justify-between gap-4 p-6"
                 onClick={() => setIsExpanded(!isExpanded)}

@@ -1,7 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import {
-  adminClient,
   customSessionClient,
   organizationClient,
   twoFactorClient,
@@ -25,7 +24,6 @@ const electronScheme =
 
 export const authClient = createAuthClient({
   plugins: [
-    adminClient(),
     organizationClient({
       ac,
       dynamicAccessControl: {
