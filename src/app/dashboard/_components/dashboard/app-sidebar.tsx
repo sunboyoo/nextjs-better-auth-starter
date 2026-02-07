@@ -58,6 +58,11 @@ export function AppSidebar({
             icon: IconUser,
         },
         {
+            title: "User Account",
+            url: "/dashboard/user-account",
+            icon: IconUser,
+        },
+        {
             title: "Admin Panel",
             url: "/admin",
             icon: IconShield,
