@@ -36,8 +36,7 @@ Better Auth Database 的 Drizzle 模块配置正确，使用官方推荐的 driz
 ### 迁移文件
 | 文件路径 | 用途 |
 |----------|------|
-| `drizzle/0000_amazing_fat_cobra.sql` | 初始迁移（15.6KB） |
-| `drizzle/0001_custom.sql` | 自定义迁移（1.7KB） |
+| `drizzle/` | 由 Drizzle Kit 按需生成迁移 |
 | `drizzle/meta/` | Drizzle 迁移元数据 |
 
 ---
@@ -199,8 +198,8 @@ const table = (dbSchema ? dbSchema.table : pgTable) as PgTableFn<string | undefi
 
 | 文件 | 大小 | 说明 |
 |------|------|------|
-| `0000_amazing_fat_cobra.sql` | 15.6KB | 初始迁移，包含所有表结构 |
-| `0001_custom.sql` | 1.7KB | 自定义迁移 |
+| `drizzle-kit generate` 产物 | - | 迁移文件由 schema 自动生成 |
+| 应用层 `withUpdatedAt` | - | `updated_at` 由代码统一维护，不依赖 DB trigger |
 
 ---
 

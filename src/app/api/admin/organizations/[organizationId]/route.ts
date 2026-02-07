@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organization, member, organizationRole } from "@/db/schema";
+import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -25,6 +26,7 @@ export async function GET(
                 slug: organization.slug,
                 logo: organization.logo,
                 createdAt: organization.createdAt,
+                updatedAt: organization.updatedAt,
                 metadata: organization.metadata,
             })
             .from(organization)
@@ -119,7 +121,7 @@ export async function PATCH(
         // Update organization
         const [updatedOrg] = await db
             .update(organization)
-            .set(updateData)
+            .set(withUpdatedAt(updateData))
             .where(eq(organization.id, organizationId))
             .returning();
 

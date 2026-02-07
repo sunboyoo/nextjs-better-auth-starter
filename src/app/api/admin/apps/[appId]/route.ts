@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions, organizationAppRoles } from "@/db/schema";
+import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -88,7 +89,7 @@ export async function PUT(
 
         const updated = await db
             .update(apps)
-            .set(updateData)
+            .set(withUpdatedAt(updateData))
             .where(eq(apps.id, appId))
             .returning();
 

@@ -15,9 +15,13 @@ import { oauthProviderClient } from "@better-auth/oauth-provider/client";
 import { stripeClient } from "@better-auth/stripe/client";
 import { toast } from "sonner";
 import { ac } from "@/lib/built-in-organization-role-permissions";
+import { electronProxyClient } from "@/lib/better-auth-electron/client";
 import type { auth } from "@/lib/auth";
 
-const enableStripe = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_STRIPE === "true";
+const enableStripe = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_STRIPE !== "false";
+const electronScheme =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ELECTRON_SCHEME ||
+  "com.nextjs.better-auth.starter";
 
 export const authClient = createAuthClient({
   plugins: [
@@ -45,6 +49,11 @@ export const authClient = createAuthClient({
           }),
         ]
       : []),
+    electronProxyClient({
+      protocol: {
+        scheme: electronScheme,
+      },
+    }),
     customSessionClient<typeof auth>(),
     oneTapClient({
       clientId:

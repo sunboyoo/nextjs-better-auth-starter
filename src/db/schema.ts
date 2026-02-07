@@ -1,7 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
-  pgSchema,
   text,
   timestamp,
   boolean,
@@ -9,18 +8,13 @@ import {
   jsonb,
   index,
   uniqueIndex,
+  unique,
   uuid,
   foreignKey,
   check,
   primaryKey,
-  type PgTableFn,
 } from "drizzle-orm/pg-core";
-
-const schemaName = process.env.DATABASE_SCHEMA?.trim();
-// pgSchema throws for "public"; fall back to pgTable for the default schema.
-const dbSchema =
-  schemaName && schemaName !== "public" ? pgSchema(schemaName) : undefined;
-const table = (dbSchema ? dbSchema.table : pgTable) as PgTableFn<string | undefined>;
+const table = pgTable;
 
 export const user = table("user", {
   id: text("id").primaryKey(),
@@ -355,6 +349,10 @@ export const organization = table(
     slug: text("slug").notNull().unique(),
     logo: text("logo"),
     createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
     metadata: text("metadata"),
     stripeCustomerId: text("stripe_customer_id"),
   },
@@ -393,11 +391,15 @@ export const member = table(
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
     createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
   },
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
-    uniqueIndex("uq_member_id_org").on(table.id, table.organizationId),
+    unique("uq_member_id_org").on(table.id, table.organizationId),
   ],
 );
 
@@ -563,7 +565,7 @@ export const resources = table(
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
     index("idx_resources_app").on(table.appId),
-    uniqueIndex("uq_resources_id_app").on(table.id, table.appId),
+    unique("uq_resources_id_app").on(table.id, table.appId),
     uniqueIndex("resources_app_key_uniq").on(table.appId, table.key),
     uniqueIndex("resources_app_name_uniq").on(table.appId, table.name),
   ],
@@ -593,7 +595,7 @@ export const actions = table(
     ),
     index("idx_actions_app").on(table.appId),
     index("idx_actions_resource").on(table.resourceId),
-    uniqueIndex("uq_actions_id_app").on(table.id, table.appId),
+    unique("uq_actions_id_app").on(table.id, table.appId),
     uniqueIndex("actions_resource_key_uniq").on(table.resourceId, table.key),
     uniqueIndex("actions_resource_name_uniq").on(table.resourceId, table.name),
     foreignKey({
@@ -631,8 +633,8 @@ export const organizationAppRoles = table(
     ),
     index("idx_org_app_roles_org").on(table.organizationId),
     index("idx_org_app_roles_app").on(table.appId),
-    uniqueIndex("uq_org_app_roles_id_app").on(table.id, table.appId),
-    uniqueIndex("uq_org_app_roles_id_org").on(table.id, table.organizationId),
+    unique("uq_org_app_roles_id_app").on(table.id, table.appId),
+    unique("uq_org_app_roles_id_org").on(table.id, table.organizationId),
     uniqueIndex("org_app_roles_scope_key_uniq").on(table.organizationId, table.appId, table.key),
     uniqueIndex("org_app_roles_scope_name_uniq").on(table.organizationId, table.appId, table.name),
   ],

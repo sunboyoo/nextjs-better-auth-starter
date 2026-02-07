@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organizationRole } from "@/db/schema";
+import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, and } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -72,7 +73,7 @@ export async function PATCH(
         // Verify role belongs to organization and update
         const updatedRole = await db
             .update(organizationRole)
-            .set(updateData)
+            .set(withUpdatedAt(updateData))
             .where(
                 and(
                     eq(organizationRole.id, roleId),

@@ -3,6 +3,7 @@ import * as schema from "@/db/schema";
 import { ac } from "@/lib/built-in-organization-role-permissions";
 import { ORGANIZATION_INVITATION_EXPIRES_IN_DAYS } from "@/lib/constants";
 import { sendEmail } from "@/lib/email";
+import { electron } from "@/lib/better-auth-electron/server";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { scim } from "@better-auth/scim";
@@ -63,11 +64,11 @@ const rateLimitStorage =
     : undefined;
 
 const enableStripe =
-  process.env.BETTER_AUTH_ENABLE_STRIPE === "true" &&
+  process.env.BETTER_AUTH_ENABLE_STRIPE !== "false" &&
   Boolean(process.env.STRIPE_KEY) &&
   Boolean(process.env.STRIPE_WEBHOOK_SECRET);
-const enableSSO = process.env.BETTER_AUTH_ENABLE_SSO === "true";
-const enableSCIM = process.env.BETTER_AUTH_ENABLE_SCIM === "true";
+const enableSSO = process.env.BETTER_AUTH_ENABLE_SSO !== "false";
+const enableSCIM = process.env.BETTER_AUTH_ENABLE_SCIM !== "false";
 
 type SecondaryStorage = {
   get: (key: string) => Promise<string | null>;
@@ -364,6 +365,7 @@ const authOptions = {
         oauthAuthServerConfig: true,
       },
     }),
+    electron(),
     ...(enableStripe
       ? [
           stripe({
