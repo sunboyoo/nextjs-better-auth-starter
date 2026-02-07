@@ -58,8 +58,8 @@ const rateLimitMax = Number.isNaN(rateLimitMaxRaw)
   : Math.max(1, rateLimitMaxRaw);
 const rateLimitStorage =
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "memory" ||
-  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
-  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
+    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
+    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
     ? process.env.BETTER_AUTH_RATE_LIMIT_STORAGE
     : undefined;
 
@@ -107,80 +107,80 @@ const secondaryStorage =
 const socialProviders = {
   ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
     ? {
-        github: {
-          clientId: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        },
-      }
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...((
     process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
   ) &&
-  process.env.GOOGLE_CLIENT_SECRET
+    process.env.GOOGLE_CLIENT_SECRET
     ? {
-        google: {
-          prompt: "select_account" as const,
-          clientId:
-            process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        },
-      }
+      google: {
+        prompt: "select_account" as const,
+        clientId:
+          process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
     ? {
-        facebook: {
-          clientId: process.env.FACEBOOK_CLIENT_ID,
-          clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-        },
-      }
+      facebook: {
+        clientId: process.env.FACEBOOK_CLIENT_ID,
+        clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
     ? {
-        discord: {
-          clientId: process.env.DISCORD_CLIENT_ID,
-          clientSecret: process.env.DISCORD_CLIENT_SECRET,
-        },
-      }
+      discord: {
+        clientId: process.env.DISCORD_CLIENT_ID,
+        clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
     ? {
-        microsoft: {
-          clientId: process.env.MICROSOFT_CLIENT_ID,
-          clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-        },
-      }
+      microsoft: {
+        clientId: process.env.MICROSOFT_CLIENT_ID,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET
     ? {
-        twitch: {
-          clientId: process.env.TWITCH_CLIENT_ID,
-          clientSecret: process.env.TWITCH_CLIENT_SECRET,
-        },
-      }
+      twitch: {
+        clientId: process.env.TWITCH_CLIENT_ID,
+        clientSecret: process.env.TWITCH_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET
     ? {
-        twitter: {
-          clientId: process.env.TWITTER_CLIENT_ID,
-          clientSecret: process.env.TWITTER_CLIENT_SECRET,
-        },
-      }
+      twitter: {
+        clientId: process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET
     ? {
-        paypal: {
-          clientId: process.env.PAYPAL_CLIENT_ID,
-          clientSecret: process.env.PAYPAL_CLIENT_SECRET,
-        },
-      }
+      paypal: {
+        clientId: process.env.PAYPAL_CLIENT_ID,
+        clientSecret: process.env.PAYPAL_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.VERCEL_CLIENT_ID && process.env.VERCEL_CLIENT_SECRET
     ? {
-        vercel: {
-          clientId: process.env.VERCEL_CLIENT_ID,
-          clientSecret: process.env.VERCEL_CLIENT_SECRET,
-        },
-      }
+      vercel: {
+        clientId: process.env.VERCEL_CLIENT_ID,
+        clientSecret: process.env.VERCEL_CLIENT_SECRET,
+      },
+    }
     : {}),
 };
 
@@ -217,6 +217,16 @@ const authOptions = {
           to: user.email,
           subject: "Confirm your email change",
           text: `We received a request to change your account email to ${newEmail}. Confirm this change by clicking: ${url}`,
+        });
+      },
+    },
+    deleteUser: {
+      enabled: true,
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        await sendEmail({
+          to: user.email,
+          subject: "Confirm account deletion",
+          text: `We received a request to delete your account. If you did not make this request, please ignore this email. To confirm deletion, click: ${url}`,
         });
       },
     },
@@ -369,52 +379,52 @@ const authOptions = {
     electron(),
     ...(enableStripe
       ? [
-          stripe({
-            stripeClient: new Stripe(process.env.STRIPE_KEY || "sk_test_"),
-            stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-            subscription: {
-              enabled: true,
-              allowReTrialsForDifferentPlans: true,
-              plans: () => {
-                const proPriceId = {
-                  default:
-                    process.env.STRIPE_PRO_PRICE_ID ||
-                    "price_1RoxnRHmTADgihIt4y8c0lVE",
-                  annual:
-                    process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
-                    "price_1RoxnoHmTADgihItzFvVP8KT",
-                };
-                const plusPriceId = {
-                  default:
-                    process.env.STRIPE_PLUS_PRICE_ID ||
-                    "price_1RoxnJHmTADgihIthZTLmrPn",
-                  annual:
-                    process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
-                    "price_1Roxo5HmTADgihItEbJu5llL",
-                };
+        stripe({
+          stripeClient: new Stripe(process.env.STRIPE_KEY || "sk_test_"),
+          stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+          subscription: {
+            enabled: true,
+            allowReTrialsForDifferentPlans: true,
+            plans: () => {
+              const proPriceId = {
+                default:
+                  process.env.STRIPE_PRO_PRICE_ID ||
+                  "price_1RoxnRHmTADgihIt4y8c0lVE",
+                annual:
+                  process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
+                  "price_1RoxnoHmTADgihItzFvVP8KT",
+              };
+              const plusPriceId = {
+                default:
+                  process.env.STRIPE_PLUS_PRICE_ID ||
+                  "price_1RoxnJHmTADgihIthZTLmrPn",
+                annual:
+                  process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
+                  "price_1Roxo5HmTADgihItEbJu5llL",
+              };
 
-                return [
-                  {
-                    name: "Plus",
-                    priceId: plusPriceId.default,
-                    annualDiscountPriceId: plusPriceId.annual,
-                    freeTrial: {
-                      days: 7,
-                    },
+              return [
+                {
+                  name: "Plus",
+                  priceId: plusPriceId.default,
+                  annualDiscountPriceId: plusPriceId.annual,
+                  freeTrial: {
+                    days: 7,
                   },
-                  {
-                    name: "Pro",
-                    priceId: proPriceId.default,
-                    annualDiscountPriceId: proPriceId.annual,
-                    freeTrial: {
-                      days: 7,
-                    },
+                },
+                {
+                  name: "Pro",
+                  priceId: proPriceId.default,
+                  annualDiscountPriceId: proPriceId.annual,
+                  freeTrial: {
+                    days: 7,
                   },
-                ];
-              },
+                },
+              ];
             },
-          }),
-        ]
+          },
+        }),
+      ]
       : []),
     ...(enableSSO ? [sso()] : []),
     ...(enableSCIM ? [scim()] : []),

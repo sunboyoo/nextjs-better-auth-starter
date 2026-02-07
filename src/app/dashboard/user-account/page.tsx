@@ -15,6 +15,8 @@ import {
 } from "./_components/feature-cards"
 import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
+import { UserPasswordCard } from "./_components/user-password-card"
+import { DeleteUserCard } from "./_components/delete-user-card"
 
 const nonSocialProviders = new Set(["credential", "email-password"])
 
@@ -62,6 +64,11 @@ export default async function UserAccountPage() {
 		(accountRow) => !nonSocialProviders.has(accountRow.providerId),
 	)
 
+	// Check if user has a password (has credential provider)
+	const hasPassword = accountRows.some(
+		(accountRow) => accountRow.providerId === "credential",
+	)
+
 
 
 	return (
@@ -94,6 +101,17 @@ export default async function UserAccountPage() {
 			<UserEmailCard
 				userEmail={userEmail}
 				emailVerified={currentSession.user.emailVerified}
+			/>
+
+			{/* User Password Card */}
+			<UserPasswordCard
+				hasPassword={hasPassword}
+			/>
+
+			{/* Delete User Card */}
+			<DeleteUserCard
+				hasPassword={hasPassword}
+				userEmail={userEmail}
 			/>
 
 			{/* Cards */}

@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
-import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, Mail, ShieldCheck, ShieldX } from "lucide-react"
+import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, Mail, ShieldCheck, ShieldX, Info } from "lucide-react"
 
 interface UserEmailCardProps {
     userEmail: string
@@ -21,24 +21,35 @@ export function UserEmailCard({
 }: UserEmailCardProps) {
     const router = useRouter()
     const [isExpanded, setIsExpanded] = useState(false)
-    const [email, setEmail] = useState(userEmail)
+    const [email, setEmail] = useState("")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     const [message, setMessage] = useState("")
 
     const handleChangeEmail = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (email === userEmail) {
-            setMessage("Email is the same as current")
+
+        const normalizedEmail = email.trim().toLowerCase()
+        const currentEmail = userEmail.trim().toLowerCase()
+
+        if (normalizedEmail === currentEmail) {
+            setMessage("New email must be different from your current email.")
+            setStatus("error")
+            return
+        }
+
+        if (!normalizedEmail) {
+            setMessage("Please enter a new email address.")
             setStatus("error")
             return
         }
 
         setStatus("loading")
-        setMessage("Sending verification email...")
+        setMessage("Sending verification request...")
 
         try {
             const { error } = await authClient.changeEmail({
-                newEmail: email,
+                newEmail: normalizedEmail,
+                callbackURL: "/dashboard/user-account",
             })
 
             if (error) {
@@ -46,13 +57,12 @@ export function UserEmailCard({
             }
 
             setStatus("success")
-            setMessage("Verification email sent! Please check your inbox.")
-            setTimeout(() => {
-                router.refresh()
-                setStatus("idle")
-                setMessage("")
-                setIsExpanded(false)
-            }, 3000)
+            if (emailVerified) {
+                setMessage("Step 1: A confirmation email has been sent to your current email address. Please click the link to confirm this change, then a verification email will be sent to your new address.")
+            } else {
+                setMessage("A verification email has been sent to your new email address. Please click the link to verify and complete the change.")
+            }
+            setEmail("")
         } catch (error: unknown) {
             setStatus("error")
             setMessage(error instanceof Error ? error.message : "Failed to change email")
@@ -77,7 +87,7 @@ export function UserEmailCard({
             setTimeout(() => {
                 setStatus("idle")
                 setMessage("")
-            }, 3000)
+            }, 5000)
         } catch (error: unknown) {
             setStatus("error")
             setMessage(error instanceof Error ? error.message : "Failed to send verification email")
@@ -85,12 +95,12 @@ export function UserEmailCard({
     }
 
     const resetForm = () => {
-        setEmail(userEmail)
+        setEmail("")
         setStatus("idle")
         setMessage("")
     }
 
-    const hasChanges = email !== userEmail
+    const hasChanges = email.trim().length > 0 && email.trim().toLowerCase() !== userEmail.toLowerCase()
 
     return (
         <Card className="overflow-hidden transition-all py-0 gap-0">
@@ -104,7 +114,7 @@ export function UserEmailCard({
                         <Mail className="h-7 w-7 text-primary" />
                     </div>
                     <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-xl font-semibold">{userEmail}</h2>
                             {emailVerified ? (
                                 <Badge variant="default" className="gap-1 bg-green-600">
@@ -136,36 +146,76 @@ export function UserEmailCard({
                 <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#f5f5f7' }}>
                     <form onSubmit={handleChangeEmail} className="space-y-4">
                         <div className="grid gap-4">
-                            {/* Email Field */}
+                            {/* Current Email Display */}
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email Address</Label>
+                                <Label>Current Email</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="email"
+                                        value={userEmail}
+                                        disabled
+                                        className="bg-white/50"
+                                    />
+                                    {emailVerified ? (
+                                        <Badge variant="default" className="gap-1 bg-green-600 shrink-0">
+                                            <ShieldCheck className="h-3 w-3" />
+                                            Verified
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="destructive" className="gap-1 shrink-0">
+                                            <ShieldX className="h-3 w-3" />
+                                            Unverified
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* New Email Field */}
+                            <div className="space-y-2">
+                                <Label htmlFor="new-email">New Email Address</Label>
                                 <Input
-                                    id="email"
+                                    id="new-email"
                                     type="email"
                                     placeholder="Enter new email address"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     disabled={status === "loading"}
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                    Changing your email will require verification of the new address.
-                                </p>
                             </div>
 
-                            {/* Resend Verification Option */}
+                            {/* Two-step Process Info */}
+                            {emailVerified && (
+                                <div className="rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
+                                    <div className="flex gap-3">
+                                        <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                        <div className="text-sm text-blue-800 dark:text-blue-200">
+                                            <p className="font-medium mb-1">Two-step verification process:</p>
+                                            <ol className="list-decimal list-inside space-y-1 text-xs">
+                                                <li>A confirmation email will be sent to your <strong>current email</strong></li>
+                                                <li>After clicking the confirmation link, a verification email will be sent to your <strong>new email</strong></li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Resend Verification Option for Unverified Email */}
                             {!emailVerified && (
                                 <div className="rounded-md border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-                                    <p className="text-sm text-amber-800 dark:text-amber-200">
-                                        Your email is not verified.{" "}
-                                        <button
-                                            type="button"
-                                            onClick={handleResendVerification}
-                                            className="font-medium underline hover:no-underline"
-                                            disabled={status === "loading"}
-                                        >
-                                            Resend verification email
-                                        </button>
-                                    </p>
+                                    <div className="flex gap-3">
+                                        <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                                            <p>Your current email is not verified.</p>
+                                            <button
+                                                type="button"
+                                                onClick={handleResendVerification}
+                                                className="font-medium underline hover:no-underline mt-1"
+                                                disabled={status === "loading"}
+                                            >
+                                                Resend verification email
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -173,7 +223,7 @@ export function UserEmailCard({
                         {/* Status Message */}
                         {message && (
                             <div
-                                className={`flex items-center gap-2 rounded-md p-3 text-sm ${status === "loading"
+                                className={`flex items-start gap-2 rounded-md p-3 text-sm ${status === "loading"
                                     ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                                     : status === "success"
                                         ? "bg-green-500/10 text-green-600 dark:text-green-400"
@@ -182,10 +232,10 @@ export function UserEmailCard({
                                             : ""
                                     }`}
                             >
-                                {status === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
-                                {status === "success" && <CheckCircle2 className="h-4 w-4" />}
-                                {status === "error" && <XCircle className="h-4 w-4" />}
-                                {message}
+                                {status === "loading" && <Loader2 className="h-4 w-4 animate-spin shrink-0 mt-0.5" />}
+                                {status === "success" && <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />}
+                                {status === "error" && <XCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+                                <span>{message}</span>
                             </div>
                         )}
 

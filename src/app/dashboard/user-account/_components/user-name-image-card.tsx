@@ -1,19 +1,29 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useUpdateUserMutation } from "@/data/user/update-user-mutation"
-import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, ImageIcon } from "lucide-react"
+import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, ImageIcon, Upload, Link2 } from "lucide-react"
 
 interface UserNameImageCardProps {
     userName: string | null | undefined
     userEmail: string
     userImage: string | null | undefined
+}
+
+// Helper to normalize props
+function normalizeString(value: string | null | undefined): string {
+    return value ?? ""
+}
+
+function getInitialImageUrl(image: string): string {
+    return image.startsWith("data:") ? "" : image
 }
 
 export function UserNameImageCard({
@@ -22,16 +32,26 @@ export function UserNameImageCard({
     userImage,
 }: UserNameImageCardProps) {
     const router = useRouter()
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // Normalize props to always be strings
+    const normalizedUserName = normalizeString(userName)
+    const normalizedUserImage = normalizeString(userImage)
+
+    // Initialize state with normalized values
     const [isExpanded, setIsExpanded] = useState(false)
-    const [name, setName] = useState(userName || "")
-    const [image, setImage] = useState(userImage || "")
+    const [name, setName] = useState(() => normalizedUserName)
+    const [image, setImage] = useState(() => normalizedUserImage)
+    const [imageUrl, setImageUrl] = useState(() => getInitialImageUrl(normalizedUserImage))
+    const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     const [message, setMessage] = useState("")
+    const [previewError, setPreviewError] = useState(false)
 
     const updateUserMutation = useUpdateUserMutation()
 
-    // Get initials for avatar fallback - use original data from DB
-    const displayName = userName || "Anonymous User"
+    // Get initials for avatar fallback
+    const displayName = normalizedUserName || "Anonymous User"
     const initials = displayName
         .split(" ")
         .map((n) => n[0])
@@ -39,14 +59,56 @@ export function UserNameImageCard({
         .toUpperCase()
         .slice(0, 2) || "U"
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+            setStatus("error")
+            setMessage("Please select a valid image file.")
+            return
+        }
+
+        // Validate file size (max 2MB for base64)
+        if (file.size > 2 * 1024 * 1024) {
+            setStatus("error")
+            setMessage("Image size must be less than 2MB.")
+            return
+        }
+
+        // Convert to base64
+        const reader = new FileReader()
+        reader.onloadend = () => {
+            const base64String = reader.result as string
+            setImage(base64String)
+            setImageUrl("") // Clear URL when uploading
+            setPreviewError(false)
+            setStatus("idle")
+            setMessage("")
+        }
+        reader.onerror = () => {
+            setStatus("error")
+            setMessage("Failed to read the image file.")
+        }
+        reader.readAsDataURL(file)
+    }
+
+    const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const url = e.target.value
+        setImageUrl(url)
+        setImage(url)
+        setPreviewError(false)
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setStatus("loading")
         setMessage("Updating...")
 
         const updates: { name?: string; image?: string } = {}
-        if (name && name !== userName) updates.name = name
-        if (image && image !== userImage) updates.image = image
+        if (name && name !== normalizedUserName) updates.name = name
+        if (image && image !== normalizedUserImage) updates.image = image
 
         if (Object.keys(updates).length === 0) {
             setStatus("idle")
@@ -74,13 +136,18 @@ export function UserNameImageCard({
     }
 
     const resetForm = () => {
-        setName(userName || "")
-        setImage(userImage || "")
+        setName(normalizedUserName)
+        setImage(normalizedUserImage)
+        setImageUrl(getInitialImageUrl(normalizedUserImage))
+        setPreviewError(false)
         setStatus("idle")
         setMessage("")
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""
+        }
     }
 
-    const hasChanges = (name !== (userName || "")) || (image !== (userImage || ""))
+    const hasChanges = (name !== normalizedUserName) || (image !== normalizedUserImage)
 
     return (
         <Card className="overflow-hidden transition-all py-0 gap-0">
@@ -91,7 +158,7 @@ export function UserNameImageCard({
             >
                 <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16 border-2 border-primary/10">
-                        <AvatarImage src={userImage || undefined} alt={displayName} />
+                        <AvatarImage src={normalizedUserImage || undefined} alt={displayName} />
                         <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
                             {initials}
                         </AvatarFallback>
@@ -129,34 +196,79 @@ export function UserNameImageCard({
                                 />
                             </div>
 
-                            {/* Image URL Field with Preview */}
+                            {/* Image Input Mode Toggle */}
                             <div className="space-y-2">
-                                <Label htmlFor="image">Profile Image URL</Label>
-                                <Input
-                                    id="image"
-                                    type="url"
-                                    placeholder="https://example.com/avatar.jpg"
-                                    value={image}
-                                    onChange={(e) => setImage(e.target.value)}
-                                    disabled={status === "loading"}
-                                />
-                                {/* Image Preview */}
-                                <div className="mt-3">
-                                    <p className="mb-2 text-xs text-muted-foreground">Image Preview</p>
-                                    <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border bg-white">
-                                        {image ? (
-                                            <img
-                                                src={image}
-                                                alt="Preview"
-                                                className="h-full w-full object-cover"
-                                                onError={(e) => {
-                                                    e.currentTarget.style.display = 'none'
-                                                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                                                }}
-                                            />
-                                        ) : null}
-                                        <ImageIcon className={`h-8 w-8 text-muted-foreground ${image ? 'hidden' : ''}`} />
-                                    </div>
+                                <Label>Profile Image</Label>
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={imageInputMode === "upload" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setImageInputMode("upload")}
+                                        className="flex-1"
+                                    >
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload Image
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={imageInputMode === "url" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setImageInputMode("url")}
+                                        className="flex-1"
+                                    >
+                                        <Link2 className="mr-2 h-4 w-4" />
+                                        Paste URL
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Image Input Based on Mode */}
+                            {imageInputMode === "upload" ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-upload">Upload Image (max 2MB)</Label>
+                                    <Input
+                                        key="image-upload-input"
+                                        ref={fileInputRef}
+                                        id="image-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileUpload}
+                                        disabled={status === "loading"}
+                                        className="cursor-pointer"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label htmlFor="image-url">Image URL</Label>
+                                    <Input
+                                        key="image-url-input"
+                                        id="image-url"
+                                        type="url"
+                                        placeholder="https://example.com/avatar.jpg"
+                                        value={imageUrl}
+                                        onChange={handleUrlChange}
+                                        disabled={status === "loading"}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Image Preview */}
+                            <div className="mt-1">
+                                <p className="mb-2 text-xs text-muted-foreground">Image Preview</p>
+                                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border bg-white relative">
+                                    {image && !previewError ? (
+                                        <Image
+                                            src={image}
+                                            alt="Preview"
+                                            fill
+                                            className="object-cover"
+                                            unoptimized
+                                            onError={() => setPreviewError(true)}
+                                        />
+                                    ) : (
+                                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                                    )}
                                 </div>
                             </div>
                         </div>
