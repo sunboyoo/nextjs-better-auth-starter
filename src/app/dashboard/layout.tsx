@@ -2,12 +2,28 @@ import type { CSSProperties, ReactNode } from "react";
 import { AppSidebar } from "./_components/dashboard/app-sidebar";
 import { SiteHeader } from "./_components/dashboard/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
 	children,
 }: {
 	children: ReactNode;
 }) {
+	const requestHeaders = await headers();
+	const session = await auth.api.getSession({
+		headers: requestHeaders,
+	});
+
+	if (!session) {
+		redirect("/auth/sign-in?callbackUrl=/dashboard");
+	}
+
+	const deviceSessions = await auth.api.listDeviceSessions({
+		headers: requestHeaders,
+	});
+
 	return (
 		<SidebarProvider
 			style={
@@ -17,7 +33,10 @@ export default function DashboardLayout({
 				} as CSSProperties
 			}
 		>
-			<AppSidebar variant="inset" />
+			<AppSidebar
+				variant="inset"
+				deviceSessions={deviceSessions}
+			/>
 			<SidebarInset>
 				<SiteHeader />
 				<div className="flex flex-1 flex-col">
@@ -31,4 +50,3 @@ export default function DashboardLayout({
 		</SidebarProvider>
 	);
 }
-

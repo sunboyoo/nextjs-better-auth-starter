@@ -49,10 +49,10 @@ const Navbar = () => {
           {!session ? (
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" asChild>
-                <Link href="/auth/register">Sign Up</Link>
+                <Link href="/auth/sign-in">Sign Up</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/auth/login">Sign In</Link>
+                <Link href="/auth/sign-in">Sign In</Link>
               </Button>
             </div>
           ) : (

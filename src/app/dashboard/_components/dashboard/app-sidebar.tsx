@@ -23,6 +23,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import type { DeviceSession } from "@/lib/auth"
 
 const staticNavSecondary = [
     {
@@ -37,7 +38,14 @@ const staticNavSecondary = [
     },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+    deviceSessions: DeviceSession[]
+}
+
+export function AppSidebar({
+    deviceSessions,
+    ...props
+}: AppSidebarProps) {
     const navMain = [
         {
             title: "Dashboard",
@@ -85,7 +93,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <NavSecondary items={staticNavSecondary} className="mt-auto" />
             </SidebarContent>
             <SidebarFooter>
-                <NavUser />
+                <NavUser deviceSessions={deviceSessions} />
             </SidebarFooter>
         </Sidebar>
     )

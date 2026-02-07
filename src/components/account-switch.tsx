@@ -3,6 +3,7 @@
 import { ChevronDown, PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,9 +28,11 @@ import { authClient } from "@/lib/auth-client";
 export default function AccountSwitcher({
 	deviceSessions,
 	initialSession,
+	className,
 }: {
 	deviceSessions: DeviceSession[];
 	initialSession: SessionData;
+	className?: string;
 }) {
 	const queryClient = getQueryClient();
 	const { data: currentUser } = useSessionQuery(initialSession);
@@ -44,7 +47,7 @@ export default function AccountSwitcher({
 					role="combobox"
 					aria-expanded={open}
 					aria-label="Select a user"
-					className="w-[250px] justify-between"
+					className={cn("w-[250px] justify-between", className)}
 				>
 					<Avatar className="mr-2 h-6 w-6">
 						<AvatarImage

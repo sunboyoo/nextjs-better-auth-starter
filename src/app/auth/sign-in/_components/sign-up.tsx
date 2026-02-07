@@ -16,6 +16,7 @@ import { getCallbackURL } from "@/lib/better-auth-official/shared";
 export function SignUp() {
 	const router = useRouter();
 	const params = useSearchParams();
+	const callbackURL = getCallbackURL(params);
 
 	return (
 		<Card className="rounded-md rounded-t-none w-full">
@@ -28,8 +29,12 @@ export function SignUp() {
 			<CardContent>
 				<SignUpForm
 					params={params}
-					onSuccess={() => router.push(getCallbackURL(params))}
-					callbackURL={getCallbackURL(params)}
+					onSuccess={() =>
+						router.push(
+							`/auth/sign-in?callbackUrl=${encodeURIComponent(callbackURL)}`,
+						)
+					}
+					callbackURL={callbackURL}
 				/>
 			</CardContent>
 			<CardFooter>

@@ -71,7 +71,14 @@ export function SignInForm({
 						onSuccess?.();
 					},
 					onError(context) {
-						toast.error(context.error.message);
+						const message = context.error.message || "Sign in failed.";
+						if (message.toLowerCase().includes("email not verified")) {
+							toast.error(
+								"Email not verified. We sent a new verification email. Check your inbox and spam folder.",
+							);
+							return;
+						}
+						toast.error(message);
 					},
 				},
 			);

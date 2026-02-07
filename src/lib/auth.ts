@@ -242,6 +242,7 @@ const authOptions = {
       });
     },
     sendOnSignUp: true,
+    sendOnSignIn: true,
     autoSignInAfterVerification: true,
   },
   ...(Object.keys(socialProviders).length ? { socialProviders } : {}),

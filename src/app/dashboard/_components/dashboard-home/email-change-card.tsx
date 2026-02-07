@@ -196,10 +196,10 @@ const EmailChangeCard = () => {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" asChild>
-                    <Link href="/auth/login">Sign In</Link>
+                    <Link href="/auth/sign-in">Sign In</Link>
                   </Button>
                   <Button size="sm" variant="outline" asChild>
-                    <Link href="/auth/register">Create Account</Link>
+                    <Link href="/auth/sign-in">Create Account</Link>
                   </Button>
                 </div>
               </div>
