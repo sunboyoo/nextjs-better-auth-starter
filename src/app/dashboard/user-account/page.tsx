@@ -13,6 +13,7 @@ import {
 	SocialOAuthCard,
 } from "./_components/feature-cards"
 import { UserPasskeyCard } from "./_components/user-passkey-card"
+import { UserTwoFactorCard } from "./_components/user-two-factor-card"
 import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
@@ -136,6 +137,7 @@ export default async function UserAccountPage() {
 					iconColor="blue"
 				/>
 				<div className="space-y-4">
+					<UserTwoFactorCard twoFactorEnabled={!!currentSession.user.twoFactorEnabled} />
 					<UserPasskeyCard initialPasskeys={passkeyRows} />
 				</div>
 			</section>
