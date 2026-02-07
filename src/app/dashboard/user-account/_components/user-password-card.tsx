@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { authClient } from "@/lib/auth-client"
 import { setPasswordAction } from "../_actions/set-password"
-import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, KeyRound, Info } from "lucide-react"
+import { ChevronDown, Loader2, CheckCircle2, XCircle, KeyRound, Info } from "lucide-react"
 
 interface UserPasswordCardProps {
     hasPassword: boolean
@@ -150,14 +150,7 @@ export function UserPasswordCard({
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-primary">
-                    <span className="hidden text-sm sm:inline">{isExpanded ? "Click to close" : "Click to edit"}</span>
-                    {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
-                    ) : (
-                        <ChevronDown className="h-5 w-5" />
-                    )}
-                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isExpanded ? "rotate-180" : ""}`} />
             </CardContent>
 
             {/* Expanded Edit Section */}

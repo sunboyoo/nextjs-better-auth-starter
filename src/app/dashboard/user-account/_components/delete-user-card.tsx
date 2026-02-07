@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
-import { ChevronDown, ChevronUp, Loader2, AlertTriangle, Trash2, CheckCircle2, Mail } from "lucide-react"
+import { ChevronDown, Loader2, AlertTriangle, Trash2, CheckCircle2, Mail } from "lucide-react"
 
 interface DeleteUserCardProps {
     hasPassword: boolean
@@ -109,14 +109,7 @@ export function DeleteUserCard({
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-red-600 dark:group-hover:text-red-400">
-                    <span className="hidden text-sm sm:inline">{isExpanded ? "Click to close" : "Click to expand"}</span>
-                    {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
-                    ) : (
-                        <ChevronDown className="h-5 w-5" />
-                    )}
-                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-red-600 dark:group-hover:text-red-400 ${isExpanded ? "rotate-180" : ""}`} />
             </CardContent>
 
             {/* Expanded Delete Section */}

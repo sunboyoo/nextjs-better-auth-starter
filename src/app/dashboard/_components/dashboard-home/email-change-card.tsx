@@ -5,12 +5,11 @@ import Link from "next/link";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Mail } from "lucide-react";
+import { Mail, ChevronDown } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { changeEmailSchema, ChangeEmailSchema } from "@/lib/schemas";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -87,10 +86,10 @@ const EmailChangeCard = () => {
       <Card>
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={() => setIsOpen(!isOpen)}
           aria-expanded={isOpen}
           aria-controls="change-email-panel"
-          className="flex w-full items-center gap-4 px-6 text-left transition hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="group flex w-full items-center gap-4 px-6 text-left transition hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Image
@@ -112,6 +111,7 @@ const EmailChangeCard = () => {
               {isVerified ? "Verified" : "Unverified"}
             </Badge>
           ) : null}
+          <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isOpen ? "rotate-180" : ""}`} />
         </button>
       </Card>
 
@@ -125,16 +125,6 @@ const EmailChangeCard = () => {
             <CardDescription>
               Update the email address on your account.
             </CardDescription>
-            <CardAction>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setIsOpen(false)}
-              >
-                Close
-              </Button>
-            </CardAction>
           </CardHeader>
           <CardContent>
             {isPending ? (

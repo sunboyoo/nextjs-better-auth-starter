@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useUpdateUserMutation } from "@/data/user/update-user-mutation"
-import { ChevronDown, ChevronUp, Loader2, CheckCircle2, XCircle, ImageIcon, Upload, Link2 } from "lucide-react"
+import { ChevronDown, Loader2, CheckCircle2, XCircle, ImageIcon, Upload, Link2 } from "lucide-react"
 
 interface UserNameImageCardProps {
     userName: string | null | undefined
@@ -168,14 +168,7 @@ export function UserNameImageCard({
                         <p className="text-sm text-muted-foreground">{userEmail}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-primary">
-                    <span className="hidden text-sm sm:inline">{isExpanded ? "Click to close" : "Click to edit"}</span>
-                    {isExpanded ? (
-                        <ChevronUp className="h-5 w-5" />
-                    ) : (
-                        <ChevronDown className="h-5 w-5" />
-                    )}
-                </div>
+                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isExpanded ? "rotate-180" : ""}`} />
             </CardContent>
 
             {/* Expanded Edit Section */}
