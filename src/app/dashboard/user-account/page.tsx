@@ -1,5 +1,5 @@
 import { db } from "@/db"
-import { account, passkey, session, user, verification } from "@/db/schema"
+import { account, passkey, user, verification } from "@/db/schema"
 import { auth } from "@/lib/auth"
 import { desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
@@ -10,7 +10,8 @@ import {
 	Shield,
 	Link2,
 	AlertTriangle,
-	Database
+	Database,
+	Activity
 } from "lucide-react"
 import {
 	AccountInformationCard,
@@ -25,6 +26,7 @@ import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
 import { DeleteUserCard } from "./_components/delete-user-card"
 import { SectionHeader } from "./_components/section-header"
+import { ActiveSessionCard } from "./_components/active-session-card"
 
 const nonSocialProviders = new Set(["credential", "email-password"])
 
@@ -43,7 +45,7 @@ export default async function UserAccountPage() {
 	const userName = currentSession.user.name
 	const userImage = currentSession.user.image
 
-	const [userRows, accountRows, sessionRows, verificationRows, passkeyRows] =
+	const [userRows, accountRows, verificationRows, passkeyRows, activeSessions] =
 		await Promise.all([
 			db.select().from(user).where(eq(user.id, userId)).limit(1),
 			db
@@ -51,11 +53,6 @@ export default async function UserAccountPage() {
 				.from(account)
 				.where(eq(account.userId, userId))
 				.orderBy(desc(account.createdAt)),
-			db
-				.select()
-				.from(session)
-				.where(eq(session.userId, userId))
-				.orderBy(desc(session.createdAt)),
 			db
 				.select()
 				.from(verification)
@@ -66,6 +63,9 @@ export default async function UserAccountPage() {
 				.from(passkey)
 				.where(eq(passkey.userId, userId))
 				.orderBy(desc(passkey.createdAt)),
+			auth.api.listSessions({
+				headers: requestHeaders,
+			}),
 		])
 
 	const socialOAuthRows = accountRows.filter(
@@ -120,16 +120,31 @@ export default async function UserAccountPage() {
 				</div>
 			</section>
 
+			{/* Sessions Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Sessions"
+					description="Manage your active sessions across devices"
+					icon={Activity}
+					iconColor="green"
+				/>
+					<div className="space-y-4">
+						<ActiveSessionCard
+							sessions={activeSessions}
+							currentSessionId={currentSession.session.id}
+						/>
+					</div>
+			</section>
+
 			{/* Security Section */}
 			<section className="space-y-3">
 				<SectionHeader
 					title="Security"
-					description="Sessions and authentication methods"
+					description="Authentication methods and passkeys"
 					icon={Shield}
-					iconColor="green"
+					iconColor="blue"
 				/>
 				<div className="space-y-4">
-					<SessionDisplayCard rows={sessionRows} />
 					<PasskeyCard rows={passkeyRows} />
 				</div>
 			</section>
