@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -136,7 +137,12 @@ export function UserPasswordCard({
                         <KeyRound className="h-7 w-7 text-primary" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold">Password</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-xl font-semibold">Password</h2>
+                            <Badge variant={hasPassword ? "default" : "secondary"}>
+                                {hasPassword ? "Enabled" : "Not Enabled"}
+                            </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                             {hasPassword
                                 ? "Change your account password"

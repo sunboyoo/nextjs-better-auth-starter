@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth"
+import { auth, configuredSocialProviderIds } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import {
@@ -9,9 +9,7 @@ import {
 	AlertTriangle,
 	Activity
 } from "lucide-react"
-import {
-	SocialOAuthCard,
-} from "./_components/feature-cards"
+import { UserOAuthCard } from "./_components/user-oauth-card"
 import { UserPasskeyCard } from "./_components/user-passkey-card"
 import { UserTwoFactorCard } from "./_components/user-two-factor-card"
 import { UserNameImageCard } from "./_components/user-name-image-card"
@@ -50,19 +48,14 @@ export default async function UserAccountPage() {
 			}),
 		])
 
-	const normalizedAccountRows = accountRows.map((accountRow) => ({
-		...accountRow,
-		scope: Array.isArray(accountRow.scopes)
-			? accountRow.scopes.join(", ")
-			: accountRow.scopes,
-	}))
-
-	const socialOAuthRows = accountRows.filter(
-		(accountRow) => !nonSocialProviders.has(accountRow.providerId),
-	)
-	const normalizedSocialOAuthRows = normalizedAccountRows.filter(
-		(accountRow) => !nonSocialProviders.has(accountRow.providerId),
-	)
+	const socialOAuthAccounts = accountRows
+		.filter((row) => !nonSocialProviders.has(row.providerId))
+		.map((row) => ({
+			id: row.id,
+			providerId: row.providerId,
+			accountId: row.accountId,
+			createdAt: row.createdAt,
+		}))
 
 	// Check if user has a password (has credential provider)
 	const hasPassword = accountRows.some(
@@ -143,16 +136,20 @@ export default async function UserAccountPage() {
 			</section>
 
 			{/* Connected Accounts Section */}
-			{socialOAuthRows.length > 0 && (
+			{configuredSocialProviderIds.length > 0 && (
 				<section className="space-y-3">
 					<SectionHeader
 						title="Connected Accounts"
-						description="Third-party services linked to your account"
+						description="Link social providers for quick sign-in and account recovery"
 						icon={Link2}
 						iconColor="purple"
 					/>
 					<div className="space-y-4">
-						<SocialOAuthCard rows={normalizedSocialOAuthRows} />
+						<UserOAuthCard
+							availableProviders={configuredSocialProviderIds}
+							linkedAccounts={socialOAuthAccounts}
+							accountCount={accountRows.length}
+						/>
 					</div>
 				</section>
 			)}

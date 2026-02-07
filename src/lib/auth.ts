@@ -184,6 +184,8 @@ const socialProviders = {
     : {}),
 };
 
+export const configuredSocialProviderIds = Object.keys(socialProviders);
+
 const authOptions = {
   database: drizzleAdapter(db, {
     provider: "pg",
