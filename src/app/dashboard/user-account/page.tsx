@@ -10,9 +10,9 @@ import {
 	Activity
 } from "lucide-react"
 import {
-	PasskeyCard,
 	SocialOAuthCard,
 } from "./_components/feature-cards"
+import { UserPasskeyCard } from "./_components/user-passkey-card"
 import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
@@ -111,21 +111,21 @@ export default async function UserAccountPage() {
 				</div>
 			</section>
 
-				{/* Sessions Section */}
-				<section className="space-y-3">
-					<SectionHeader
-						title="Sessions"
-						description="Manage your active sessions across devices"
-						icon={Activity}
-						iconColor="green"
+			{/* Sessions Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Sessions"
+					description="Manage your active sessions across devices"
+					icon={Activity}
+					iconColor="green"
+				/>
+				<div className="space-y-4">
+					<ActiveSessionCard
+						sessions={activeSessions}
+						currentSessionId={currentSession.session.id}
 					/>
-					<div className="space-y-4">
-						<ActiveSessionCard
-							sessions={activeSessions}
-							currentSessionId={currentSession.session.id}
-						/>
-					</div>
-				</section>
+				</div>
+			</section>
 
 			{/* Security Section */}
 			<section className="space-y-3">
@@ -136,7 +136,7 @@ export default async function UserAccountPage() {
 					iconColor="blue"
 				/>
 				<div className="space-y-4">
-					<PasskeyCard rows={passkeyRows} />
+					<UserPasskeyCard initialPasskeys={passkeyRows} />
 				</div>
 			</section>
 
