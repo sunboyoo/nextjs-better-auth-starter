@@ -4,7 +4,14 @@ import { auth } from "@/lib/auth"
 import { desc, eq } from "drizzle-orm"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { CircleUser } from "lucide-react"
+import {
+	CircleUser,
+	User,
+	Shield,
+	Link2,
+	AlertTriangle,
+	Database
+} from "lucide-react"
 import {
 	AccountInformationCard,
 	PasskeyCard,
@@ -17,6 +24,7 @@ import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
 import { DeleteUserCard } from "./_components/delete-user-card"
+import { SectionHeader } from "./_components/section-header"
 
 const nonSocialProviders = new Set(["credential", "email-password"])
 
@@ -69,10 +77,8 @@ export default async function UserAccountPage() {
 		(accountRow) => accountRow.providerId === "credential",
 	)
 
-
-
 	return (
-		<div className="w-full space-y-6">
+		<div className="w-full space-y-8">
 			{/* Page Header */}
 			<div className="rounded-xl border bg-card p-6 md:p-8">
 				<div className="flex items-center gap-3">
@@ -90,39 +96,89 @@ export default async function UserAccountPage() {
 				</div>
 			</div>
 
-			{/* User Name & Image Card */}
-			<UserNameImageCard
-				userName={userName}
-				userEmail={userEmail}
-				userImage={userImage}
-			/>
+			{/* Profile Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Profile"
+					description="Your personal information and credentials"
+					icon={User}
+					iconColor="blue"
+				/>
+				<div className="space-y-4">
+					<UserNameImageCard
+						userName={userName}
+						userEmail={userEmail}
+						userImage={userImage}
+					/>
+					<UserEmailCard
+						userEmail={userEmail}
+						emailVerified={currentSession.user.emailVerified}
+					/>
+					<UserPasswordCard
+						hasPassword={hasPassword}
+					/>
+				</div>
+			</section>
 
-			{/* User Email Card */}
-			<UserEmailCard
-				userEmail={userEmail}
-				emailVerified={currentSession.user.emailVerified}
-			/>
+			{/* Security Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Security"
+					description="Sessions and authentication methods"
+					icon={Shield}
+					iconColor="green"
+				/>
+				<div className="space-y-4">
+					<SessionDisplayCard rows={sessionRows} />
+					<PasskeyCard rows={passkeyRows} />
+				</div>
+			</section>
 
-			{/* User Password Card */}
-			<UserPasswordCard
-				hasPassword={hasPassword}
-			/>
+			{/* Connected Accounts Section */}
+			{socialOAuthRows.length > 0 && (
+				<section className="space-y-3">
+					<SectionHeader
+						title="Connected Accounts"
+						description="Third-party services linked to your account"
+						icon={Link2}
+						iconColor="purple"
+					/>
+					<div className="space-y-4">
+						<SocialOAuthCard rows={socialOAuthRows} />
+					</div>
+				</section>
+			)}
 
-			{/* Delete User Card */}
-			<DeleteUserCard
-				hasPassword={hasPassword}
-				userEmail={userEmail}
-			/>
+			{/* Account Data Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Account Data"
+					description="Raw account information for debugging"
+					icon={Database}
+					iconColor="orange"
+				/>
+				<div className="space-y-4">
+					<UserInformationCard userRow={userRows[0]} />
+					<AccountInformationCard rows={accountRows} />
+					<VTokenCard rows={verificationRows} />
+				</div>
+			</section>
 
-			{/* Cards */}
-			<div className="flex flex-col gap-4">
-				<UserInformationCard userRow={userRows[0]} />
-				<AccountInformationCard rows={accountRows} />
-				<SessionDisplayCard rows={sessionRows} />
-				<SocialOAuthCard rows={socialOAuthRows} />
-				<VTokenCard rows={verificationRows} />
-				<PasskeyCard rows={passkeyRows} />
-			</div>
+			{/* Danger Zone Section */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Danger Zone"
+					description="Irreversible account actions"
+					icon={AlertTriangle}
+					iconColor="red"
+				/>
+				<div className="space-y-4">
+					<DeleteUserCard
+						hasPassword={hasPassword}
+						userEmail={userEmail}
+					/>
+				</div>
+			</section>
 		</div>
 	)
 }
