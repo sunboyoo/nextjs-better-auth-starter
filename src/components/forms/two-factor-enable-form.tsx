@@ -107,7 +107,8 @@ export function TwoFactorEnableForm({ onSuccess }: TwoFactorEnableFormProps) {
 							render={({ field, fieldState }) => (
 								<Field data-invalid={fieldState.invalid}>
 									<FieldLabel htmlFor="enable-otp">
-										Scan the QR code with your TOTP app and enter the code
+										Scan the QR code with your Authenticator App (like Google Authenticator,
+										Authy, or Microsoft Authenticator) and enter the code
 									</FieldLabel>
 									<Input
 										{...field}

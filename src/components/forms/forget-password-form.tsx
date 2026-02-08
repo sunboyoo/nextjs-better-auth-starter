@@ -2,11 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { CaptchaField } from "@/components/captcha/captcha-field";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -16,13 +17,17 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
-import { getCaptchaHeaders, isCaptchaEnabled } from "@/lib/captcha";
+import {
+	CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+	getCaptchaHeaders,
+} from "@/lib/captcha";
 
 const forgetPasswordSchema = z.object({
 	email: z.email("Please enter a valid email address."),
 });
 
 type ForgetPasswordFormValues = z.infer<typeof forgetPasswordSchema>;
+type CaptchaAction = "send-reset-link";
 
 interface ForgetPasswordFormProps {
 	onSuccess?: () => void;
@@ -36,9 +41,13 @@ export function ForgetPasswordForm({
 	redirectTo = "/auth/reset-password",
 }: ForgetPasswordFormProps) {
 	const [loading, startTransition] = useTransition();
-	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-	const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
-	const captchaEnabled = isCaptchaEnabled();
+	const {
+		captchaRef,
+		runCaptchaForActionOrFail,
+		resetCaptcha,
+		isCaptchaVisibleFor,
+	} =
+		useCaptchaAction<CaptchaAction>();
 
 	const form = useForm<ForgetPasswordFormValues>({
 		resolver: zodResolver(forgetPasswordSchema),
@@ -50,10 +59,14 @@ export function ForgetPasswordForm({
 	const onSubmit = (data: ForgetPasswordFormValues) => {
 		startTransition(async () => {
 			try {
-				if (captchaEnabled && !captchaToken) {
-					toast.error("Complete the captcha challenge before continuing.");
-					return;
-				}
+				const captchaToken = await runCaptchaForActionOrFail(
+					"send-reset-link",
+					() => {
+						onError?.(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+						toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+					},
+				);
+				if (captchaToken === undefined) return;
 
 				const result = await authClient.requestPasswordReset({
 					email: data.email,
@@ -69,10 +82,7 @@ export function ForgetPasswordForm({
 			} catch {
 				onError?.("An error occurred. Please try again.");
 			} finally {
-				if (captchaEnabled) {
-					setCaptchaToken(null);
-					setCaptchaWidgetKey((current) => current + 1);
-				}
+				resetCaptcha();
 			}
 		});
 	};
@@ -90,7 +100,7 @@ export function ForgetPasswordForm({
 								{...field}
 								id="forget-email"
 								type="email"
-								placeholder="Enter your email"
+								placeholder="Enter my email"
 								aria-invalid={fieldState.invalid}
 								autoComplete="email"
 							/>
@@ -99,10 +109,6 @@ export function ForgetPasswordForm({
 					)}
 				/>
 			</FieldGroup>
-			<CaptchaField
-				widgetKey={captchaWidgetKey}
-				onTokenChange={setCaptchaToken}
-			/>
 			<Button type="submit" className="w-full" disabled={loading}>
 				{loading ? (
 					<Loader2 size={16} className="animate-spin" />
@@ -110,6 +116,10 @@ export function ForgetPasswordForm({
 					"Send reset link"
 				)}
 			</Button>
+			<CaptchaActionSlot
+				show={isCaptchaVisibleFor("send-reset-link")}
+				captchaRef={captchaRef}
+			/>
 		</form>
 	);
 }

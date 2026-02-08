@@ -6,7 +6,13 @@ import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Mail, ChevronDown } from "lucide-react";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { authClient } from "@/lib/auth-client";
+import {
+  CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+  getCaptchaHeaders,
+} from "@/lib/captcha";
 import { changeEmailSchema, ChangeEmailSchema } from "@/lib/schemas";
 import {
   Card,
@@ -21,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FormError, FormSuccess } from "@/components/ui/form-messages";
 
+type CaptchaAction = "change-email";
+
 const EmailChangeCard = () => {
   const { useSession } = authClient;
   const { data: session, isPending } = useSession();
@@ -29,6 +37,12 @@ const EmailChangeCard = () => {
     success?: string;
     error?: string;
   }>({});
+  const {
+    captchaRef,
+    runCaptchaForActionOrFail,
+    resetCaptcha,
+    isCaptchaVisibleFor,
+  } = useCaptchaAction<CaptchaAction>();
 
   const {
     register,
@@ -58,25 +72,38 @@ const EmailChangeCard = () => {
       return;
     }
 
-    const result = await authClient.changeEmail({
-      newEmail: normalizedEmail,
-      callbackURL: "/dashboard",
-    });
-
-    if (result?.error) {
-      setFormState({
-        error: result.error.message || "Failed to request email change.",
+    try {
+      const captchaToken = await runCaptchaForActionOrFail("change-email", () => {
+        setFormState({
+          error: CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+        });
       });
-      return;
-    }
+      if (captchaToken === undefined) return;
+      const result = await authClient.changeEmail({
+        newEmail: normalizedEmail,
+        callbackURL: "/dashboard",
+        fetchOptions: {
+          headers: getCaptchaHeaders(captchaToken),
+        },
+      });
 
-    const verified = session.user.emailVerified === true;
-    setFormState({
-      success: verified
-        ? "Check your current inbox to confirm the change. After confirmation, verify the new email."
-        : "Check your new inbox to verify the change. Your email updates after verification.",
-    });
-    reset();
+      if (result?.error) {
+        setFormState({
+          error: result.error.message || "Failed to request email change.",
+        });
+        return;
+      }
+
+      const verified = session.user.emailVerified === true;
+      setFormState({
+        success: verified
+          ? "Check your current inbox to confirm the change. After confirmation, verify the new email."
+          : "Check your new inbox to verify the change. Your email updates after verification.",
+      });
+      reset();
+    } finally {
+      resetCaptcha();
+    }
   };
 
   const isVerified = session?.user?.emailVerified === true;
@@ -178,6 +205,10 @@ const EmailChangeCard = () => {
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Requesting..." : "Request email change"}
                 </Button>
+                <CaptchaActionSlot
+                  show={isCaptchaVisibleFor("change-email")}
+                  captchaRef={captchaRef}
+                />
               </form>
             ) : (
               <div className="flex flex-col gap-3">

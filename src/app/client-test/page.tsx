@@ -4,6 +4,8 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,33 +20,55 @@ import { Label } from "@/components/ui/label";
 import { useSessionQuery } from "@/data/user/session-query";
 import { useSignOutMutation } from "@/data/user/sign-out-mutation";
 import { authClient } from "@/lib/auth-client";
+import {
+  CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+  getCaptchaHeaders,
+} from "@/lib/captcha";
+
+type CaptchaAction = "sign-in";
 
 export default function Page() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, startTransition] = useTransition();
+  const {
+    captchaRef,
+    runCaptchaForActionOrFail,
+    resetCaptcha,
+    isCaptchaVisibleFor,
+  } = useCaptchaAction<CaptchaAction>();
   const { data: session, isPending, error } = useSessionQuery();
   const signOutMutation = useSignOutMutation();
 
   const handleLogin = async () => {
     startTransition(async () => {
-      await authClient.signIn.email(
-        {
-          email,
-          password,
-          callbackURL: "/client-test",
-        },
-        {
-          onError: (ctx) => {
-            toast.error(ctx.error.message);
+      try {
+        const captchaToken = await runCaptchaForActionOrFail("sign-in", () => {
+          toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+        });
+        if (captchaToken === undefined) return;
+
+        await authClient.signIn.email(
+          {
+            email,
+            password,
+            callbackURL: "/client-test",
           },
-          onSuccess: () => {
-            toast.success("Successfully logged in!");
-            setEmail("");
-            setPassword("");
+          {
+            headers: getCaptchaHeaders(captchaToken),
+            onError: (ctx) => {
+              toast.error(ctx.error.message);
+            },
+            onSuccess: () => {
+              toast.success("Successfully logged in!");
+              setEmail("");
+              setPassword("");
+            },
           },
-        },
-      );
+        );
+      } finally {
+        resetCaptcha();
+      }
     });
   };
 
@@ -84,7 +108,7 @@ export default function Page() {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-col items-stretch">
             <Button className="w-full" onClick={handleLogin} disabled={loading}>
               {loading ? (
                 <>
@@ -95,6 +119,11 @@ export default function Page() {
                 "Sign In"
               )}
             </Button>
+            <CaptchaActionSlot
+              show={isCaptchaVisibleFor("sign-in")}
+              captchaRef={captchaRef}
+              className="mt-2"
+            />
           </CardFooter>
         </Card>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import SignIn from "./_components/sign-in";
 import { SignUp } from "./_components/sign-up";
@@ -9,7 +9,7 @@ import { Tabs } from "@/components/ui/tabs2";
 import { authClient, isGoogleOneTapConfigured } from "@/lib/auth-client";
 import { getCallbackURL } from "@/lib/better-auth-official/shared";
 
-export default function Page() {
+function SignInPageContent() {
 	const router = useRouter();
 	const params = useSearchParams();
 	const queryString = params.toString();
@@ -67,5 +67,13 @@ export default function Page() {
 				</div>
 			</div>
 		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<Suspense fallback={null}>
+			<SignInPageContent />
+		</Suspense>
 	);
 }

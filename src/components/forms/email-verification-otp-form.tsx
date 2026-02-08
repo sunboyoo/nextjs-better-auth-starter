@@ -7,10 +7,16 @@ import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import {
+  CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+  getCaptchaHeaders,
+} from "@/lib/captcha";
 
 const emailVerificationOtpSchema = z.object({
   email: z.email("Please enter a valid email address."),
@@ -21,6 +27,7 @@ const emailVerificationOtpSchema = z.object({
 });
 
 type EmailVerificationOtpFormValues = z.infer<typeof emailVerificationOtpSchema>;
+type CaptchaAction = "send-verification-otp";
 
 interface EmailVerificationOtpFormProps {
   callbackURL: string;
@@ -45,6 +52,12 @@ export function EmailVerificationOtpForm({
     null,
   );
   const [otpSent, setOtpSent] = useState(false);
+  const {
+    captchaRef,
+    runCaptchaForActionOrFail,
+    resetCaptcha,
+    isCaptchaVisibleFor,
+  } = useCaptchaAction<CaptchaAction>();
 
   const form = useForm<EmailVerificationOtpFormValues>({
     resolver: zodResolver(emailVerificationOtpSchema),
@@ -60,12 +73,24 @@ export function EmailVerificationOtpForm({
       try {
         const isEmailValid = await form.trigger("email");
         if (!isEmailValid) return;
+        const captchaToken = await runCaptchaForActionOrFail(
+          "send-verification-otp",
+          () => {
+            toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+          },
+        );
+        if (captchaToken === undefined) return;
 
         const email = form.getValues("email").trim().toLowerCase();
-        const result = await authClient.emailOtp.sendVerificationOtp({
-          email,
-          type: "email-verification",
-        });
+        const result = await authClient.emailOtp.sendVerificationOtp(
+          {
+            email,
+            type: "email-verification",
+          },
+          {
+            headers: getCaptchaHeaders(captchaToken),
+          },
+        );
 
         if (result.error) {
           toast.error(result.error.message || "Failed to send verification OTP.");
@@ -76,6 +101,7 @@ export function EmailVerificationOtpForm({
         form.setValue("otp", "");
         toast.success("Verification OTP sent. Check your inbox and spam folder.");
       } finally {
+        resetCaptcha();
         setPendingAction(null);
       }
     });
@@ -137,7 +163,6 @@ export function EmailVerificationOtpForm({
           )}
         />
       </FieldGroup>
-
       <Button type="button" variant="outline" onClick={onSendOtp} disabled={loading}>
         {loading && pendingAction === "send" ? (
           <Loader2 size={16} className="animate-spin" />
@@ -147,6 +172,10 @@ export function EmailVerificationOtpForm({
           "Send verification OTP"
         )}
       </Button>
+      <CaptchaActionSlot
+        show={isCaptchaVisibleFor("send-verification-otp")}
+        captchaRef={captchaRef}
+      />
 
       {otpSent && (
         <>
@@ -190,4 +219,3 @@ export function EmailVerificationOtpForm({
     </div>
   );
 }
-

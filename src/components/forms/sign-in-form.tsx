@@ -8,7 +8,8 @@ import { useState, useSyncExternalStore, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { CaptchaField } from "@/components/captcha/captcha-field";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,10 +26,13 @@ import {
 	buildMagicLinkErrorCallbackURL,
 	buildMagicLinkNewUserCallbackURL,
 } from "@/lib/magic-link";
-import { getCaptchaHeaders, isCaptchaEnabled } from "@/lib/captcha";
+import {
+	CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+	getCaptchaHeaders,
+} from "@/lib/captcha";
 import { LastUsedIndicator } from "../last-used-indicator";
 
-const subscribe = () => () => {};
+const subscribe = () => () => { };
 
 const signInSchema = z.object({
 	email: z.email("Please enter a valid email address."),
@@ -37,6 +41,7 @@ const signInSchema = z.object({
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
+type CaptchaAction = "password" | "magic" | "email-otp-send" | "email-otp-verify";
 
 interface SignInFormProps {
 	onSuccess?: () => void;
@@ -57,15 +62,16 @@ export function SignInForm({
 }: SignInFormProps) {
 	const router = useRouter();
 	const [loading, startTransition] = useTransition();
-	const [pendingAction, setPendingAction] = useState<
-		"password" | "magic" | "email-otp-send" | "email-otp-verify" | null
-	>(null);
+	const [pendingAction, setPendingAction] = useState<CaptchaAction | null>(null);
 	const [emailOtpCode, setEmailOtpCode] = useState("");
 	const [emailOtpSentTo, setEmailOtpSentTo] = useState<string | null>(null);
-	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-	const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+	const {
+		captchaRef,
+		runCaptchaForActionOrFail,
+		resetCaptcha,
+		isCaptchaVisibleFor,
+	} = useCaptchaAction<CaptchaAction>();
 	const isMounted = useSyncExternalStore(subscribe, () => true, () => false);
-	const captchaEnabled = isCaptchaEnabled();
 	const newUserCallbackURL =
 		magicLinkNewUserCallbackURL ??
 		buildMagicLinkNewUserCallbackURL(callbackURL);
@@ -89,24 +95,15 @@ export function SignInForm({
 		verificationQuery.set("email", verificationEmail.trim().toLowerCase());
 	}
 	const verifyEmailOtpHref = `/auth/email-otp/verify-email?${verificationQuery.toString()}`;
-	const resetCaptcha = () => {
-		if (!captchaEnabled) return;
-		setCaptchaToken(null);
-		setCaptchaWidgetKey((current) => current + 1);
-	};
-	const ensureCaptchaToken = (): boolean => {
-		if (!captchaEnabled) return true;
-		if (captchaToken) return true;
-
-		toast.error("Complete the captcha challenge before continuing.");
-		return false;
-	};
 
 	const onSubmit = (data: SignInFormValues) => {
 		setPendingAction("password");
 		startTransition(async () => {
 			try {
-				if (!ensureCaptchaToken()) return;
+				const captchaToken = await runCaptchaForActionOrFail("password", () => {
+					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+				});
+				if (captchaToken === undefined) return;
 
 				await authClient.signIn.email(
 					{
@@ -147,6 +144,10 @@ export function SignInForm({
 			try {
 				const isEmailValid = await form.trigger("email");
 				if (!isEmailValid) return;
+				const captchaToken = await runCaptchaForActionOrFail("magic", () => {
+					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+				});
+				if (captchaToken === undefined) return;
 
 				const email = form.getValues("email");
 				await authClient.signIn.magicLink(
@@ -158,6 +159,7 @@ export function SignInForm({
 					},
 					{
 						query: requestQuery,
+						headers: getCaptchaHeaders(captchaToken),
 						onSuccess() {
 							router.push(buildMagicLinkSentURL(email, callbackURL));
 						},
@@ -169,6 +171,7 @@ export function SignInForm({
 					},
 				);
 			} finally {
+				resetCaptcha();
 				setPendingAction(null);
 			}
 		});
@@ -180,6 +183,13 @@ export function SignInForm({
 			try {
 				const isEmailValid = await form.trigger("email");
 				if (!isEmailValid) return;
+				const captchaToken = await runCaptchaForActionOrFail(
+					"email-otp-send",
+					() => {
+						toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+					},
+				);
+				if (captchaToken === undefined) return;
 
 				const email = form.getValues("email").trim().toLowerCase();
 				await authClient.emailOtp.sendVerificationOtp(
@@ -189,6 +199,7 @@ export function SignInForm({
 					},
 					{
 						query: requestQuery,
+						headers: getCaptchaHeaders(captchaToken),
 						onSuccess() {
 							setEmailOtpSentTo(email);
 							setEmailOtpCode("");
@@ -204,6 +215,7 @@ export function SignInForm({
 					},
 				);
 			} finally {
+				resetCaptcha();
 				setPendingAction(null);
 			}
 		});
@@ -217,6 +229,13 @@ export function SignInForm({
 					toast.error("Send an OTP code first.");
 					return;
 				}
+				const captchaToken = await runCaptchaForActionOrFail(
+					"email-otp-verify",
+					() => {
+						toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+					},
+				);
+				if (captchaToken === undefined) return;
 
 				const otp = emailOtpCode.trim();
 				if (!otp || !/^\d+$/.test(otp)) {
@@ -231,6 +250,7 @@ export function SignInForm({
 					},
 					{
 						query: requestQuery,
+						headers: getCaptchaHeaders(captchaToken),
 						onSuccess() {
 							toast.success("Successfully signed in with email OTP");
 							onSuccess?.();
@@ -243,13 +263,14 @@ export function SignInForm({
 					},
 				);
 			} finally {
+				resetCaptcha();
 				setPendingAction(null);
 			}
 		});
 	};
 
 	return (
-			<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
+		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
 			<FieldGroup>
 				<Controller
 					name="email"
@@ -288,7 +309,7 @@ export function SignInForm({
 									href="/auth/forget-password"
 									className="ml-auto inline-block text-sm underline text-foreground"
 								>
-									Forgot your password?
+									Forgot my password?
 								</Link>
 							</div>
 							{showPasswordToggle ? (
@@ -330,10 +351,6 @@ export function SignInForm({
 					)}
 				/>
 			</FieldGroup>
-			<CaptchaField
-				widgetKey={captchaWidgetKey}
-				onTokenChange={setCaptchaToken}
-			/>
 			<Button type="submit" className="w-full relative" disabled={loading}>
 				{loading && pendingAction === "password" ? (
 					<Loader2 size={16} className="animate-spin" />
@@ -344,10 +361,26 @@ export function SignInForm({
 					<LastUsedIndicator />
 				)}
 			</Button>
+			<CaptchaActionSlot
+				show={isCaptchaVisibleFor("password")}
+				captchaRef={captchaRef}
+			/>
+
+			{/* Separation Line */}
+			<div className="relative py-6">
+				<div className="absolute inset-0 flex items-center">
+					<span className="w-full border-t" />
+				</div>
+				<div className="relative flex justify-center text-xs uppercase">
+					<span className="bg-background px-2 text-muted-foreground">
+						OR SIGN IN WITH AN EMAIL LINK
+					</span>
+				</div>
+			</div>
 			<Button
 				type="button"
 				variant="outline"
-				className="w-full"
+				className="w-full relative"
 				disabled={loading}
 				onClick={onMagicLink}
 			>
@@ -356,58 +389,86 @@ export function SignInForm({
 				) : (
 					"Email me a magic link"
 				)}
-			</Button>
-			<div className="rounded-md border p-3 space-y-3">
-				<Button
-					type="button"
-					variant="outline"
-					className="w-full"
-					disabled={loading}
-					onClick={onSendEmailOtp}
-				>
-					{loading && pendingAction === "email-otp-send" ? (
-						<Loader2 size={16} className="animate-spin" />
-					) : emailOtpSentTo ? (
-						"Resend email OTP"
-					) : (
-						"Send email OTP"
-					)}
-				</Button>
-				{emailOtpSentTo && (
-					<>
-						<p className="text-xs text-muted-foreground">
-							OTP sent to {emailOtpSentTo}
-						</p>
-						<Field>
-							<FieldLabel htmlFor="sign-in-email-otp">Email OTP</FieldLabel>
-							<Input
-								id="sign-in-email-otp"
-								value={emailOtpCode}
-								onChange={(event) =>
-									setEmailOtpCode(event.target.value.replace(/[^\d]/g, ""))
-								}
-								type="text"
-								inputMode="numeric"
-								autoComplete="one-time-code"
-								placeholder="Enter OTP code"
-								maxLength={10}
-							/>
-						</Field>
-						<Button
-							type="button"
-							className="w-full"
-							disabled={loading}
-							onClick={onSignInWithEmailOtp}
-						>
-							{loading && pendingAction === "email-otp-verify" ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								"Sign in with Email OTP"
-							)}
-						</Button>
-					</>
+				{isMounted && authClient.isLastUsedLoginMethod("magic-link") && (
+					<LastUsedIndicator />
 				)}
+			</Button>
+			<CaptchaActionSlot
+				show={isCaptchaVisibleFor("magic")}
+				captchaRef={captchaRef}
+			/>
+
+			{/* Separation Line */}
+			<div className="relative py-6">
+				<div className="absolute inset-0 flex items-center">
+					<span className="w-full border-t" />
+				</div>
+				<div className="relative flex justify-center text-xs uppercase">
+					<span className="bg-background px-2 text-muted-foreground">
+						OR SIGN IN WITH AN EMAIL VERIFICATION CODE
+					</span>
+				</div>
 			</div>
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full relative"
+				disabled={loading}
+				onClick={onSendEmailOtp}
+			>
+				{loading && pendingAction === "email-otp-send" ? (
+					<Loader2 size={16} className="animate-spin" />
+				) : emailOtpSentTo ? (
+					"Resend email OTP"
+				) : (
+					"Email me a code"
+				)}
+				{isMounted && authClient.isLastUsedLoginMethod("email-otp") && (
+					<LastUsedIndicator />
+				)}
+			</Button>
+			<CaptchaActionSlot
+				show={isCaptchaVisibleFor("email-otp-send")}
+				captchaRef={captchaRef}
+			/>
+			{emailOtpSentTo && (
+				<div className="rounded-md border p-3 space-y-3">
+					<p className="text-xs text-muted-foreground">
+						OTP sent to {emailOtpSentTo}
+					</p>
+					<Field>
+						<FieldLabel htmlFor="sign-in-email-otp">Email OTP</FieldLabel>
+						<Input
+							id="sign-in-email-otp"
+							value={emailOtpCode}
+							onChange={(event) =>
+								setEmailOtpCode(event.target.value.replace(/[^\d]/g, ""))
+							}
+							type="text"
+							inputMode="numeric"
+							autoComplete="one-time-code"
+							placeholder="Enter OTP code"
+							maxLength={10}
+						/>
+					</Field>
+					<Button
+						type="button"
+						className="w-full"
+						disabled={loading}
+						onClick={onSignInWithEmailOtp}
+					>
+						{loading && pendingAction === "email-otp-verify" ? (
+							<Loader2 size={16} className="animate-spin" />
+						) : (
+							"Sign in with Email OTP"
+						)}
+					</Button>
+					<CaptchaActionSlot
+						show={isCaptchaVisibleFor("email-otp-verify")}
+						captchaRef={captchaRef}
+					/>
+				</div>
+			)}
 		</form>
 	);
 }

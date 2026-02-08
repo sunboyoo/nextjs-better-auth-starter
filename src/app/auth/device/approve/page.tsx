@@ -2,14 +2,14 @@
 
 import { Check, Loader2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useSessionQuery } from "@/data/better-auth-official/user/session-query";
 import { authClient } from "@/lib/auth-client";
 
-export default function Page() {
+function DeviceApprovePageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const userCode = searchParams.get("user_code");
@@ -119,5 +119,13 @@ export default function Page() {
 				</div>
 			</Card>
 		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<Suspense fallback={null}>
+			<DeviceApprovePageContent />
+		</Suspense>
 	);
 }

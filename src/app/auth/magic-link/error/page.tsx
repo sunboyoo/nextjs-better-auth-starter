@@ -1,8 +1,5 @@
-"use client";
-
 import { AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,12 +7,36 @@ import { buildSignInUrl, getMagicLinkSafeCallbackUrl } from "@/lib/magic-link";
 
 const DEFAULT_ERROR_MESSAGE = "The magic link is invalid or expired.";
 
-export default function MagicLinkErrorPage() {
-  const searchParams = useSearchParams();
-  const callbackUrl = getMagicLinkSafeCallbackUrl(searchParams.get("callbackUrl"));
-  const errorCode = searchParams.get("error");
+interface MagicLinkErrorPageProps {
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+    error?: string | string[];
+    error_description?: string | string[];
+  }>;
+}
+
+function getSearchParamValue(value: string | string[] | undefined): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return null;
+}
+
+export default async function MagicLinkErrorPage({
+  searchParams,
+}: MagicLinkErrorPageProps) {
+  const params = await searchParams;
+  const callbackUrl = getMagicLinkSafeCallbackUrl(
+    getSearchParamValue(params.callbackUrl),
+  );
+  const errorCode = getSearchParamValue(params.error);
   const errorDescription =
-    searchParams.get("error_description") ?? DEFAULT_ERROR_MESSAGE;
+    getSearchParamValue(params.error_description) ?? DEFAULT_ERROR_MESSAGE;
 
   return (
     <main className="flex min-h-[calc(100vh-10rem)] items-center justify-center p-4">
@@ -48,4 +69,3 @@ export default function MagicLinkErrorPage() {
     </main>
   );
 }
-

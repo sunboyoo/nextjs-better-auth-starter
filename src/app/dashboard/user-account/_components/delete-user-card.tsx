@@ -1,12 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot"
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
+import {
+    CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+    getCaptchaHeaders,
+} from "@/lib/captcha"
 import { ChevronDown, Loader2, AlertTriangle, Trash2, CheckCircle2, Mail } from "lucide-react"
 
 interface DeleteUserCardProps {
@@ -14,16 +19,23 @@ interface DeleteUserCardProps {
     userEmail: string
 }
 
+type CaptchaAction = "delete-user"
+
 export function DeleteUserCard({
     hasPassword,
     userEmail,
 }: DeleteUserCardProps) {
-    const router = useRouter()
     const [isExpanded, setIsExpanded] = useState(false)
     const [password, setPassword] = useState("")
     const [confirmText, setConfirmText] = useState("")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     const [message, setMessage] = useState("")
+    const {
+        captchaRef,
+        runCaptchaForActionOrFail,
+        resetCaptcha,
+        isCaptchaVisibleFor,
+    } = useCaptchaAction<CaptchaAction>()
 
     const confirmPhrase = "DELETE"
 
@@ -36,21 +48,29 @@ export function DeleteUserCard({
             return
         }
 
+        if (hasPassword && !password) {
+            setMessage("Please enter your password to confirm deletion.")
+            setStatus("error")
+            return
+        }
+
         setStatus("loading")
         setMessage("Processing deletion request...")
 
         try {
-            if (hasPassword) {
-                // User has password, require password confirmation
-                if (!password) {
-                    setMessage("Please enter your password to confirm deletion.")
-                    setStatus("error")
-                    return
-                }
+            const captchaToken = await runCaptchaForActionOrFail("delete-user", () => {
+                setStatus("error")
+                setMessage(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE)
+            })
+            if (captchaToken === undefined) return
 
+            if (hasPassword) {
                 const { error } = await authClient.deleteUser({
                     password,
                     callbackURL: "/auth/sign-in?deleted=true",
+                    fetchOptions: {
+                        headers: getCaptchaHeaders(captchaToken),
+                    },
                 })
 
                 if (error) {
@@ -60,6 +80,9 @@ export function DeleteUserCard({
                 // OAuth user without password, use fresh session
                 const { error } = await authClient.deleteUser({
                     callbackURL: "/auth/sign-in?deleted=true",
+                    fetchOptions: {
+                        headers: getCaptchaHeaders(captchaToken),
+                    },
                 })
 
                 if (error) {
@@ -77,6 +100,8 @@ export function DeleteUserCard({
         } catch (error: unknown) {
             setStatus("error")
             setMessage(error instanceof Error ? error.message : "Failed to delete account")
+        } finally {
+            resetCaptcha()
         }
     }
 
@@ -213,6 +238,10 @@ export function DeleteUserCard({
                                 )}
                             </Button>
                         </div>
+                        <CaptchaActionSlot
+                            show={isCaptchaVisibleFor("delete-user")}
+                            captchaRef={captchaRef}
+                        />
                     </form>
                 </div>
             )}

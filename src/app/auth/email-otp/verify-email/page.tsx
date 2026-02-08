@@ -1,12 +1,28 @@
-"use client";
-
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { EmailVerificationOtpForm } from "@/components/forms/email-verification-otp-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSafeCallbackUrl } from "@/lib/auth-callback";
+
+interface VerifyEmailOtpPageProps {
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+    email?: string | string[];
+  }>;
+}
+
+function getSearchParamValue(value: string | string[] | undefined): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return null;
+}
 
 function buildSignInHref(callbackURL: string): string {
   const query = new URLSearchParams({
@@ -16,10 +32,12 @@ function buildSignInHref(callbackURL: string): string {
   return `/auth/sign-in?${query.toString()}`;
 }
 
-export default function VerifyEmailOtpPage() {
-  const searchParams = useSearchParams();
-  const callbackURL = getSafeCallbackUrl(searchParams.get("callbackUrl"));
-  const initialEmail = searchParams.get("email")?.trim().toLowerCase() ?? "";
+export default async function VerifyEmailOtpPage({
+  searchParams,
+}: VerifyEmailOtpPageProps) {
+  const params = await searchParams;
+  const callbackURL = getSafeCallbackUrl(getSearchParamValue(params.callbackUrl));
+  const initialEmail = getSearchParamValue(params.email)?.trim().toLowerCase() ?? "";
 
   return (
     <main className="flex min-h-[calc(100vh-10rem)] items-center justify-center p-4">
@@ -48,4 +66,3 @@ export default function VerifyEmailOtpPage() {
     </main>
   );
 }
-

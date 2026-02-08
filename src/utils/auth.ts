@@ -1,4 +1,3 @@
-import { authClient } from "@/lib/auth-client";
 import { authAdminClient } from "@/lib/auth-admin-client";
 
 export async function banUser(
@@ -83,10 +82,7 @@ export async function createUser(data: {
   // If not auto-verified, send verification email
   if (!autoVerify) {
     try {
-      await authClient.sendVerificationEmail({
-        email: data.email,
-        callbackURL: "/dashboard",
-      });
+      await sendUserVerificationEmail(data.email, "/dashboard");
     } catch (error) {
       console.error("Failed to send verification email:", error);
       // Don't throw here as user was created successfully

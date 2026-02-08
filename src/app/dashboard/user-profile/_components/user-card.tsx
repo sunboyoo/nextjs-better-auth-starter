@@ -18,6 +18,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { UAParser } from "ua-parser-js";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { ChangePasswordForm } from "@/components/forms/change-password-form";
 import { TwoFactorDisableForm } from "@/components/forms/two-factor-disable-form";
 import { TwoFactorEnableForm } from "@/components/forms/two-factor-enable-form";
@@ -57,7 +59,13 @@ import { useSessionQuery } from "@/data/user/session-query";
 import { useSignOutMutation } from "@/data/user/sign-out-mutation";
 import type { Session } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
+import {
+	CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+	getCaptchaHeaders,
+} from "@/lib/captcha";
 import { stopImpersonationAction } from "../_actions/stop-impersonation";
+
+type CaptchaAction = "send-verification-email";
 
 const UserCard = (props: {
 	session: Session | null;
@@ -72,6 +80,12 @@ const UserCard = (props: {
 	const [isSignOut, setIsSignOut] = useState<boolean>(false);
 	const [emailVerificationPending, setEmailVerificationPending] =
 		useState<boolean>(false);
+	const {
+		captchaRef,
+		runCaptchaForActionOrFail,
+		resetCaptcha,
+		isCaptchaVisibleFor,
+	} = useCaptchaAction<CaptchaAction>();
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
 	const removeActiveSession = (id: string) =>
 		setActiveSessions(activeSessions.filter((session) => session.id !== id));
@@ -117,21 +131,34 @@ const UserCard = (props: {
 								variant="secondary"
 								className="mt-2"
 								onClick={async () => {
+									const captchaToken =
+										await runCaptchaForActionOrFail(
+											"send-verification-email",
+											() => {
+												toast.error(
+													CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+												);
+											},
+										);
+									if (captchaToken === undefined) return;
 									await authClient.sendVerificationEmail(
 										{
 											email: session?.user.email || "",
 										},
 										{
+											headers: getCaptchaHeaders(captchaToken),
 											onRequest(context) {
 												setEmailVerificationPending(true);
 											},
 											onError(context) {
 												toast.error(context.error.message);
 												setEmailVerificationPending(false);
+												resetCaptcha();
 											},
 											onSuccess() {
 												toast.success("Verification email sent successfully");
 												setEmailVerificationPending(false);
+												resetCaptcha();
 											},
 										},
 									);
@@ -143,6 +170,11 @@ const UserCard = (props: {
 									"Resend Verification Email"
 								)}
 							</Button>
+							<CaptchaActionSlot
+								show={isCaptchaVisibleFor("send-verification-email")}
+								captchaRef={captchaRef}
+								className="mt-2"
+							/>
 						</AlertDescription>
 					</Alert>
 				)}

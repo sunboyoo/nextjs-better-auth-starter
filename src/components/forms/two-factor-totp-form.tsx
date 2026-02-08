@@ -75,7 +75,7 @@ export function TwoFactorTotpForm({
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="totp-code">TOTP Code</FieldLabel>
+							<FieldLabel htmlFor="totp-code">Authentication Code</FieldLabel>
 							<Input
 								{...field}
 								id="totp-code"

@@ -1,8 +1,5 @@
-"use client";
-
 import { ArrowLeft, MailCheck } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildSignInUrl, getMagicLinkSafeCallbackUrl } from "@/lib/magic-link";
@@ -19,10 +16,33 @@ function maskEmail(email: string): string {
   return `${localPart.slice(0, visibleChars)}${maskedChars}@${domainPart}`;
 }
 
-export default function MagicLinkSentPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email") ?? "";
-  const callbackUrl = getMagicLinkSafeCallbackUrl(searchParams.get("callbackUrl"));
+interface MagicLinkSentPageProps {
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+    email?: string | string[];
+  }>;
+}
+
+function getSearchParamValue(value: string | string[] | undefined): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return null;
+}
+
+export default async function MagicLinkSentPage({
+  searchParams,
+}: MagicLinkSentPageProps) {
+  const params = await searchParams;
+  const email = getSearchParamValue(params.email) ?? "";
+  const callbackUrl = getMagicLinkSafeCallbackUrl(
+    getSearchParamValue(params.callbackUrl),
+  );
   const maskedEmail = maskEmail(email);
 
   return (
@@ -59,4 +79,3 @@ export default function MagicLinkSentPage() {
     </main>
   );
 }
-

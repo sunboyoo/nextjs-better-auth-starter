@@ -1,4 +1,6 @@
 const CAPTCHA_HEADER_NAME = "x-captcha-response";
+export const CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE =
+  "Captcha verification did not complete. Please try again.";
 
 const clientCaptchaEnabled =
   process.env.NEXT_PUBLIC_BETTER_AUTH_CAPTCHA_ENABLED === "true";
@@ -29,4 +31,3 @@ export function getCaptchaHeaders(
     [CAPTCHA_HEADER_NAME]: token,
   };
 }
-

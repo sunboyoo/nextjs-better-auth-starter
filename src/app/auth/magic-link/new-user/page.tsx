@@ -1,15 +1,34 @@
-"use client";
-
 import { ArrowRight, UserPlus } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildSignInUrl, getMagicLinkSafeCallbackUrl } from "@/lib/magic-link";
 
-export default function MagicLinkNewUserPage() {
-  const searchParams = useSearchParams();
-  const callbackUrl = getMagicLinkSafeCallbackUrl(searchParams.get("callbackUrl"));
+interface MagicLinkNewUserPageProps {
+  searchParams: Promise<{
+    callbackUrl?: string | string[];
+  }>;
+}
+
+function getSearchParamValue(value: string | string[] | undefined): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return null;
+}
+
+export default async function MagicLinkNewUserPage({
+  searchParams,
+}: MagicLinkNewUserPageProps) {
+  const params = await searchParams;
+  const callbackUrl = getMagicLinkSafeCallbackUrl(
+    getSearchParamValue(params.callbackUrl),
+  );
 
   return (
     <main className="flex min-h-[calc(100vh-10rem)] items-center justify-center p-4">
@@ -41,4 +60,3 @@ export default function MagicLinkNewUserPage() {
     </main>
   );
 }
-

@@ -59,7 +59,7 @@ export default function Page() {
 				<CardHeader>
 					<CardTitle>Forgot password</CardTitle>
 					<CardDescription>
-						Use a reset link or reset your password with an email OTP.
+						Use a reset link or reset my password with an email OTP.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

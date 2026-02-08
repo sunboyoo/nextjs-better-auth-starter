@@ -1,13 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot"
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authClient } from "@/lib/auth-client"
+import {
+    CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+    getCaptchaHeaders,
+} from "@/lib/captcha"
 import { ChevronDown, Loader2, CheckCircle2, XCircle, Mail, ShieldCheck, ShieldX, Info } from "lucide-react"
 
 interface UserEmailCardProps {
@@ -15,15 +20,22 @@ interface UserEmailCardProps {
     emailVerified: boolean
 }
 
+type CaptchaAction = "change-email" | "resend-verification-email"
+
 export function UserEmailCard({
     userEmail,
     emailVerified,
 }: UserEmailCardProps) {
-    const router = useRouter()
     const [isExpanded, setIsExpanded] = useState(false)
     const [email, setEmail] = useState("")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     const [message, setMessage] = useState("")
+    const {
+        captchaRef,
+        runCaptchaForActionOrFail,
+        resetCaptcha,
+        isCaptchaVisibleFor,
+    } = useCaptchaAction<CaptchaAction>()
 
     const handleChangeEmail = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -47,9 +59,18 @@ export function UserEmailCard({
         setMessage("Sending verification request...")
 
         try {
+            const captchaToken = await runCaptchaForActionOrFail("change-email", () => {
+                setStatus("error")
+                setMessage(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE)
+            })
+            if (captchaToken === undefined) return
+
             const { error } = await authClient.changeEmail({
                 newEmail: normalizedEmail,
                 callbackURL: "/dashboard/user-account",
+                fetchOptions: {
+                    headers: getCaptchaHeaders(captchaToken),
+                },
             })
 
             if (error) {
@@ -66,17 +87,30 @@ export function UserEmailCard({
         } catch (error: unknown) {
             setStatus("error")
             setMessage(error instanceof Error ? error.message : "Failed to change email")
+        } finally {
+            resetCaptcha()
         }
     }
 
     const handleResendVerification = async () => {
+        const captchaToken = await runCaptchaForActionOrFail("resend-verification-email", () => {
+            setStatus("error")
+            setMessage(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE)
+        })
+        if (captchaToken === undefined) return
+
         setStatus("loading")
         setMessage("Sending verification email...")
 
         try {
-            const { error } = await authClient.sendVerificationEmail({
-                email: userEmail,
-            })
+            const { error } = await authClient.sendVerificationEmail(
+                {
+                    email: userEmail,
+                },
+                {
+                    headers: getCaptchaHeaders(captchaToken),
+                },
+            )
 
             if (error) {
                 throw new Error(error.message)
@@ -91,6 +125,8 @@ export function UserEmailCard({
         } catch (error: unknown) {
             setStatus("error")
             setMessage(error instanceof Error ? error.message : "Failed to send verification email")
+        } finally {
+            resetCaptcha()
         }
     }
 
@@ -98,6 +134,7 @@ export function UserEmailCard({
         setEmail("")
         setStatus("idle")
         setMessage("")
+        resetCaptcha()
     }
 
     const hasChanges = email.trim().length > 0 && email.trim().toLowerCase() !== userEmail.toLowerCase()
@@ -207,6 +244,11 @@ export function UserEmailCard({
                                             >
                                                 Resend verification email
                                             </button>
+                                            <CaptchaActionSlot
+                                                show={isCaptchaVisibleFor("resend-verification-email")}
+                                                captchaRef={captchaRef}
+                                                className="mt-2"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -256,6 +298,10 @@ export function UserEmailCard({
                                 )}
                             </Button>
                         </div>
+                        <CaptchaActionSlot
+                            show={isCaptchaVisibleFor("change-email")}
+                            captchaRef={captchaRef}
+                        />
                     </form>
                 </div>
             )}

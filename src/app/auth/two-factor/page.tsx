@@ -20,9 +20,10 @@ export default function Page() {
 		<main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
 			<Card className="w-[350px]">
 				<CardHeader>
-					<CardTitle>TOTP Verification</CardTitle>
+					<CardTitle>Two-Factor Authentication</CardTitle>
 					<CardDescription>
-						Enter your 6-digit TOTP code to authenticate
+						Enter the 6-digit code from your Authenticator App (like Google
+						Authenticator, Authy, or Microsoft Authenticator)
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

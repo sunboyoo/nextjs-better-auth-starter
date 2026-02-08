@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, X } from "lucide-react";
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { CaptchaField } from "@/components/captcha/captcha-field";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -18,7 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { useImagePreview } from "@/hooks/use-image-preview";
 import { authClient } from "@/lib/auth-client";
-import { getCaptchaHeaders, isCaptchaEnabled } from "@/lib/captcha";
+import {
+	CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+	getCaptchaHeaders,
+} from "@/lib/captcha";
 import { convertImageToBase64 } from "@/lib/utils";
 
 const signUpSchema = z
@@ -27,7 +31,7 @@ const signUpSchema = z
 		lastName: z.string().min(1, "Last name is required."),
 		email: z.string().email("Please enter a valid email address."),
 		password: z.string().min(8, "Password must be at least 8 characters."),
-		passwordConfirmation: z.string().min(1, "Please confirm your password."),
+		passwordConfirmation: z.string().min(1, "Please confirm my password."),
 	})
 	.refine((data) => data.password === data.passwordConfirmation, {
 		message: "Passwords do not match.",
@@ -35,6 +39,7 @@ const signUpSchema = z
 	});
 
 type SignUpFormValues = z.infer<typeof signUpSchema>;
+type CaptchaAction = "sign-up";
 
 interface SignUpFormProps {
 	onSuccess?: () => void;
@@ -48,11 +53,14 @@ export function SignUpForm({
 	params,
 }: SignUpFormProps) {
 	const [loading, startTransition] = useTransition();
-	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-	const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+	const {
+		captchaRef,
+		runCaptchaForActionOrFail,
+		resetCaptcha,
+		isCaptchaVisibleFor,
+	} = useCaptchaAction<CaptchaAction>();
 	const { image, imagePreview, handleImageChange, clearImage } =
 		useImagePreview();
-	const captchaEnabled = isCaptchaEnabled();
 
 	const form = useForm<SignUpFormValues>({
 		resolver: zodResolver(signUpSchema),
@@ -67,12 +75,12 @@ export function SignUpForm({
 
 	const onSubmit = (data: SignUpFormValues) => {
 		startTransition(async () => {
-			if (captchaEnabled && !captchaToken) {
-				toast.error("Complete the captcha challenge before continuing.");
-				return;
-			}
-
 			try {
+				const captchaToken = await runCaptchaForActionOrFail("sign-up", () => {
+					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+				});
+				if (captchaToken === undefined) return;
+
 				await authClient.signUp.email({
 					email: data.email,
 					password: data.password,
@@ -94,10 +102,7 @@ export function SignUpForm({
 					},
 				});
 			} finally {
-				if (captchaEnabled) {
-					setCaptchaToken(null);
-					setCaptchaWidgetKey((current) => current + 1);
-				}
+				resetCaptcha();
 			}
 		});
 	};
@@ -239,10 +244,6 @@ export function SignUpForm({
 					</div>
 				</Field>
 			</FieldGroup>
-			<CaptchaField
-				widgetKey={captchaWidgetKey}
-				onTokenChange={setCaptchaToken}
-			/>
 			<Button type="submit" className="w-full" disabled={loading}>
 				{loading ? (
 					<Loader2 size={16} className="animate-spin" />
@@ -250,6 +251,10 @@ export function SignUpForm({
 					"Create an account"
 				)}
 			</Button>
+			<CaptchaActionSlot
+				show={isCaptchaVisibleFor("sign-up")}
+				captchaRef={captchaRef}
+			/>
 		</form>
 	);
 }

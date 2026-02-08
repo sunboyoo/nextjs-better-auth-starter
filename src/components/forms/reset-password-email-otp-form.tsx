@@ -6,11 +6,17 @@ import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
+import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
+import {
+  CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
+  getCaptchaHeaders,
+} from "@/lib/captcha";
 
 const resetPasswordEmailOtpSchema = z
   .object({
@@ -20,7 +26,7 @@ const resetPasswordEmailOtpSchema = z
       .min(4, "OTP is required.")
       .regex(/^\d+$/, "OTP must contain only digits."),
     password: z.string().min(8, "Password must be at least 8 characters."),
-    confirmPassword: z.string().min(1, "Please confirm your password."),
+    confirmPassword: z.string().min(1, "Please confirm my password."),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",
@@ -28,6 +34,7 @@ const resetPasswordEmailOtpSchema = z
   });
 
 type ResetPasswordEmailOtpFormValues = z.infer<typeof resetPasswordEmailOtpSchema>;
+type CaptchaAction = "send-reset-otp";
 
 interface ResetPasswordEmailOtpFormProps {
   initialEmail?: string;
@@ -43,6 +50,12 @@ export function ResetPasswordEmailOtpForm({
     null,
   );
   const [otpSent, setOtpSent] = useState(false);
+  const {
+    captchaRef,
+    runCaptchaForActionOrFail,
+    resetCaptcha,
+    isCaptchaVisibleFor,
+  } = useCaptchaAction<CaptchaAction>();
 
   const form = useForm<ResetPasswordEmailOtpFormValues>({
     resolver: zodResolver(resetPasswordEmailOtpSchema),
@@ -60,11 +73,20 @@ export function ResetPasswordEmailOtpForm({
       try {
         const isEmailValid = await form.trigger("email");
         if (!isEmailValid) return;
+        const captchaToken = await runCaptchaForActionOrFail("send-reset-otp", () => {
+          toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+        });
+        if (captchaToken === undefined) return;
 
         const email = form.getValues("email").trim().toLowerCase();
-        const result = await authClient.emailOtp.requestPasswordReset({
-          email,
-        });
+        const result = await authClient.emailOtp.requestPasswordReset(
+          {
+            email,
+          },
+          {
+            headers: getCaptchaHeaders(captchaToken),
+          },
+        );
 
         if (result.error) {
           toast.error(result.error.message || "Failed to send password reset OTP.");
@@ -75,6 +97,7 @@ export function ResetPasswordEmailOtpForm({
         form.setValue("otp", "");
         toast.success("Password reset OTP sent. Check your inbox and spam folder.");
       } finally {
+        resetCaptcha();
         setPendingAction(null);
       }
     });
@@ -125,7 +148,7 @@ export function ResetPasswordEmailOtpForm({
                 {...field}
                 id="password-reset-email-otp-email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Enter my email"
                 aria-invalid={fieldState.invalid}
                 autoComplete="email"
               />
@@ -134,7 +157,6 @@ export function ResetPasswordEmailOtpForm({
           )}
         />
       </FieldGroup>
-
       <Button type="button" variant="outline" onClick={onSendOtp} disabled={loading}>
         {loading && pendingAction === "send" ? (
           <Loader2 size={16} className="animate-spin" />
@@ -144,6 +166,10 @@ export function ResetPasswordEmailOtpForm({
           "Send password reset OTP"
         )}
       </Button>
+      <CaptchaActionSlot
+        show={isCaptchaVisibleFor("send-reset-otp")}
+        captchaRef={captchaRef}
+      />
 
       {otpSent && (
         <>
@@ -225,4 +251,3 @@ export function ResetPasswordEmailOtpForm({
     </div>
   );
 }
-

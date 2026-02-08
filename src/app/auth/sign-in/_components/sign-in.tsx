@@ -1,7 +1,6 @@
 "use client";
 
 import { Key } from "lucide-react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
@@ -12,7 +11,6 @@ import {
 	Card,
 	CardContent,
 	CardDescription,
-	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
@@ -24,7 +22,7 @@ import {
 } from "@/lib/magic-link";
 import { cn } from "@/lib/utils";
 
-const subscribe = () => () => {};
+const subscribe = () => () => { };
 
 export default function SignIn() {
 	const isMounted = useSyncExternalStore(subscribe, () => true, () => false);
@@ -40,7 +38,7 @@ export default function SignIn() {
 			<CardHeader>
 				<CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
 				<CardDescription className="text-xs md:text-sm">
-					Enter your email below to login to your account
+					Enter my email below to login to my account
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -52,6 +50,19 @@ export default function SignIn() {
 						magicLinkNewUserCallbackURL={magicLinkNewUserCallbackURL}
 						magicLinkErrorCallbackURL={magicLinkErrorCallbackURL}
 					/>
+
+
+					{/* Separation Line */}
+					<div className="relative py-6">
+						<div className="absolute inset-0 flex items-center">
+							<span className="w-full border-t" />
+						</div>
+						<div className="relative flex justify-center text-xs uppercase">
+							<span className="bg-background px-2 text-muted-foreground">
+								OR CONTINUE WITH SOCIAL
+							</span>
+						</div>
+					</div>
 
 					{/* OAuth Buttons - 2 per row */}
 					<div className="grid grid-cols-2 gap-2">
@@ -188,7 +199,7 @@ export default function SignIn() {
 					</div>
 
 					{/* Divider */}
-					<div className="relative">
+					<div className="relative py-6">
 						<div className="absolute inset-0 flex items-center">
 							<span className="w-full border-t" />
 						</div>
@@ -228,22 +239,6 @@ export default function SignIn() {
 					</Button>
 				</div>
 			</CardContent>
-			<CardFooter>
-				<div className="flex justify-center w-full border-t pt-4">
-					<p className="text-center text-xs text-neutral-500">
-						built with{" "}
-						<Link
-							href="https://better-auth.com"
-							className="underline"
-							target="_blank"
-						>
-							<span className="dark:text-white/70 cursor-pointer">
-								better-auth.
-							</span>
-						</Link>
-					</p>
-				</div>
-			</CardFooter>
 		</Card>
 	);
 }

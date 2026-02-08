@@ -128,9 +128,29 @@ const captchaSecretKey =
 const captchaSiteKey =
   process.env.BETTER_AUTH_CAPTCHA_SITE_KEY ||
   process.env.NEXT_PUBLIC_BETTER_AUTH_CAPTCHA_SITE_KEY;
-const captchaEndpoints = process.env.BETTER_AUTH_CAPTCHA_ENDPOINTS?.split(",")
+const defaultCaptchaEndpoints = [
+  "/sign-up/email",
+  "/sign-in/email",
+  "/sign-in/email-otp",
+  "/send-verification-email",
+  "/request-password-reset",
+  "/sign-in/magic-link",
+  "/email-otp/send-verification-otp",
+  "/email-otp/request-password-reset",
+  "/change-email",
+  "/delete-user",
+];
+const captchaExtraEndpoints = (
+  process.env.BETTER_AUTH_CAPTCHA_EXTRA_ENDPOINTS ?? ""
+).split(",")
   .map((endpoint) => endpoint.trim())
   .filter(Boolean);
+const captchaEndpoints = Array.from(
+  new Set([
+    ...defaultCaptchaEndpoints,
+    ...captchaExtraEndpoints,
+  ]),
+);
 const captchaMinScoreRaw = Number.parseFloat(
   process.env.BETTER_AUTH_CAPTCHA_MIN_SCORE ?? "",
 );
@@ -144,7 +164,7 @@ const captchaPlugin = (() => {
 
   const baseOptions = {
     secretKey: captchaSecretKey,
-    ...(captchaEndpoints?.length ? { endpoints: captchaEndpoints } : {}),
+    endpoints: captchaEndpoints,
   };
 
   if (captchaProvider === "google-recaptcha") {
@@ -470,7 +490,17 @@ const authOptions = {
       expiresIn: "3min",
       interval: "5s",
     }),
-    lastLoginMethod(),
+    lastLoginMethod({
+      customResolveMethod(ctx) {
+        if (ctx.path === "/magic-link/verify" || ctx.path === "/sign-in/magic-link") {
+          return "magic-link";
+        }
+        if (ctx.path === "/sign-in/email-otp") {
+          return "email-otp";
+        }
+        return null;
+      },
+    }),
     oAuthProxy({
       productionURL: baseUrl,
     }),

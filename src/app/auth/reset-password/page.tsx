@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ResetPasswordForm } from "@/components/forms/reset-password-form";
 import {
@@ -10,7 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 
-export default function Page() {
+function ResetPasswordPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const token = searchParams.get("token") ?? "";
@@ -32,5 +33,13 @@ export default function Page() {
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<Suspense fallback={null}>
+			<ResetPasswordPageContent />
+		</Suspense>
 	);
 }

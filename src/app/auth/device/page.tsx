@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 
-export default function Page() {
+function DevicePageContent() {
 	const router = useRouter();
 	const params = useSearchParams();
 	const user_code = params.get("user_code");
@@ -90,5 +90,13 @@ export default function Page() {
 				</div>
 			</Card>
 		</div>
+	);
+}
+
+export default function Page() {
+	return (
+		<Suspense fallback={null}>
+			<DevicePageContent />
+		</Suspense>
 	);
 }
