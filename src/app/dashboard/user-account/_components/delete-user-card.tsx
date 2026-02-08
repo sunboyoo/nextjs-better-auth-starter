@@ -17,6 +17,8 @@ import { ChevronDown, Loader2, AlertTriangle, Trash2, CheckCircle2, Mail } from 
 interface DeleteUserCardProps {
     hasPassword: boolean
     userEmail: string
+    emailSource?: string | null
+    emailDeliverable?: boolean | null
 }
 
 type CaptchaAction = "delete-user"
@@ -24,6 +26,8 @@ type CaptchaAction = "delete-user"
 export function DeleteUserCard({
     hasPassword,
     userEmail,
+    emailSource,
+    emailDeliverable,
 }: DeleteUserCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [password, setPassword] = useState("")
@@ -38,6 +42,9 @@ export function DeleteUserCard({
     } = useCaptchaAction<CaptchaAction>()
 
     const confirmPhrase = "DELETE"
+    const isSyntheticEmail =
+        emailSource === "synthetic" || emailDeliverable === false
+    const requiresPasswordForSyntheticDelete = isSyntheticEmail && !hasPassword
 
     const handleDeleteAccount = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -50,6 +57,14 @@ export function DeleteUserCard({
 
         if (hasPassword && !password) {
             setMessage("Please enter your password to confirm deletion.")
+            setStatus("error")
+            return
+        }
+
+        if (requiresPasswordForSyntheticDelete) {
+            setMessage(
+                "This phone-first account uses a placeholder email. Set a password first, then retry account deletion.",
+            )
             setStatus("error")
             return
         }
@@ -77,7 +92,6 @@ export function DeleteUserCard({
                     throw new Error(error.message)
                 }
             } else {
-                // OAuth user without password, use fresh session
                 const { error } = await authClient.deleteUser({
                     callbackURL: "/auth/sign-in?deleted=true",
                     fetchOptions: {
@@ -90,11 +104,12 @@ export function DeleteUserCard({
                 }
             }
 
-            // If we get here, either:
-            // 1. A verification email was sent (if sendDeleteAccountVerification is configured)
-            // 2. The account was deleted immediately
             setStatus("success")
-            setMessage("A confirmation email has been sent to your email address. Please click the link in the email to complete the account deletion.")
+            setMessage(
+                hasPassword
+                    ? "Account deletion requested successfully. If no additional verification is required, your account will be removed immediately."
+                    : "If this account can receive email, check your inbox for the account deletion confirmation link.",
+            )
             setPassword("")
             setConfirmText("")
         } catch (error: unknown) {
@@ -114,7 +129,12 @@ export function DeleteUserCard({
 
     const isConfirmValid = confirmText === confirmPhrase
     const isPasswordValid = !hasPassword || password.length > 0
-    const canSubmit = isConfirmValid && isPasswordValid && status !== "loading" && status !== "success"
+    const canSubmit =
+        isConfirmValid &&
+        isPasswordValid &&
+        !requiresPasswordForSyntheticDelete &&
+        status !== "loading" &&
+        status !== "success"
 
     return (
         <Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
@@ -151,11 +171,27 @@ export function DeleteUserCard({
                                         <ul className="list-disc list-inside space-y-1 text-xs">
                                             <li>Your account <strong>{userEmail}</strong> will be permanently deleted</li>
                                             <li>All your data, sessions, and linked accounts will be removed</li>
-                                            <li>A confirmation email will be sent to verify this action</li>
+                                            <li>
+                                                {hasPassword
+                                                    ? "Password confirmation is required for this action"
+                                                    : "A confirmation email may be required to verify this action"}
+                                            </li>
                                         </ul>
                                     </div>
                                 </div>
                             </div>
+
+                            {requiresPasswordForSyntheticDelete && (
+                                <div className="rounded-md border border-amber-300 bg-amber-100 p-4 dark:border-amber-800 dark:bg-amber-950/50">
+                                    <div className="flex gap-3">
+                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                        <div className="text-sm text-amber-800 dark:text-amber-200">
+                                            This account uses a phone-first placeholder email and cannot complete
+                                            email confirmation for deletion. Set a password first, then retry deletion.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Password Confirmation (for users with password) */}
                             {hasPassword && (
@@ -200,7 +236,11 @@ export function DeleteUserCard({
 
                         {message && status === "success" && (
                             <div className="flex items-start gap-2 rounded-md p-3 text-sm bg-green-500/10 text-green-600 dark:text-green-400">
-                                <Mail className="h-4 w-4 shrink-0 mt-0.5" />
+                                {hasPassword ? (
+                                    <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                                ) : (
+                                    <Mail className="h-4 w-4 shrink-0 mt-0.5" />
+                                )}
                                 <span>{message}</span>
                             </div>
                         )}
@@ -228,7 +268,7 @@ export function DeleteUserCard({
                                 ) : status === "success" ? (
                                     <>
                                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                                        Email Sent
+                                        Request Submitted
                                     </>
                                 ) : (
                                     <>

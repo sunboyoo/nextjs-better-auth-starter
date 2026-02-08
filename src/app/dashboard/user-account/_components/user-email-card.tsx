@@ -18,6 +18,9 @@ import { ChevronDown, Loader2, CheckCircle2, XCircle, Mail, ShieldCheck, ShieldX
 interface UserEmailCardProps {
     userEmail: string
     emailVerified: boolean
+    emailSource?: string | null
+    emailDeliverable?: boolean | null
+    primaryAuthChannel?: string | null
 }
 
 type CaptchaAction = "change-email" | "resend-verification-email"
@@ -25,6 +28,9 @@ type CaptchaAction = "change-email" | "resend-verification-email"
 export function UserEmailCard({
     userEmail,
     emailVerified,
+    emailSource,
+    emailDeliverable,
+    primaryAuthChannel,
 }: UserEmailCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [email, setEmail] = useState("")
@@ -36,6 +42,14 @@ export function UserEmailCard({
         resetCaptcha,
         isCaptchaVisibleFor,
     } = useCaptchaAction<CaptchaAction>()
+    const isSyntheticEmail = emailSource === "synthetic" || emailDeliverable === false
+    const supportsEmailChannel = !isSyntheticEmail
+    const channelLabel =
+        primaryAuthChannel === "mixed"
+            ? "Primary: mixed (email + phone)"
+            : primaryAuthChannel === "phone"
+                ? "Primary: phone"
+                : "Primary: email"
 
     const handleChangeEmail = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -93,6 +107,14 @@ export function UserEmailCard({
     }
 
     const handleResendVerification = async () => {
+        if (!supportsEmailChannel) {
+            setStatus("error")
+            setMessage(
+                "This is a phone-first placeholder email. Add a real email first to enable email verification.",
+            )
+            return
+        }
+
         const captchaToken = await runCaptchaForActionOrFail("resend-verification-email", () => {
             setStatus("error")
             setMessage(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE)
@@ -153,6 +175,11 @@ export function UserEmailCard({
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-sm font-semibold">{userEmail}</h2>
+                            {isSyntheticEmail && (
+                                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] font-medium">
+                                    Synthetic
+                                </Badge>
+                            )}
                             {emailVerified ? (
                                 <Badge variant="default" className="gap-1 bg-green-600 px-1.5 py-0 text-[10px] font-medium">
                                     <ShieldCheck className="h-3 w-3" />
@@ -165,7 +192,12 @@ export function UserEmailCard({
                                 </Badge>
                             )}
                         </div>
-                        <p className="text-xs text-muted-foreground">Primary email address</p>
+                        <p className="text-xs text-muted-foreground">
+                            {supportsEmailChannel
+                                ? "Primary email address"
+                                : "Phone-first placeholder email. Add a real email to enable email OTP and magic links."}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">{channelLabel}</p>
                     </div>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isExpanded ? "rotate-180" : ""}`} />
@@ -195,6 +227,11 @@ export function UserEmailCard({
                                         <Badge variant="destructive" className="gap-1 shrink-0">
                                             <ShieldX className="h-3 w-3" />
                                             Unverified
+                                        </Badge>
+                                    )}
+                                    {isSyntheticEmail && (
+                                        <Badge variant="secondary" className="shrink-0">
+                                            Synthetic
                                         </Badge>
                                     )}
                                 </div>
@@ -235,20 +272,29 @@ export function UserEmailCard({
                                     <div className="flex gap-3">
                                         <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                         <div className="text-sm text-amber-800 dark:text-amber-200">
-                                            <p>Your current email is not verified.</p>
-                                            <button
-                                                type="button"
-                                                onClick={handleResendVerification}
-                                                className="font-medium underline hover:no-underline mt-1"
-                                                disabled={status === "loading"}
-                                            >
-                                                Resend verification email
-                                            </button>
-                                            <CaptchaActionSlot
-                                                show={isCaptchaVisibleFor("resend-verification-email")}
-                                                captchaRef={captchaRef}
-                                                className="mt-2"
-                                            />
+                                            {supportsEmailChannel ? (
+                                                <>
+                                                    <p>Your current email is not verified.</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleResendVerification}
+                                                        className="font-medium underline hover:no-underline mt-1"
+                                                        disabled={status === "loading"}
+                                                    >
+                                                        Resend verification email
+                                                    </button>
+                                                    <CaptchaActionSlot
+                                                        show={isCaptchaVisibleFor("resend-verification-email")}
+                                                        captchaRef={captchaRef}
+                                                        className="mt-2"
+                                                    />
+                                                </>
+                                            ) : (
+                                                <p>
+                                                    This placeholder email cannot receive messages. Add a real email
+                                                    and verify it to enable email-based sign-in and recovery.
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

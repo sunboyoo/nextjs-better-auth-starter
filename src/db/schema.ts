@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
+  pgEnum,
   text,
   timestamp,
   boolean,
@@ -16,26 +17,66 @@ import {
 } from "drizzle-orm/pg-core";
 const table = pgTable;
 
-export const user = table("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  username: text("username").unique(),
-  displayUsername: text("display_username").unique(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
-  stripeCustomerId: text("stripe_customer_id"),
-  role: text("role"),
-  banned: boolean("banned").default(false),
-  banReason: text("ban_reason"),
-  banExpires: timestamp("ban_expires"),
-});
+export const emailSourceEnum = pgEnum("email_source_enum", [
+  "synthetic",
+  "user_provided",
+]);
+
+export const primaryAuthChannelEnum = pgEnum("primary_auth_channel_enum", [
+  "phone",
+  "email",
+  "mixed",
+]);
+
+export const user = table(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    username: text("username").unique(),
+    displayUsername: text("display_username").unique(),
+    phoneNumber: text("phone_number").unique(),
+    phoneNumberVerified: boolean("phone_number_verified")
+      .default(false)
+      .notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    emailSource: emailSourceEnum("email_source")
+      .default("user_provided")
+      .notNull(),
+    emailDeliverable: boolean("email_deliverable").default(true).notNull(),
+    primaryAuthChannel: primaryAuthChannelEnum("primary_auth_channel")
+      .default("email")
+      .notNull(),
+    image: text("image"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    role: text("role").default("user").notNull(),
+    banned: boolean("banned").default(false).notNull(),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires"),
+  },
+  (table) => [
+    check("user_email_lowercase_chk", sql`${table.email} = lower(${table.email})`),
+    check(
+      "user_username_lowercase_chk",
+      sql`${table.username} IS NULL OR ${table.username} = lower(${table.username})`,
+    ),
+    check(
+      "user_phone_e164_chk",
+      sql`${table.phoneNumber} IS NULL OR ${table.phoneNumber} ~ '^\\+[1-9][0-9]{7,14}$'`,
+    ),
+    check(
+      "user_synthetic_email_deliverable_chk",
+      sql`${table.emailSource} != 'synthetic' OR ${table.emailDeliverable} = false`,
+    ),
+  ],
+);
 
 export const session = table(
   "session",
@@ -45,6 +86,7 @@ export const session = table(
     token: text("token").notNull().unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
+      .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
     ipAddress: text("ip_address"),
@@ -55,7 +97,10 @@ export const session = table(
     impersonatedBy: text("impersonated_by"),
     activeOrganizationId: text("active_organization_id"),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [
+    index("session_userId_idx").on(table.userId),
+    index("session_expiresAt_idx").on(table.expiresAt),
+  ],
 );
 
 export const account = table(
@@ -76,10 +121,18 @@ export const account = table(
     password: text("password"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
+      .defaultNow()
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
+  (table) => [
+    index("account_userId_idx").on(table.userId),
+    index("account_providerId_idx").on(table.providerId),
+    uniqueIndex("account_provider_account_uidx").on(
+      table.providerId,
+      table.accountId,
+    ),
+  ],
 );
 
 export const verification = table(
@@ -95,7 +148,11 @@ export const verification = table(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [
+    index("verification_identifier_idx").on(table.identifier),
+    index("verification_identifier_value_idx").on(table.identifier, table.value),
+    index("verification_expiresAt_idx").on(table.expiresAt),
+  ],
 );
 
 export const passkey = table(
@@ -117,7 +174,7 @@ export const passkey = table(
   },
   (table) => [
     index("passkey_userId_idx").on(table.userId),
-    index("passkey_credentialID_idx").on(table.credentialID),
+    uniqueIndex("passkey_credentialID_uidx").on(table.credentialID),
   ],
 );
 
@@ -202,7 +259,7 @@ export const oauthAccessToken = table(
   "oauth_access_token",
   {
     id: text("id").primaryKey(),
-    token: text("token").unique(),
+    token: text("token").notNull().unique(),
     clientId: text("client_id")
       .notNull()
       .references(() => oauthClient.clientId, { onDelete: "cascade" }),
@@ -259,8 +316,7 @@ export const twoFactor = table(
       .references(() => user.id, { onDelete: "cascade" }),
   },
   (table) => [
-    index("twoFactor_secret_idx").on(table.secret),
-    index("twoFactor_userId_idx").on(table.userId),
+    uniqueIndex("twoFactor_userId_uidx").on(table.userId),
   ],
 );
 
@@ -306,7 +362,9 @@ export const subscription = table(
   },
   (table) => [
     index("subscription_referenceId_idx").on(table.referenceId),
-    index("subscription_stripeSubscriptionId_idx").on(table.stripeSubscriptionId),
+    index("subscription_stripeSubscriptionId_idx").on(
+      table.stripeSubscriptionId,
+    ),
   ],
 );
 
@@ -401,7 +459,7 @@ export const member = table(
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
-    unique("uq_member_id_org").on(table.id, table.organizationId),
+    uniqueIndex("member_org_user_uidx").on(table.organizationId, table.userId),
   ],
 );
 
@@ -531,7 +589,9 @@ export const apps = table(
     description: text("description"),
     logo: text("logo"),
     isActive: boolean("is_active").default(true).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -555,7 +615,9 @@ export const resources = table(
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -584,7 +646,9 @@ export const actions = table(
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -622,7 +686,9 @@ export const organizationAppRoles = table(
     name: text("name").notNull(),
     description: text("description"),
     isActive: boolean("is_active").default(true).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .$onUpdate(() => new Date())
@@ -637,8 +703,16 @@ export const organizationAppRoles = table(
     index("idx_org_app_roles_app").on(table.appId),
     unique("uq_org_app_roles_id_app").on(table.id, table.appId),
     unique("uq_org_app_roles_id_org").on(table.id, table.organizationId),
-    uniqueIndex("org_app_roles_scope_key_uniq").on(table.organizationId, table.appId, table.key),
-    uniqueIndex("org_app_roles_scope_name_uniq").on(table.organizationId, table.appId, table.name),
+    uniqueIndex("org_app_roles_scope_key_uniq").on(
+      table.organizationId,
+      table.appId,
+      table.key,
+    ),
+    uniqueIndex("org_app_roles_scope_name_uniq").on(
+      table.organizationId,
+      table.appId,
+      table.name,
+    ),
   ],
 );
 
@@ -654,7 +728,9 @@ export const organizationAppRoleAction = table(
     appId: uuid("app_id")
       .notNull()
       .references(() => apps.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.roleId, table.actionId] }),
@@ -689,7 +765,9 @@ export const memberOrganizationAppRoles = table(
     appId: uuid("app_id")
       .notNull()
       .references(() => apps.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.memberId, table.organizationAppRoleId] }),
@@ -699,18 +777,16 @@ export const memberOrganizationAppRoles = table(
     index("idx_moar_role").on(table.organizationAppRoleId),
     foreignKey({
       columns: [table.organizationAppRoleId, table.organizationId],
-      foreignColumns: [organizationAppRoles.id, organizationAppRoles.organizationId],
+      foreignColumns: [
+        organizationAppRoles.id,
+        organizationAppRoles.organizationId,
+      ],
       name: "moar_role_org_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [table.organizationAppRoleId, table.appId],
       foreignColumns: [organizationAppRoles.id, organizationAppRoles.appId],
       name: "moar_role_app_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.memberId, table.organizationId],
-      foreignColumns: [member.id, member.organizationId],
-      name: "moar_member_org_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -744,49 +820,58 @@ export const actionsRelations = relations(actions, ({ one, many }) => ({
   roleActions: many(organizationAppRoleAction),
 }));
 
-export const organizationAppRolesRelations = relations(organizationAppRoles, ({ one, many }) => ({
-  organization: one(organization, {
-    fields: [organizationAppRoles.organizationId],
-    references: [organization.id],
+export const organizationAppRolesRelations = relations(
+  organizationAppRoles,
+  ({ one, many }) => ({
+    organization: one(organization, {
+      fields: [organizationAppRoles.organizationId],
+      references: [organization.id],
+    }),
+    app: one(apps, {
+      fields: [organizationAppRoles.appId],
+      references: [apps.id],
+    }),
+    roleActions: many(organizationAppRoleAction),
+    memberRoles: many(memberOrganizationAppRoles),
   }),
-  app: one(apps, {
-    fields: [organizationAppRoles.appId],
-    references: [apps.id],
-  }),
-  roleActions: many(organizationAppRoleAction),
-  memberRoles: many(memberOrganizationAppRoles),
-}));
+);
 
-export const organizationAppRoleActionRelations = relations(organizationAppRoleAction, ({ one }) => ({
-  role: one(organizationAppRoles, {
-    fields: [organizationAppRoleAction.roleId],
-    references: [organizationAppRoles.id],
+export const organizationAppRoleActionRelations = relations(
+  organizationAppRoleAction,
+  ({ one }) => ({
+    role: one(organizationAppRoles, {
+      fields: [organizationAppRoleAction.roleId],
+      references: [organizationAppRoles.id],
+    }),
+    action: one(actions, {
+      fields: [organizationAppRoleAction.actionId],
+      references: [actions.id],
+    }),
+    app: one(apps, {
+      fields: [organizationAppRoleAction.appId],
+      references: [apps.id],
+    }),
   }),
-  action: one(actions, {
-    fields: [organizationAppRoleAction.actionId],
-    references: [actions.id],
-  }),
-  app: one(apps, {
-    fields: [organizationAppRoleAction.appId],
-    references: [apps.id],
-  }),
-}));
+);
 
-export const memberOrganizationAppRolesRelations = relations(memberOrganizationAppRoles, ({ one }) => ({
-  member: one(member, {
-    fields: [memberOrganizationAppRoles.memberId],
-    references: [member.id],
+export const memberOrganizationAppRolesRelations = relations(
+  memberOrganizationAppRoles,
+  ({ one }) => ({
+    member: one(member, {
+      fields: [memberOrganizationAppRoles.memberId],
+      references: [member.id],
+    }),
+    role: one(organizationAppRoles, {
+      fields: [memberOrganizationAppRoles.organizationAppRoleId],
+      references: [organizationAppRoles.id],
+    }),
+    organization: one(organization, {
+      fields: [memberOrganizationAppRoles.organizationId],
+      references: [organization.id],
+    }),
+    app: one(apps, {
+      fields: [memberOrganizationAppRoles.appId],
+      references: [apps.id],
+    }),
   }),
-  role: one(organizationAppRoles, {
-    fields: [memberOrganizationAppRoles.organizationAppRoleId],
-    references: [organizationAppRoles.id],
-  }),
-  organization: one(organization, {
-    fields: [memberOrganizationAppRoles.organizationId],
-    references: [organization.id],
-  }),
-  app: one(apps, {
-    fields: [memberOrganizationAppRoles.appId],
-    references: [apps.id],
-  }),
-}));
+);

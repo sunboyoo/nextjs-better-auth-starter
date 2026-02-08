@@ -9,6 +9,7 @@ import {
   multiSessionClient,
   oneTapClient,
   organizationClient,
+  phoneNumberClient,
   twoFactorClient,
   usernameClient,
 } from "better-auth/client/plugins";
@@ -20,18 +21,21 @@ import { ac } from "@/lib/built-in-organization-role-permissions";
 import { electronProxyClient } from "@/lib/better-auth-electron/client";
 import type { auth } from "@/lib/auth";
 
-const enableStripe = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_STRIPE !== "false";
+const enableStripe =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_STRIPE !== "false";
 const electronScheme =
   process.env.NEXT_PUBLIC_BETTER_AUTH_ELECTRON_SCHEME ||
   "com.nextjs.better-auth.starter";
-const oneTapEnabled = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_ONE_TAP !== "false";
-const googleOneTapClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || "";
+const oneTapEnabled =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_ONE_TAP !== "false";
+const googleOneTapClientId =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || "";
 type OneTapContext = "signin" | "signup" | "use";
 const oneTapContextRaw =
   process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_CONTEXT || "signin";
-const oneTapContext = (
-  ["signin", "signup", "use"] as const
-).includes(oneTapContextRaw as OneTapContext)
+const oneTapContext = (["signin", "signup", "use"] as const).includes(
+  oneTapContextRaw as OneTapContext,
+)
   ? (oneTapContextRaw as OneTapContext)
   : "signin";
 const oneTapBaseDelayRaw = Number.parseInt(
@@ -83,6 +87,7 @@ export const authClient = createAuthClient({
     deviceAuthorizationClient(),
     lastLoginMethodClient(),
     emailOTPClient(),
+    phoneNumberClient(),
     magicLinkClient(),
     usernameClient(),
     passkeyClient(),

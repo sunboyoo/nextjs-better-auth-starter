@@ -7,3 +7,6 @@ Follow this policy for all auth/session/account work:
 
 If conflict exists with local conventions, this policy takes precedence.
 
+## Database Schema Source of Truth
+
+`src/db/schema.ts` is the single source of truth for database schema design and changes.

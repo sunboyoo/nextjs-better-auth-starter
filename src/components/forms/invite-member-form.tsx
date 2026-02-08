@@ -26,9 +26,19 @@ const ORGANIZATION_ROLES = {
 	ADMIN: "admin",
 	MEMBER: "member",
 } as const satisfies Record<string, OrganizationRole>;
+const syntheticEmailDomain = (
+	process.env.NEXT_PUBLIC_BETTER_AUTH_PHONE_TEMP_EMAIL_DOMAIN || "phone.invalid"
+)
+	.trim()
+	.toLowerCase();
 
 const inviteMemberSchema = z.object({
-	email: z.email("Please enter a valid email address"),
+	email: z
+		.email("Please enter a valid email address")
+		.refine(
+			(value) => !value.toLowerCase().endsWith(`@${syntheticEmailDomain}`),
+			"Invitations require a real, deliverable email address.",
+		),
 	role: z.enum(["admin", "member"], {
 		error: "Please select a role",
 	}),

@@ -75,12 +75,17 @@ export function ForgetPasswordForm({
 						headers: getCaptchaHeaders(captchaToken),
 					},
 				});
-				if (result.error) {
-					throw new Error(result.error.message || "Unable to send reset email.");
+				if (result.error && result.error.status === 429) {
+					throw new Error("Too many requests. Please try again later.");
 				}
 				onSuccess?.();
-			} catch {
-				onError?.("An error occurred. Please try again.");
+			} catch (error: unknown) {
+				const message =
+					error instanceof Error
+						? error.message
+						: "An error occurred. Please try again.";
+				onError?.(message);
+				toast.error(message);
 			} finally {
 				resetCaptcha();
 			}

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createEmailVerificationToken } from "better-auth/api";
 import { auth } from "@/lib/auth";
+import {
+  isSyntheticEmail,
+  normalizeSyntheticEmailDomain,
+} from "@/lib/auth-channel";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 
@@ -30,8 +34,20 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail =
       authResult.user.email?.trim().toLowerCase() ?? "";
+    const syntheticEmailDomain = normalizeSyntheticEmailDomain(
+      process.env.BETTER_AUTH_PHONE_TEMP_EMAIL_DOMAIN,
+    );
     if (!normalizedEmail) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    if (isSyntheticEmail(normalizedEmail, syntheticEmailDomain)) {
+      return NextResponse.json(
+        {
+          error:
+            "Email verification is unavailable for phone-first placeholder emails. Add a real email in account settings first.",
+        },
+        { status: 400 },
+      );
     }
 
     const user = await ctx.internalAdapter.findUserByEmail(normalizedEmail);

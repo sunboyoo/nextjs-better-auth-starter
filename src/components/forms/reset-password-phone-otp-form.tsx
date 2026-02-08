@@ -9,7 +9,12 @@ import * as z from "zod";
 import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
 import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
@@ -18,9 +23,19 @@ import {
   getCaptchaHeaders,
 } from "@/lib/captcha";
 
-const resetPasswordEmailOtpSchema = z
+const phoneNumberRegex = /^\+[1-9]\d{7,14}$/;
+const normalizePhoneNumber = (value: string) => value.replace(/[()\s-]/g, "");
+
+const resetPasswordPhoneOtpSchema = z
   .object({
-    email: z.email("Please enter a valid email address."),
+    phoneNumber: z
+      .string()
+      .trim()
+      .min(1, "Phone number is required.")
+      .refine(
+        (value) => phoneNumberRegex.test(normalizePhoneNumber(value)),
+        "Enter a valid phone number in international format, e.g. +14155551234.",
+      ),
     otp: z
       .string()
       .min(4, "OTP is required.")
@@ -33,18 +48,20 @@ const resetPasswordEmailOtpSchema = z
     path: ["confirmPassword"],
   });
 
-type ResetPasswordEmailOtpFormValues = z.infer<typeof resetPasswordEmailOtpSchema>;
-type CaptchaAction = "send-reset-otp";
+type ResetPasswordPhoneOtpFormValues = z.infer<
+  typeof resetPasswordPhoneOtpSchema
+>;
+type CaptchaAction = "send-reset-phone-otp";
 
-interface ResetPasswordEmailOtpFormProps {
-  initialEmail?: string;
+interface ResetPasswordPhoneOtpFormProps {
+  initialPhoneNumber?: string;
   onSuccess?: () => void;
 }
 
-export function ResetPasswordEmailOtpForm({
-  initialEmail = "",
+export function ResetPasswordPhoneOtpForm({
+  initialPhoneNumber = "",
   onSuccess,
-}: ResetPasswordEmailOtpFormProps) {
+}: ResetPasswordPhoneOtpFormProps) {
   const [loading, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<"send" | "reset" | null>(
     null,
@@ -57,10 +74,10 @@ export function ResetPasswordEmailOtpForm({
     isCaptchaVisibleFor,
   } = useCaptchaAction<CaptchaAction>();
 
-  const form = useForm<ResetPasswordEmailOtpFormValues>({
-    resolver: zodResolver(resetPasswordEmailOtpSchema),
+  const form = useForm<ResetPasswordPhoneOtpFormValues>({
+    resolver: zodResolver(resetPasswordPhoneOtpSchema),
     defaultValues: {
-      email: initialEmail,
+      phoneNumber: initialPhoneNumber,
       otp: "",
       password: "",
       confirmPassword: "",
@@ -71,17 +88,22 @@ export function ResetPasswordEmailOtpForm({
     setPendingAction("send");
     startTransition(async () => {
       try {
-        const isEmailValid = await form.trigger("email");
-        if (!isEmailValid) return;
-        const captchaToken = await runCaptchaForActionOrFail("send-reset-otp", () => {
-          toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
-        });
+        const isPhoneValid = await form.trigger("phoneNumber");
+        if (!isPhoneValid) return;
+        const captchaToken = await runCaptchaForActionOrFail(
+          "send-reset-phone-otp",
+          () => {
+            toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+          },
+        );
         if (captchaToken === undefined) return;
 
-        const email = form.getValues("email").trim().toLowerCase();
-        const result = await authClient.emailOtp.requestPasswordReset(
+        const phoneNumber = normalizePhoneNumber(
+          form.getValues("phoneNumber").trim(),
+        );
+        const result = await authClient.phoneNumber.requestPasswordReset(
           {
-            email,
+            phoneNumber,
           },
           {
             headers: getCaptchaHeaders(captchaToken),
@@ -98,7 +120,7 @@ export function ResetPasswordEmailOtpForm({
         setOtpSent(true);
         form.setValue("otp", "");
         toast.success(
-          "If an account exists for this email, a password reset OTP has been sent.",
+          "If an account exists for this phone number, a password reset OTP has been sent.",
         );
       } finally {
         resetCaptcha();
@@ -112,7 +134,7 @@ export function ResetPasswordEmailOtpForm({
     startTransition(async () => {
       try {
         const isValid = await form.trigger([
-          "email",
+          "phoneNumber",
           "otp",
           "password",
           "confirmPassword",
@@ -120,10 +142,10 @@ export function ResetPasswordEmailOtpForm({
         if (!isValid) return;
 
         const values = form.getValues();
-        const result = await authClient.emailOtp.resetPassword({
-          email: values.email.trim().toLowerCase(),
+        const result = await authClient.phoneNumber.resetPassword({
           otp: values.otp.trim(),
-          password: values.password,
+          phoneNumber: normalizePhoneNumber(values.phoneNumber.trim()),
+          newPassword: values.password,
         });
 
         if (result.error) {
@@ -147,25 +169,32 @@ export function ResetPasswordEmailOtpForm({
     <div className="grid gap-4">
       <FieldGroup>
         <Controller
-          name="email"
+          name="phoneNumber"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="password-reset-email-otp-email">Email</FieldLabel>
+              <FieldLabel htmlFor="password-reset-phone-otp-phone">
+                Phone Number
+              </FieldLabel>
               <Input
                 {...field}
-                id="password-reset-email-otp-email"
-                type="email"
-                placeholder="Enter my email"
+                id="password-reset-phone-otp-phone"
+                type="tel"
+                placeholder="+14155551234"
                 aria-invalid={fieldState.invalid}
-                autoComplete="email"
+                autoComplete="tel"
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
       </FieldGroup>
-      <Button type="button" variant="outline" onClick={onSendOtp} disabled={loading}>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onSendOtp}
+        disabled={loading}
+      >
         {loading && pendingAction === "send" ? (
           <Loader2 size={16} className="animate-spin" />
         ) : otpSent ? (
@@ -175,7 +204,7 @@ export function ResetPasswordEmailOtpForm({
         )}
       </Button>
       <CaptchaActionSlot
-        show={isCaptchaVisibleFor("send-reset-otp")}
+        show={isCaptchaVisibleFor("send-reset-phone-otp")}
         captchaRef={captchaRef}
       />
 
@@ -187,12 +216,12 @@ export function ResetPasswordEmailOtpForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="password-reset-email-otp-code">
+                  <FieldLabel htmlFor="password-reset-phone-otp-code">
                     Password reset OTP
                   </FieldLabel>
                   <Input
                     {...field}
-                    id="password-reset-email-otp-code"
+                    id="password-reset-phone-otp-code"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
@@ -203,7 +232,9 @@ export function ResetPasswordEmailOtpForm({
                       field.onChange(event.target.value.replace(/[^\d]/g, ""))
                     }
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -212,17 +243,19 @@ export function ResetPasswordEmailOtpForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="password-reset-email-otp-password">
+                  <FieldLabel htmlFor="password-reset-phone-otp-password">
                     New password
                   </FieldLabel>
                   <PasswordInput
                     {...field}
-                    id="password-reset-email-otp-password"
+                    id="password-reset-phone-otp-password"
                     placeholder="Enter new password"
                     aria-invalid={fieldState.invalid}
                     autoComplete="new-password"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -231,17 +264,19 @@ export function ResetPasswordEmailOtpForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="password-reset-email-otp-confirm">
+                  <FieldLabel htmlFor="password-reset-phone-otp-confirm">
                     Confirm password
                   </FieldLabel>
                   <PasswordInput
                     {...field}
-                    id="password-reset-email-otp-confirm"
+                    id="password-reset-phone-otp-confirm"
                     placeholder="Confirm new password"
                     aria-invalid={fieldState.invalid}
                     autoComplete="new-password"
                   />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />
@@ -251,7 +286,7 @@ export function ResetPasswordEmailOtpForm({
             {loading && pendingAction === "reset" ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
-              "Reset password with OTP"
+              "Reset password with phone OTP"
             )}
           </Button>
         </>
