@@ -16,11 +16,13 @@ import type { Organization } from "better-auth/plugins";
 import {
   admin,
   bearer,
+  captcha,
   customSession,
   deviceAuthorization,
+  emailOTP,
   jwt,
-  magicLink,
   lastLoginMethod,
+  magicLink,
   multiSession,
   oAuthProxy,
   oneTap,
@@ -72,6 +74,108 @@ const magicLinkExpiresIn = Number.isNaN(magicLinkExpiresInRaw)
   : Math.max(60, magicLinkExpiresInRaw);
 const magicLinkDisableSignUp =
   process.env.BETTER_AUTH_MAGIC_LINK_DISABLE_SIGN_UP === "true";
+const emailOtpExpiresInRaw = Number.parseInt(
+  process.env.BETTER_AUTH_EMAIL_OTP_EXPIRES_IN ?? "",
+  10,
+);
+const emailOtpExpiresIn = Number.isNaN(emailOtpExpiresInRaw)
+  ? 5 * 60
+  : Math.max(60, emailOtpExpiresInRaw);
+const emailOtpLengthRaw = Number.parseInt(
+  process.env.BETTER_AUTH_EMAIL_OTP_LENGTH ?? "",
+  10,
+);
+const emailOtpLength = Number.isNaN(emailOtpLengthRaw)
+  ? 6
+  : Math.max(4, emailOtpLengthRaw);
+const emailOtpAllowedAttemptsRaw = Number.parseInt(
+  process.env.BETTER_AUTH_EMAIL_OTP_ALLOWED_ATTEMPTS ?? "",
+  10,
+);
+const emailOtpAllowedAttempts = Number.isNaN(emailOtpAllowedAttemptsRaw)
+  ? 3
+  : Math.max(1, emailOtpAllowedAttemptsRaw);
+const emailOtpDisableSignUp =
+  process.env.BETTER_AUTH_EMAIL_OTP_DISABLE_SIGN_UP === "true";
+const emailOtpSendVerificationOnSignUp =
+  process.env.BETTER_AUTH_EMAIL_OTP_SEND_VERIFICATION_ON_SIGN_UP === "true";
+const oneTapDisableSignup =
+  process.env.BETTER_AUTH_ONE_TAP_DISABLE_SIGN_UP === "true";
+const oneTapServerClientId =
+  process.env.BETTER_AUTH_ONE_TAP_CLIENT_ID ||
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  process.env.GOOGLE_CLIENT_ID;
+type CaptchaProvider =
+  | "cloudflare-turnstile"
+  | "google-recaptcha"
+  | "hcaptcha"
+  | "captchafox";
+const captchaEnabled = process.env.BETTER_AUTH_CAPTCHA_ENABLED === "true";
+const captchaProviderRaw =
+  process.env.BETTER_AUTH_CAPTCHA_PROVIDER || "cloudflare-turnstile";
+const captchaProvider = (
+  [
+    "cloudflare-turnstile",
+    "google-recaptcha",
+    "hcaptcha",
+    "captchafox",
+  ] as const
+).includes(captchaProviderRaw as CaptchaProvider)
+  ? (captchaProviderRaw as CaptchaProvider)
+  : "cloudflare-turnstile";
+const captchaSecretKey =
+  process.env.BETTER_AUTH_CAPTCHA_SECRET_KEY || process.env.TURNSTILE_SECRET_KEY;
+const captchaSiteKey =
+  process.env.BETTER_AUTH_CAPTCHA_SITE_KEY ||
+  process.env.NEXT_PUBLIC_BETTER_AUTH_CAPTCHA_SITE_KEY;
+const captchaEndpoints = process.env.BETTER_AUTH_CAPTCHA_ENDPOINTS?.split(",")
+  .map((endpoint) => endpoint.trim())
+  .filter(Boolean);
+const captchaMinScoreRaw = Number.parseFloat(
+  process.env.BETTER_AUTH_CAPTCHA_MIN_SCORE ?? "",
+);
+const captchaMinScore = Number.isNaN(captchaMinScoreRaw)
+  ? undefined
+  : Math.max(0, Math.min(1, captchaMinScoreRaw));
+const captchaPlugin = (() => {
+  if (!captchaEnabled || !captchaSecretKey) {
+    return null;
+  }
+
+  const baseOptions = {
+    secretKey: captchaSecretKey,
+    ...(captchaEndpoints?.length ? { endpoints: captchaEndpoints } : {}),
+  };
+
+  if (captchaProvider === "google-recaptcha") {
+    return captcha({
+      provider: "google-recaptcha",
+      ...baseOptions,
+      ...(typeof captchaMinScore === "number" ? { minScore: captchaMinScore } : {}),
+    });
+  }
+
+  if (captchaProvider === "hcaptcha") {
+    return captcha({
+      provider: "hcaptcha",
+      ...baseOptions,
+      ...(captchaSiteKey ? { siteKey: captchaSiteKey } : {}),
+    });
+  }
+
+  if (captchaProvider === "captchafox") {
+    return captcha({
+      provider: "captchafox",
+      ...baseOptions,
+      ...(captchaSiteKey ? { siteKey: captchaSiteKey } : {}),
+    });
+  }
+
+  return captcha({
+    provider: "cloudflare-turnstile",
+    ...baseOptions,
+  });
+})();
 
 const enableStripe =
   process.env.BETTER_AUTH_ENABLE_STRIPE !== "false" &&
@@ -283,6 +387,7 @@ const authOptions = {
   ...(Object.keys(socialProviders).length ? { socialProviders } : {}),
   plugins: [
     nextCookies(),
+    ...(captchaPlugin ? [captchaPlugin] : []),
     admin({
       defaultRole: "user",
       adminRoles: ["admin"],
@@ -314,6 +419,38 @@ const authOptions = {
         },
       },
     }),
+    emailOTP({
+      expiresIn: emailOtpExpiresIn,
+      otpLength: emailOtpLength,
+      allowedAttempts: emailOtpAllowedAttempts,
+      disableSignUp: emailOtpDisableSignUp,
+      sendVerificationOnSignUp: emailOtpSendVerificationOnSignUp,
+      async sendVerificationOTP({ email, otp, type }) {
+        if (type === "sign-in") {
+          await sendEmail({
+            to: email,
+            subject: "Your sign-in OTP code",
+            text: `Your one-time sign-in code is: ${otp}`,
+          });
+          return;
+        }
+
+        if (type === "email-verification") {
+          await sendEmail({
+            to: email,
+            subject: "Verify your email address",
+            text: `Your email verification code is: ${otp}`,
+          });
+          return;
+        }
+
+        await sendEmail({
+          to: email,
+          subject: "Your password reset OTP code",
+          text: `Your password reset code is: ${otp}`,
+        });
+      },
+    }),
     magicLink({
       expiresIn: magicLinkExpiresIn,
       disableSignUp: magicLinkDisableSignUp,
@@ -337,7 +474,10 @@ const authOptions = {
     oAuthProxy({
       productionURL: baseUrl,
     }),
-    oneTap(),
+    oneTap({
+      disableSignup: oneTapDisableSignup,
+      ...(oneTapServerClientId ? { clientId: oneTapServerClientId } : {}),
+    }),
     jwt({
       jwt: {
         issuer: baseUrl,

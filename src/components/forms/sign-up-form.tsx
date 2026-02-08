@@ -3,10 +3,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, X } from "lucide-react";
 import Image from "next/image";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { CaptchaField } from "@/components/captcha/captcha-field";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -17,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useImagePreview } from "@/hooks/use-image-preview";
 import { authClient } from "@/lib/auth-client";
+import { getCaptchaHeaders, isCaptchaEnabled } from "@/lib/captcha";
 import { convertImageToBase64 } from "@/lib/utils";
 
 const signUpSchema = z
@@ -46,8 +48,11 @@ export function SignUpForm({
 	params,
 }: SignUpFormProps) {
 	const [loading, startTransition] = useTransition();
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+	const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
 	const { image, imagePreview, handleImageChange, clearImage } =
 		useImagePreview();
+	const captchaEnabled = isCaptchaEnabled();
 
 	const form = useForm<SignUpFormValues>({
 		resolver: zodResolver(signUpSchema),
@@ -62,25 +67,38 @@ export function SignUpForm({
 
 	const onSubmit = (data: SignUpFormValues) => {
 		startTransition(async () => {
-			await authClient.signUp.email({
-				email: data.email,
-				password: data.password,
-				name: `${data.firstName} ${data.lastName}`,
-				image: image ? await convertImageToBase64(image) : "",
-				callbackURL,
-				fetchOptions: {
-					query: params ? Object.fromEntries(params.entries()) : undefined,
-					onError: (ctx) => {
-						toast.error(ctx.error.message);
+			if (captchaEnabled && !captchaToken) {
+				toast.error("Complete the captcha challenge before continuing.");
+				return;
+			}
+
+			try {
+				await authClient.signUp.email({
+					email: data.email,
+					password: data.password,
+					name: `${data.firstName} ${data.lastName}`,
+					image: image ? await convertImageToBase64(image) : "",
+					callbackURL,
+					fetchOptions: {
+						query: params ? Object.fromEntries(params.entries()) : undefined,
+						headers: getCaptchaHeaders(captchaToken),
+						onError: (ctx) => {
+							toast.error(ctx.error.message);
+						},
+						onSuccess: async () => {
+							toast.success(
+								"Account created. Check your email to verify your account before signing in.",
+							);
+							onSuccess?.();
+						},
 					},
-					onSuccess: async () => {
-						toast.success(
-							"Account created. Check your email to verify your account before signing in.",
-						);
-						onSuccess?.();
-					},
-				},
-			});
+				});
+			} finally {
+				if (captchaEnabled) {
+					setCaptchaToken(null);
+					setCaptchaWidgetKey((current) => current + 1);
+				}
+			}
 		});
 	};
 
@@ -221,6 +239,10 @@ export function SignUpForm({
 					</div>
 				</Field>
 			</FieldGroup>
+			<CaptchaField
+				widgetKey={captchaWidgetKey}
+				onTokenChange={setCaptchaToken}
+			/>
 			<Button type="submit" className="w-full" disabled={loading}>
 				{loading ? (
 					<Loader2 size={16} className="animate-spin" />

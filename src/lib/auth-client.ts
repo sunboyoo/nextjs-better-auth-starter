@@ -3,6 +3,7 @@ import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import {
   customSessionClient,
   deviceAuthorizationClient,
+  emailOTPClient,
   lastLoginMethodClient,
   magicLinkClient,
   multiSessionClient,
@@ -22,6 +23,47 @@ const enableStripe = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_STRIPE !== "fals
 const electronScheme =
   process.env.NEXT_PUBLIC_BETTER_AUTH_ELECTRON_SCHEME ||
   "com.nextjs.better-auth.starter";
+const oneTapEnabled = process.env.NEXT_PUBLIC_BETTER_AUTH_ENABLE_ONE_TAP !== "false";
+const googleOneTapClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || "";
+type OneTapContext = "signin" | "signup" | "use";
+const oneTapContextRaw =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_CONTEXT || "signin";
+const oneTapContext = (
+  ["signin", "signup", "use"] as const
+).includes(oneTapContextRaw as OneTapContext)
+  ? (oneTapContextRaw as OneTapContext)
+  : "signin";
+const oneTapBaseDelayRaw = Number.parseInt(
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_BASE_DELAY ?? "",
+  10,
+);
+const oneTapBaseDelay = Number.isNaN(oneTapBaseDelayRaw)
+  ? 1000
+  : Math.max(100, oneTapBaseDelayRaw);
+const oneTapMaxAttemptsRaw = Number.parseInt(
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_MAX_ATTEMPTS ?? "",
+  10,
+);
+const oneTapMaxAttempts = Number.isNaN(oneTapMaxAttemptsRaw)
+  ? 5
+  : Math.max(1, oneTapMaxAttemptsRaw);
+const oneTapFedCMRaw = process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_FEDCM;
+const oneTapFedCM = oneTapFedCMRaw === "true";
+const oneTapAutoSelect =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_AUTO_SELECT === "true";
+const oneTapCancelOnTapOutsideRaw =
+  process.env.NEXT_PUBLIC_BETTER_AUTH_ONE_TAP_CANCEL_ON_TAP_OUTSIDE;
+// cancelOnTapOutside is incompatible with FedCM (per Better Auth docs)
+const oneTapCancelOnTapOutside = oneTapFedCM
+  ? undefined
+  : oneTapCancelOnTapOutsideRaw === "true"
+    ? true
+    : oneTapCancelOnTapOutsideRaw === "false"
+      ? false
+      : true;
+
+export const isGoogleOneTapConfigured =
+  oneTapEnabled && googleOneTapClientId.length > 0;
 
 export const authClient = createAuthClient({
   plugins: [
@@ -39,6 +81,7 @@ export const authClient = createAuthClient({
     multiSessionClient(),
     deviceAuthorizationClient(),
     lastLoginMethodClient(),
+    emailOTPClient(),
     magicLinkClient(),
     passkeyClient(),
     oauthProviderClient(),
@@ -56,10 +99,17 @@ export const authClient = createAuthClient({
     }),
     customSessionClient<typeof auth>(),
     oneTapClient({
-      clientId:
-        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-        process.env.GOOGLE_CLIENT_ID ||
-        "",
+      clientId: googleOneTapClientId,
+      autoSelect: oneTapAutoSelect,
+      ...(typeof oneTapCancelOnTapOutside === "boolean"
+        ? { cancelOnTapOutside: oneTapCancelOnTapOutside }
+        : {}),
+      context: oneTapContext,
+      promptOptions: {
+        baseDelay: oneTapBaseDelay,
+        maxAttempts: oneTapMaxAttempts,
+        fedCM: oneTapFedCM,
+      },
     }),
   ],
   fetchOptions: {

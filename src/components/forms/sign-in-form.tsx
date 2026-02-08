@@ -8,6 +8,7 @@ import { useState, useSyncExternalStore, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { CaptchaField } from "@/components/captcha/captcha-field";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -24,6 +25,7 @@ import {
 	buildMagicLinkErrorCallbackURL,
 	buildMagicLinkNewUserCallbackURL,
 } from "@/lib/magic-link";
+import { getCaptchaHeaders, isCaptchaEnabled } from "@/lib/captcha";
 import { LastUsedIndicator } from "../last-used-indicator";
 
 const subscribe = () => () => {};
@@ -55,15 +57,21 @@ export function SignInForm({
 }: SignInFormProps) {
 	const router = useRouter();
 	const [loading, startTransition] = useTransition();
-	const [pendingAction, setPendingAction] = useState<"password" | "magic" | null>(
-		null,
-	);
+	const [pendingAction, setPendingAction] = useState<
+		"password" | "magic" | "email-otp-send" | "email-otp-verify" | null
+	>(null);
+	const [emailOtpCode, setEmailOtpCode] = useState("");
+	const [emailOtpSentTo, setEmailOtpSentTo] = useState<string | null>(null);
+	const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+	const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
 	const isMounted = useSyncExternalStore(subscribe, () => true, () => false);
+	const captchaEnabled = isCaptchaEnabled();
 	const newUserCallbackURL =
 		magicLinkNewUserCallbackURL ??
 		buildMagicLinkNewUserCallbackURL(callbackURL);
 	const errorCallbackURL =
 		magicLinkErrorCallbackURL ?? buildMagicLinkErrorCallbackURL(callbackURL);
+	const requestQuery = params ? Object.fromEntries(params.entries()) : undefined;
 
 	const form = useForm<SignInFormValues>({
 		resolver: zodResolver(signInSchema),
@@ -73,11 +81,33 @@ export function SignInForm({
 			rememberMe: false,
 		},
 	});
+	const verificationQuery = new URLSearchParams({
+		callbackUrl: callbackURL,
+	});
+	const verificationEmail = form.watch("email");
+	if (verificationEmail) {
+		verificationQuery.set("email", verificationEmail.trim().toLowerCase());
+	}
+	const verifyEmailOtpHref = `/auth/email-otp/verify-email?${verificationQuery.toString()}`;
+	const resetCaptcha = () => {
+		if (!captchaEnabled) return;
+		setCaptchaToken(null);
+		setCaptchaWidgetKey((current) => current + 1);
+	};
+	const ensureCaptchaToken = (): boolean => {
+		if (!captchaEnabled) return true;
+		if (captchaToken) return true;
+
+		toast.error("Complete the captcha challenge before continuing.");
+		return false;
+	};
 
 	const onSubmit = (data: SignInFormValues) => {
 		setPendingAction("password");
 		startTransition(async () => {
 			try {
+				if (!ensureCaptchaToken()) return;
+
 				await authClient.signIn.email(
 					{
 						email: data.email,
@@ -86,7 +116,8 @@ export function SignInForm({
 						callbackURL,
 					},
 					{
-						query: params ? Object.fromEntries(params.entries()) : undefined,
+						query: requestQuery,
+						headers: getCaptchaHeaders(captchaToken),
 						onSuccess() {
 							toast.success("Successfully signed in");
 							onSuccess?.();
@@ -104,6 +135,7 @@ export function SignInForm({
 					},
 				);
 			} finally {
+				resetCaptcha();
 				setPendingAction(null);
 			}
 		});
@@ -125,7 +157,7 @@ export function SignInForm({
 						errorCallbackURL: errorCallbackURL,
 					},
 					{
-						query: params ? Object.fromEntries(params.entries()) : undefined,
+						query: requestQuery,
 						onSuccess() {
 							router.push(buildMagicLinkSentURL(email, callbackURL));
 						},
@@ -142,8 +174,82 @@ export function SignInForm({
 		});
 	};
 
+	const onSendEmailOtp = () => {
+		setPendingAction("email-otp-send");
+		startTransition(async () => {
+			try {
+				const isEmailValid = await form.trigger("email");
+				if (!isEmailValid) return;
+
+				const email = form.getValues("email").trim().toLowerCase();
+				await authClient.emailOtp.sendVerificationOtp(
+					{
+						email,
+						type: "sign-in",
+					},
+					{
+						query: requestQuery,
+						onSuccess() {
+							setEmailOtpSentTo(email);
+							setEmailOtpCode("");
+							toast.success(
+								"Email OTP sent. Check your inbox and spam folder.",
+							);
+						},
+						onError(context) {
+							toast.error(
+								context.error.message || "Failed to send email OTP.",
+							);
+						},
+					},
+				);
+			} finally {
+				setPendingAction(null);
+			}
+		});
+	};
+
+	const onSignInWithEmailOtp = () => {
+		setPendingAction("email-otp-verify");
+		startTransition(async () => {
+			try {
+				if (!emailOtpSentTo) {
+					toast.error("Send an OTP code first.");
+					return;
+				}
+
+				const otp = emailOtpCode.trim();
+				if (!otp || !/^\d+$/.test(otp)) {
+					toast.error("Enter a valid OTP code.");
+					return;
+				}
+
+				await authClient.signIn.emailOtp(
+					{
+						email: emailOtpSentTo,
+						otp,
+					},
+					{
+						query: requestQuery,
+						onSuccess() {
+							toast.success("Successfully signed in with email OTP");
+							onSuccess?.();
+						},
+						onError(context) {
+							toast.error(
+								context.error.message || "Email OTP sign-in failed.",
+							);
+						},
+					},
+				);
+			} finally {
+				setPendingAction(null);
+			}
+		});
+	};
+
 	return (
-		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
+			<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
 			<FieldGroup>
 				<Controller
 					name="email"
@@ -163,6 +269,14 @@ export function SignInForm({
 						</Field>
 					)}
 				/>
+				<div className="text-right">
+					<Link
+						href={verifyEmailOtpHref}
+						className="inline-block text-xs underline text-foreground"
+					>
+						Verify email with OTP
+					</Link>
+				</div>
 				<Controller
 					name="password"
 					control={form.control}
@@ -216,6 +330,10 @@ export function SignInForm({
 					)}
 				/>
 			</FieldGroup>
+			<CaptchaField
+				widgetKey={captchaWidgetKey}
+				onTokenChange={setCaptchaToken}
+			/>
 			<Button type="submit" className="w-full relative" disabled={loading}>
 				{loading && pendingAction === "password" ? (
 					<Loader2 size={16} className="animate-spin" />
@@ -239,6 +357,57 @@ export function SignInForm({
 					"Email me a magic link"
 				)}
 			</Button>
+			<div className="rounded-md border p-3 space-y-3">
+				<Button
+					type="button"
+					variant="outline"
+					className="w-full"
+					disabled={loading}
+					onClick={onSendEmailOtp}
+				>
+					{loading && pendingAction === "email-otp-send" ? (
+						<Loader2 size={16} className="animate-spin" />
+					) : emailOtpSentTo ? (
+						"Resend email OTP"
+					) : (
+						"Send email OTP"
+					)}
+				</Button>
+				{emailOtpSentTo && (
+					<>
+						<p className="text-xs text-muted-foreground">
+							OTP sent to {emailOtpSentTo}
+						</p>
+						<Field>
+							<FieldLabel htmlFor="sign-in-email-otp">Email OTP</FieldLabel>
+							<Input
+								id="sign-in-email-otp"
+								value={emailOtpCode}
+								onChange={(event) =>
+									setEmailOtpCode(event.target.value.replace(/[^\d]/g, ""))
+								}
+								type="text"
+								inputMode="numeric"
+								autoComplete="one-time-code"
+								placeholder="Enter OTP code"
+								maxLength={10}
+							/>
+						</Field>
+						<Button
+							type="button"
+							className="w-full"
+							disabled={loading}
+							onClick={onSignInWithEmailOtp}
+						>
+							{loading && pendingAction === "email-otp-verify" ? (
+								<Loader2 size={16} className="animate-spin" />
+							) : (
+								"Sign in with Email OTP"
+							)}
+						</Button>
+					</>
+				)}
+			</div>
 		</form>
 	);
 }

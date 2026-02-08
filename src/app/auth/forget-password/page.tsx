@@ -2,8 +2,10 @@
 
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ForgetPasswordForm } from "@/components/forms/forget-password-form";
+import { ResetPasswordEmailOtpForm } from "@/components/forms/reset-password-email-otp-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +16,10 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Page() {
+	const router = useRouter();
 	const [isSubmitted, setIsSubmitted] = useState(false);
 
 	if (isSubmitted) {
@@ -51,15 +55,28 @@ export default function Page() {
 
 	return (
 		<main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-			<Card className="w-[350px]">
+			<Card className="w-full max-w-md">
 				<CardHeader>
 					<CardTitle>Forgot password</CardTitle>
 					<CardDescription>
-						Enter your email to reset your password
+						Use a reset link or reset your password with an email OTP.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<ForgetPasswordForm onSuccess={() => setIsSubmitted(true)} />
+					<Tabs defaultValue="link" className="w-full">
+						<TabsList className="grid w-full grid-cols-2">
+							<TabsTrigger value="link">Reset Link</TabsTrigger>
+							<TabsTrigger value="otp">Email OTP</TabsTrigger>
+						</TabsList>
+						<TabsContent value="link" className="mt-4">
+							<ForgetPasswordForm onSuccess={() => setIsSubmitted(true)} />
+						</TabsContent>
+						<TabsContent value="otp" className="mt-4">
+							<ResetPasswordEmailOtpForm
+								onSuccess={() => router.push("/auth/sign-in")}
+							/>
+						</TabsContent>
+					</Tabs>
 				</CardContent>
 				<CardFooter className="flex justify-center">
 					<Link href="/auth/sign-in">
