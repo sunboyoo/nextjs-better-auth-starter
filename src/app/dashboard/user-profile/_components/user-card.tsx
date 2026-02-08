@@ -421,6 +421,7 @@ function EditUserDialog() {
 				</DialogHeader>
 				<UpdateUserForm
 					currentName={data?.user.name}
+					currentUsername={data?.user.username}
 					onSuccess={() => setOpen(false)}
 				/>
 			</DialogContent>

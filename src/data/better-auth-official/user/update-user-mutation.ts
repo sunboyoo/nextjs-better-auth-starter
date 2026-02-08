@@ -6,6 +6,7 @@ import { userKeys } from "./keys";
 interface UpdateUserParams {
     name?: string;
     image?: string;
+    username?: string;
 }
 
 export async function updateUser(params: UpdateUserParams) {

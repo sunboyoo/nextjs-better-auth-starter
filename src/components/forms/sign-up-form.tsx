@@ -25,11 +25,22 @@ import {
 } from "@/lib/captcha";
 import { convertImageToBase64 } from "@/lib/utils";
 
+const usernameSchema = z
+	.string()
+	.trim()
+	.min(3, "Username must be at least 3 characters.")
+	.max(30, "Username must be at most 30 characters.")
+	.regex(
+		/^[a-zA-Z0-9_.]+$/,
+		"Username can only include letters, numbers, underscores, and dots.",
+	);
+
 const signUpSchema = z
 	.object({
 		firstName: z.string().min(1, "First name is required."),
 		lastName: z.string().min(1, "Last name is required."),
 		email: z.string().email("Please enter a valid email address."),
+		username: usernameSchema.optional().or(z.literal("")),
 		password: z.string().min(8, "Password must be at least 8 characters."),
 		passwordConfirmation: z.string().min(1, "Please confirm my password."),
 	})
@@ -68,6 +79,7 @@ export function SignUpForm({
 			firstName: "",
 			lastName: "",
 			email: "",
+			username: "",
 			password: "",
 			passwordConfirmation: "",
 		},
@@ -80,11 +92,13 @@ export function SignUpForm({
 					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
 				});
 				if (captchaToken === undefined) return;
+				const username = data.username?.trim();
 
 				await authClient.signUp.email({
 					email: data.email,
 					password: data.password,
 					name: `${data.firstName} ${data.lastName}`,
+					username: username ? username : undefined,
 					image: image ? await convertImageToBase64(image) : "",
 					callbackURL,
 					fetchOptions: {
@@ -149,69 +163,90 @@ export function SignUpForm({
 							</Field>
 						)}
 					/>
-				</div>
-				<Controller
-					name="email"
-					control={form.control}
-					render={({ field, fieldState }) => (
-						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="sign-up-email">Email</FieldLabel>
-							<Input
-								{...field}
-								id="sign-up-email"
-								type="email"
-								placeholder="m@example.com"
-								aria-invalid={fieldState.invalid}
-								autoComplete="email"
-							/>
-							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-						</Field>
-					)}
-				/>
-				<div className="grid grid-cols-2 gap-4">
+					</div>
 					<Controller
-						name="password"
+						name="email"
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="sign-up-password">Password</FieldLabel>
+								<FieldLabel htmlFor="sign-up-email">Email</FieldLabel>
 								<Input
 									{...field}
-									id="sign-up-password"
-									type="password"
-									placeholder="Password"
+									id="sign-up-email"
+									type="email"
+									placeholder="m@example.com"
 									aria-invalid={fieldState.invalid}
-									autoComplete="new-password"
+									autoComplete="email"
 								/>
-								{fieldState.invalid && (
-									<FieldError errors={[fieldState.error]} />
-								)}
+								{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
 							</Field>
 						)}
 					/>
 					<Controller
-						name="passwordConfirmation"
+						name="username"
 						control={form.control}
 						render={({ field, fieldState }) => (
 							<Field data-invalid={fieldState.invalid}>
-								<FieldLabel htmlFor="sign-up-password-confirmation">
-									Confirm Password
+								<FieldLabel htmlFor="sign-up-username">
+									Username (optional)
 								</FieldLabel>
 								<Input
 									{...field}
-									id="sign-up-password-confirmation"
-									type="password"
-									placeholder="Confirm Password"
+									id="sign-up-username"
+									type="text"
+									placeholder="your.username"
 									aria-invalid={fieldState.invalid}
-									autoComplete="new-password"
+									autoCapitalize="none"
+									autoComplete="username"
 								/>
-								{fieldState.invalid && (
-									<FieldError errors={[fieldState.error]} />
-								)}
+								{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
 							</Field>
 						)}
 					/>
-				</div>
+					<div className="grid grid-cols-2 gap-4">
+						<Controller
+							name="password"
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor="sign-up-password">Password</FieldLabel>
+									<Input
+										{...field}
+										id="sign-up-password"
+										type="password"
+										placeholder="Password"
+										aria-invalid={fieldState.invalid}
+										autoComplete="new-password"
+									/>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
+							)}
+						/>
+						<Controller
+							name="passwordConfirmation"
+							control={form.control}
+							render={({ field, fieldState }) => (
+								<Field data-invalid={fieldState.invalid}>
+									<FieldLabel htmlFor="sign-up-password-confirmation">
+										Confirm Password
+									</FieldLabel>
+									<Input
+										{...field}
+										id="sign-up-password-confirmation"
+										type="password"
+										placeholder="Confirm Password"
+										aria-invalid={fieldState.invalid}
+										autoComplete="new-password"
+									/>
+									{fieldState.invalid && (
+										<FieldError errors={[fieldState.error]} />
+									)}
+								</Field>
+							)}
+						/>
+					</div>
 				<Field>
 					<FieldLabel htmlFor="sign-up-image">
 						Profile Image (optional)

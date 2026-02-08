@@ -33,9 +33,13 @@ import {
 import { LastUsedIndicator } from "../last-used-indicator";
 
 const subscribe = () => () => { };
+const emailSchema = z.email("Please enter a valid email address.");
 
 const signInSchema = z.object({
-	email: z.email("Please enter a valid email address."),
+	identifier: z
+		.string()
+		.trim()
+		.min(1, "Email or username is required."),
 	password: z.string().min(1, "Password is required."),
 	rememberMe: z.boolean(),
 });
@@ -82,7 +86,7 @@ export function SignInForm({
 	const form = useForm<SignInFormValues>({
 		resolver: zodResolver(signInSchema),
 		defaultValues: {
-			email: "",
+			identifier: "",
 			password: "",
 			rememberMe: false,
 		},
@@ -90,9 +94,12 @@ export function SignInForm({
 	const verificationQuery = new URLSearchParams({
 		callbackUrl: callbackURL,
 	});
-	const verificationEmail = form.watch("email");
-	if (verificationEmail) {
-		verificationQuery.set("email", verificationEmail.trim().toLowerCase());
+	const verificationIdentifier = form.watch("identifier");
+	const verificationEmail = emailSchema.safeParse(
+		verificationIdentifier?.trim() ?? "",
+	);
+	if (verificationEmail.success) {
+		verificationQuery.set("email", verificationEmail.data.toLowerCase());
 	}
 	const verifyEmailOtpHref = `/auth/email-otp/verify-email?${verificationQuery.toString()}`;
 
@@ -104,32 +111,48 @@ export function SignInForm({
 					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
 				});
 				if (captchaToken === undefined) return;
+				const identifier = data.identifier.trim();
+				const parsedEmail = emailSchema.safeParse(identifier);
+				const fetchOptions = {
+					query: requestQuery,
+					headers: getCaptchaHeaders(captchaToken),
+					onSuccess() {
+						toast.success("Successfully signed in");
+						onSuccess?.();
+					},
+					onError(context: { error: { message?: string } }) {
+						const message = context.error.message || "Sign in failed.";
+						if (message.toLowerCase().includes("email not verified")) {
+							toast.error(
+								"Email not verified. We sent a new verification email. Check your inbox and spam folder.",
+							);
+							return;
+						}
+						toast.error(message);
+					},
+				};
 
-				await authClient.signIn.email(
+				if (parsedEmail.success) {
+					await authClient.signIn.email(
+						{
+							email: parsedEmail.data.toLowerCase(),
+							password: data.password,
+							rememberMe: data.rememberMe,
+							callbackURL,
+						},
+						fetchOptions,
+					);
+					return;
+				}
+
+				await authClient.signIn.username(
 					{
-						email: data.email,
+						username: identifier,
 						password: data.password,
 						rememberMe: data.rememberMe,
 						callbackURL,
 					},
-					{
-						query: requestQuery,
-						headers: getCaptchaHeaders(captchaToken),
-						onSuccess() {
-							toast.success("Successfully signed in");
-							onSuccess?.();
-						},
-						onError(context) {
-							const message = context.error.message || "Sign in failed.";
-							if (message.toLowerCase().includes("email not verified")) {
-								toast.error(
-									"Email not verified. We sent a new verification email. Check your inbox and spam folder.",
-								);
-								return;
-							}
-							toast.error(message);
-						},
-					},
+					fetchOptions,
 				);
 			} finally {
 				resetCaptcha();
@@ -142,14 +165,18 @@ export function SignInForm({
 		setPendingAction("magic");
 		startTransition(async () => {
 			try {
-				const isEmailValid = await form.trigger("email");
-				if (!isEmailValid) return;
+				const identifier = form.getValues("identifier").trim();
+				const parsedEmail = emailSchema.safeParse(identifier);
+				if (!parsedEmail.success) {
+					toast.error("Enter a valid email to use magic link sign-in.");
+					return;
+				}
 				const captchaToken = await runCaptchaForActionOrFail("magic", () => {
 					toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
 				});
 				if (captchaToken === undefined) return;
 
-				const email = form.getValues("email");
+				const email = parsedEmail.data.toLowerCase();
 				await authClient.signIn.magicLink(
 					{
 						email,
@@ -181,8 +208,12 @@ export function SignInForm({
 		setPendingAction("email-otp-send");
 		startTransition(async () => {
 			try {
-				const isEmailValid = await form.trigger("email");
-				if (!isEmailValid) return;
+				const identifier = form.getValues("identifier").trim();
+				const parsedEmail = emailSchema.safeParse(identifier);
+				if (!parsedEmail.success) {
+					toast.error("Enter a valid email to receive an OTP code.");
+					return;
+				}
 				const captchaToken = await runCaptchaForActionOrFail(
 					"email-otp-send",
 					() => {
@@ -191,7 +222,7 @@ export function SignInForm({
 				);
 				if (captchaToken === undefined) return;
 
-				const email = form.getValues("email").trim().toLowerCase();
+				const email = parsedEmail.data.toLowerCase();
 				await authClient.emailOtp.sendVerificationOtp(
 					{
 						email,
@@ -273,18 +304,21 @@ export function SignInForm({
 		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
 			<FieldGroup>
 				<Controller
-					name="email"
+					name="identifier"
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
+							<FieldLabel htmlFor="sign-in-identifier">
+								Email or Username
+							</FieldLabel>
 							<Input
 								{...field}
-								id="sign-in-email"
-								type="email"
-								placeholder="m@example.com"
+								id="sign-in-identifier"
+								type="text"
+								placeholder="m@example.com or your.username"
 								aria-invalid={fieldState.invalid}
-								autoComplete="email"
+								autoCapitalize="none"
+								autoComplete="username"
 							/>
 							{fieldState.invalid && <FieldError errors={[fieldState.error]} />}
 						</Field>
@@ -357,9 +391,11 @@ export function SignInForm({
 				) : (
 					"Login"
 				)}
-				{isMounted && authClient.isLastUsedLoginMethod("email") && (
-					<LastUsedIndicator />
-				)}
+				{isMounted &&
+					(authClient.isLastUsedLoginMethod("email") ||
+						authClient.isLastUsedLoginMethod("username")) && (
+						<LastUsedIndicator />
+					)}
 			</Button>
 			<CaptchaActionSlot
 				show={isCaptchaVisibleFor("password")}

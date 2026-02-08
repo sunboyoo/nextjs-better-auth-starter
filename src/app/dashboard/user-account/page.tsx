@@ -33,6 +33,7 @@ export default async function UserAccountPage() {
 
 	const userEmail = currentSession.user.email
 	const userName = currentSession.user.name
+	const userUsername = currentSession.user.username
 	const userImage = currentSession.user.image
 
 	const [accountRows, passkeyRows, activeSessions] =
@@ -90,6 +91,7 @@ export default async function UserAccountPage() {
 				<div className="space-y-4">
 					<UserNameImageCard
 						userName={userName}
+						userUsername={userUsername}
 						userEmail={userEmail}
 						userImage={userImage}
 					/>

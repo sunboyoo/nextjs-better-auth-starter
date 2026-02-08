@@ -17,6 +17,16 @@ import { useUpdateUserMutation } from "@/data/better-auth-official/user/update-u
 import { useImagePreview } from "@/hooks/use-image-preview";
 import { convertImageToBase64 } from "@/lib/utils";
 
+const usernameSchema = z
+	.string()
+	.trim()
+	.min(3, "Username must be at least 3 characters")
+	.max(30, "Username must be at most 30 characters")
+	.regex(
+		/^[a-zA-Z0-9_.]+$/,
+		"Username can only include letters, numbers, underscores, and dots",
+	);
+
 const updateUserSchema = z.object({
 	name: z
 		.string()
@@ -24,18 +34,21 @@ const updateUserSchema = z.object({
 		.max(50, "Name must be at most 50 characters")
 		.optional()
 		.or(z.literal("")),
+	username: usernameSchema.optional().or(z.literal("")),
 });
 
 type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
 
 interface UpdateUserFormProps {
 	currentName?: string;
+	currentUsername?: string | null;
 	onSuccess?: () => void;
 	onError?: (error: string) => void;
 }
 
 export function UpdateUserForm({
 	currentName,
+	currentUsername,
 	onSuccess,
 	onError,
 }: UpdateUserFormProps) {
@@ -53,6 +66,7 @@ export function UpdateUserForm({
 		resolver: zodResolver(updateUserSchema),
 		defaultValues: {
 			name: "",
+			username: "",
 		},
 	});
 
@@ -61,12 +75,13 @@ export function UpdateUserForm({
 			const imageBase64 = image ? await convertImageToBase64(image) : undefined;
 
 			updateUserMutation.mutate(
-				{
-					image: imageBase64,
-					name: values.name || undefined,
-				},
-				{
-					onSuccess: () => {
+					{
+						image: imageBase64,
+						name: values.name || undefined,
+						username: values.username?.trim() || undefined,
+					},
+					{
+						onSuccess: () => {
 						reset();
 						clearImage();
 						onSuccess?.();
@@ -84,12 +99,13 @@ export function UpdateUserForm({
 	};
 
 	const nameValue = watch("name");
+	const usernameValue = watch("username");
 
 	return (
 		<form onSubmit={handleSubmit(onSubmit)}>
 			<FieldGroup>
-				<Controller
-					name="name"
+					<Controller
+						name="name"
 					control={control}
 					render={({ field }) => (
 						<Field>
@@ -104,10 +120,29 @@ export function UpdateUserForm({
 							<FieldError>{errors.name?.message}</FieldError>
 						</Field>
 					)}
-				/>
+					/>
+					<Controller
+						name="username"
+						control={control}
+						render={({ field }) => (
+							<Field>
+								<FieldLabel htmlFor="username">Username</FieldLabel>
+								<Input
+									id="username"
+									type="text"
+									placeholder={currentUsername || "your.username"}
+									disabled={updateUserMutation.isPending}
+									autoCapitalize="none"
+									autoComplete="username"
+									{...field}
+								/>
+								<FieldError>{errors.username?.message}</FieldError>
+							</Field>
+						)}
+					/>
 
-				<Field>
-					<FieldLabel htmlFor="image">Profile Image</FieldLabel>
+					<Field>
+						<FieldLabel htmlFor="image">Profile Image</FieldLabel>
 					<div className="flex items-end gap-4">
 						{imagePreview && (
 							<div className="relative w-16 h-16 rounded-sm overflow-hidden">
@@ -139,10 +174,13 @@ export function UpdateUserForm({
 					</div>
 				</Field>
 
-				<Button
-					type="submit"
-					disabled={updateUserMutation.isPending || (!image && !nameValue)}
-				>
+					<Button
+						type="submit"
+						disabled={
+							updateUserMutation.isPending ||
+							(!image && !nameValue && !usernameValue)
+						}
+					>
 					{updateUserMutation.isPending ? (
 						<Loader2 size={15} className="animate-spin" />
 					) : (

@@ -29,6 +29,7 @@ import {
   openAPI,
   organization,
   twoFactor,
+  username,
 } from "better-auth/plugins";
 import { Stripe } from "stripe";
 
@@ -130,6 +131,7 @@ const captchaSiteKey =
 const defaultCaptchaEndpoints = [
   "/sign-up/email",
   "/sign-in/email",
+  "/sign-in/username",
   "/sign-in/email-otp",
   "/send-verification-email",
   "/request-password-reset",
@@ -481,6 +483,7 @@ const authOptions = {
         });
       },
     }),
+    username(),
     passkey(),
     openAPI(),
     bearer(),
