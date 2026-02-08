@@ -19,6 +19,7 @@ import {
   customSession,
   deviceAuthorization,
   jwt,
+  magicLink,
   lastLoginMethod,
   multiSession,
   oAuthProxy,
@@ -62,6 +63,15 @@ const rateLimitStorage =
     process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
     ? process.env.BETTER_AUTH_RATE_LIMIT_STORAGE
     : undefined;
+const magicLinkExpiresInRaw = Number.parseInt(
+  process.env.BETTER_AUTH_MAGIC_LINK_EXPIRES_IN ?? "",
+  10,
+);
+const magicLinkExpiresIn = Number.isNaN(magicLinkExpiresInRaw)
+  ? 5 * 60
+  : Math.max(60, magicLinkExpiresInRaw);
+const magicLinkDisableSignUp =
+  process.env.BETTER_AUTH_MAGIC_LINK_DISABLE_SIGN_UP === "true";
 
 const enableStripe =
   process.env.BETTER_AUTH_ENABLE_STRIPE !== "false" &&
@@ -302,6 +312,17 @@ const authOptions = {
             text: `Your OTP code is: ${otp}`,
           });
         },
+      },
+    }),
+    magicLink({
+      expiresIn: magicLinkExpiresIn,
+      disableSignUp: magicLinkDisableSignUp,
+      async sendMagicLink({ email, url }) {
+        await sendEmail({
+          to: email,
+          subject: "Your magic sign-in link",
+          text: `Click the link to sign in: ${url}`,
+        });
       },
     }),
     passkey(),

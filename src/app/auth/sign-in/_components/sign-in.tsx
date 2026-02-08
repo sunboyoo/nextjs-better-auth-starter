@@ -18,6 +18,10 @@ import {
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
 import { getCallbackURL } from "@/lib/better-auth-official/shared";
+import {
+	buildMagicLinkErrorCallbackURL,
+	buildMagicLinkNewUserCallbackURL,
+} from "@/lib/magic-link";
 import { cn } from "@/lib/utils";
 
 const subscribe = () => () => {};
@@ -26,6 +30,10 @@ export default function SignIn() {
 	const isMounted = useSyncExternalStore(subscribe, () => true, () => false);
 	const router = useRouter();
 	const params = useSearchParams();
+	const callbackURL = getCallbackURL(params);
+	const magicLinkNewUserCallbackURL =
+		buildMagicLinkNewUserCallbackURL(callbackURL);
+	const magicLinkErrorCallbackURL = buildMagicLinkErrorCallbackURL(callbackURL);
 
 	return (
 		<Card className="w-full rounded-none max-h-[90vh] overflow-y-auto">
@@ -39,8 +47,10 @@ export default function SignIn() {
 				<div className="grid gap-4">
 					<SignInForm
 						params={params}
-						onSuccess={() => router.push(getCallbackURL(params))}
-						callbackURL="/dashboard"
+						onSuccess={() => router.push(callbackURL)}
+						callbackURL={callbackURL}
+						magicLinkNewUserCallbackURL={magicLinkNewUserCallbackURL}
+						magicLinkErrorCallbackURL={magicLinkErrorCallbackURL}
 					/>
 
 					{/* OAuth Buttons - 2 per row */}
@@ -51,7 +61,7 @@ export default function SignIn() {
 							onClick={async () => {
 								await authClient.signIn.social({
 									provider: "google",
-									callbackURL: "/dashboard",
+									callbackURL,
 									fetchOptions: {
 										query: params,
 									},
@@ -93,7 +103,7 @@ export default function SignIn() {
 							onClick={async () => {
 								await authClient.signIn.social({
 									provider: "github",
-									callbackURL: "/dashboard",
+									callbackURL,
 									fetchOptions: {
 										query: params,
 									},
@@ -123,7 +133,7 @@ export default function SignIn() {
 							onClick={async () => {
 								await authClient.signIn.social({
 									provider: "microsoft",
-									callbackURL: "/dashboard",
+									callbackURL,
 									fetchOptions: {
 										query: params,
 									},
@@ -153,7 +163,7 @@ export default function SignIn() {
 							onClick={async () => {
 								await authClient.signIn.social({
 									provider: "vercel",
-									callbackURL: "/dashboard",
+									callbackURL,
 									fetchOptions: {
 										query: params,
 									},
@@ -199,7 +209,7 @@ export default function SignIn() {
 									query: params,
 									onSuccess() {
 										toast.success("Successfully signed in");
-										router.push(getCallbackURL(params));
+										router.push(callbackURL);
 									},
 									onError(context) {
 										toast.error(

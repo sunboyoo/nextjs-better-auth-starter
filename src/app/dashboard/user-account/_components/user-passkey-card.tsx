@@ -132,23 +132,23 @@ export function UserPasskeyCard({ initialPasskeys }: UserPasskeyCardProps) {
 
     return (
         <>
-            <Card className="py-0 gap-0 overflow-hidden">
+            <Card className="py-0 gap-0 overflow-hidden border-0 shadow-none">
                 <CardContent className="p-0">
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b bg-muted/30 px-6 py-4">
+                    <div className="flex items-center justify-between border-b px-6 py-4">
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400">
                                 <KeyRound className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Passkeys</h3>
+                                <h3 className="text-sm font-semibold">Passkeys</h3>
                                 <p className="text-xs text-muted-foreground">
                                     Password-free sign-in with biometrics or security keys
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Badge variant={passkeyCount > 0 ? "default" : "secondary"}>
+                            <Badge variant={passkeyCount > 0 ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
                                 {passkeyCount} {passkeyCount === 1 ? "passkey" : "passkeys"}
                             </Badge>
                             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -219,7 +219,7 @@ export function UserPasskeyCard({ initialPasskeys }: UserPasskeyCardProps) {
 
                     {/* Passkey List */}
                     {passkeyCount > 0 ? (
-                        <div className="divide-y">
+                        <div className="divide-y bg-[#fcfcfc]">
                             {currentPasskeys.map((passkey) => {
                                 const DeviceIcon = getDeviceIcon(passkey.deviceType)
                                 return (
@@ -255,7 +255,7 @@ export function UserPasskeyCard({ initialPasskeys }: UserPasskeyCardProps) {
                             })}
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center bg-[#fcfcfc]">
                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground/50">
                                 <KeyRound className="h-6 w-6" />
                             </div>

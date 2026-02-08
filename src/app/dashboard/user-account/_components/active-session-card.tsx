@@ -93,19 +93,19 @@ export function ActiveSessionCard({ sessions, currentSessionId }: ActiveSessionC
     }
 
     return (
-        <Card className="py-0 gap-0 overflow-hidden">
+        <Card className="py-0 gap-0 overflow-hidden border-0 shadow-none">
             <CardContent className="p-0">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b bg-muted/30 px-6 py-4">
+                <div className="flex items-center justify-between border-b-[#f1f1f3] border-b px-6 py-4">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-semibold">
                             {activeSessionsCount} Active Session{activeSessionsCount !== 1 ? "s" : ""}
                         </span>
                     </div>
                 </div>
 
                 {/* Session List */}
-                <div className="divide-y">
+                <div className="divide-y bg-[#fcfcfc]">
                     {activeSessions.map((session) => {
                         const deviceInfo = getDeviceInfo(session.userAgent)
                         const DeviceIcon = getDeviceIcon(deviceInfo.type)
@@ -116,14 +116,13 @@ export function ActiveSessionCard({ sessions, currentSessionId }: ActiveSessionC
                         return (
                             <div
                                 key={session.id}
-                                className={`flex items-center justify-between gap-4 px-6 py-4 transition-colors ${isCurrentSession ? "bg-primary/5" : ""
-                                    }`}
+                                className={`flex items-center justify-between gap-4 px-6 py-4 transition-colors`}
                             >
                                 <div className="flex items-center gap-4">
                                     {/* Device Icon */}
                                     <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isCurrentSession
-                                            ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                                            : "bg-muted text-muted-foreground"
+                                        ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                                        : "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400"
                                         }`}>
                                         <DeviceIcon className="h-5 w-5" />
                                     </div>

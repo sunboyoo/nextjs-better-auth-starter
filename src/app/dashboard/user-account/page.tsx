@@ -65,16 +65,16 @@ export default async function UserAccountPage() {
 	return (
 		<div className="w-full space-y-8">
 			{/* Page Header */}
-			<div className="rounded-xl border bg-card p-6 md:p-8">
+			<div className="rounded-xl border-0 shadow-none bg-card p-6 md:p-8">
 				<div className="flex items-center gap-3">
-					<div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm">
-						<CircleUser className="h-6 w-6" />
+					<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 shadow-sm dark:bg-indigo-900/30 dark:text-indigo-400">
+						<CircleUser className="h-5 w-5" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+						<h1 className="text-base font-bold tracking-tight md:text-lg">
 							Account Overview
 						</h1>
-						<p className="mt-1 text-sm text-muted-foreground md:text-base">
+						<p className="mt-1 text-xs text-muted-foreground md:text-sm">
 							View and manage your account details, security settings, and connected services.
 						</p>
 					</div>
@@ -86,8 +86,6 @@ export default async function UserAccountPage() {
 				<SectionHeader
 					title="Profile & Identity"
 					description="Your personal information, email, and platform role"
-					icon={User}
-					iconColor="blue"
 				/>
 				<div className="space-y-4">
 					<UserNameImageCard
@@ -112,8 +110,6 @@ export default async function UserAccountPage() {
 				<SectionHeader
 					title="Sign-in Methods"
 					description="Manage how you sign in to your account"
-					icon={KeyRound}
-					iconColor="orange"
 				/>
 				<div className="space-y-4">
 					<UserPasswordCard
@@ -135,8 +131,6 @@ export default async function UserAccountPage() {
 				<SectionHeader
 					title="Security"
 					description="Two-factor authentication and active sessions"
-					icon={ShieldCheck}
-					iconColor="green"
 				/>
 				<div className="space-y-4">
 					<UserTwoFactorCard twoFactorEnabled={!!currentSession.user.twoFactorEnabled} />
@@ -152,8 +146,6 @@ export default async function UserAccountPage() {
 				<SectionHeader
 					title="Danger Zone"
 					description="Irreversible account actions"
-					icon={AlertTriangle}
-					iconColor="red"
 				/>
 				<div className="space-y-4">
 					<DeleteUserCard

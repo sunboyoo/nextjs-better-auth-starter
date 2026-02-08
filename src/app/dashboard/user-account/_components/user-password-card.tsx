@@ -126,24 +126,24 @@ export function UserPasswordCard({
         : newPassword.length >= 8 && newPassword === confirmPassword
 
     return (
-        <Card className="overflow-hidden transition-all py-0 gap-0">
+        <Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
             {/* Main Card Content - Clickable */}
             <CardContent
                 className="group flex cursor-pointer items-center justify-between gap-4 p-6"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary/10 bg-primary/5">
-                        <KeyRound className="h-7 w-7 text-primary" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        <KeyRound className="h-5 w-5" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h2 className="text-xl font-semibold">Password</h2>
-                            <Badge variant={hasPassword ? "default" : "secondary"}>
+                            <h2 className="text-sm font-semibold">Password</h2>
+                            <Badge variant={hasPassword ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
                                 {hasPassword ? "Enabled" : "Not Enabled"}
                             </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                             {hasPassword
                                 ? "Change your account password"
                                 : "Set a password for email login"}
@@ -155,7 +155,7 @@ export function UserPasswordCard({
 
             {/* Expanded Edit Section */}
             {isExpanded && (
-                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#f5f5f7' }}>
+                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#fcfcfc' }}>
                     <form onSubmit={hasPassword ? handleChangePassword : handleSetPassword} className="space-y-4">
                         <div className="grid gap-4">
                             {/* Info for OAuth-only users */}

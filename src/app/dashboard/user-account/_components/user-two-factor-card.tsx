@@ -86,10 +86,10 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
     }
 
     return (
-        <Card className="py-0 gap-0 overflow-hidden">
+        <Card className="py-0 gap-0 overflow-hidden border-0 shadow-none">
             <CardContent className="p-0">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b bg-muted/30 px-6 py-4">
+                <div className="flex items-center justify-between border-b px-6 py-4">
                     <div className="flex items-center gap-3">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${twoFactorEnabled
                             ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
@@ -102,22 +102,22 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
                             )}
                         </div>
                         <div>
-                            <h3 className="font-semibold">Two-Factor Authentication</h3>
+                            <h3 className="text-sm font-semibold">Two-Factor Authentication</h3>
                             <p className="text-xs text-muted-foreground">
                                 Add an extra layer of security to your account
                             </p>
                         </div>
                     </div>
-                    <Badge variant={twoFactorEnabled ? "default" : "destructive"}>
+                    <Badge variant={twoFactorEnabled ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
                         {twoFactorEnabled ? "Enabled" : "Disabled"}
                     </Badge>
                 </div>
 
                 {/* Content Actions */}
-                <div className="p-6">
+                <div className="p-6 bg-[#fcfcfc]">
                     {twoFactorEnabled ? (
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                                 <p>
                                     Two-factor authentication is currently <strong>enabled</strong>.
                                     We recommend keeping this on for better security.
@@ -252,7 +252,7 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-xs text-muted-foreground">
                                 <p>
                                     Secure your account with two-factor authentication.
                                     You will need an authenticator app like Google Authenticator or Authy.

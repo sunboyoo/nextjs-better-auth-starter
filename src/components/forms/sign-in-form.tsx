@@ -3,7 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useSyncExternalStore, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -18,6 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { authClient } from "@/lib/auth-client";
+import {
+	buildMagicLinkSentURL,
+	buildMagicLinkErrorCallbackURL,
+	buildMagicLinkNewUserCallbackURL,
+} from "@/lib/magic-link";
 import { LastUsedIndicator } from "../last-used-indicator";
 
 const subscribe = () => () => {};
@@ -35,6 +41,8 @@ interface SignInFormProps {
 	callbackURL?: string;
 	showPasswordToggle?: boolean;
 	params?: URLSearchParams;
+	magicLinkNewUserCallbackURL?: string;
+	magicLinkErrorCallbackURL?: string;
 }
 
 export function SignInForm({
@@ -42,9 +50,20 @@ export function SignInForm({
 	callbackURL = "/dashboard",
 	showPasswordToggle = false,
 	params,
+	magicLinkNewUserCallbackURL,
+	magicLinkErrorCallbackURL,
 }: SignInFormProps) {
+	const router = useRouter();
 	const [loading, startTransition] = useTransition();
+	const [pendingAction, setPendingAction] = useState<"password" | "magic" | null>(
+		null,
+	);
 	const isMounted = useSyncExternalStore(subscribe, () => true, () => false);
+	const newUserCallbackURL =
+		magicLinkNewUserCallbackURL ??
+		buildMagicLinkNewUserCallbackURL(callbackURL);
+	const errorCallbackURL =
+		magicLinkErrorCallbackURL ?? buildMagicLinkErrorCallbackURL(callbackURL);
 
 	const form = useForm<SignInFormValues>({
 		resolver: zodResolver(signInSchema),
@@ -56,32 +75,70 @@ export function SignInForm({
 	});
 
 	const onSubmit = (data: SignInFormValues) => {
+		setPendingAction("password");
 		startTransition(async () => {
-			await authClient.signIn.email(
-				{
-					email: data.email,
-					password: data.password,
-					rememberMe: data.rememberMe,
-					callbackURL,
-				},
-				{
-					query: params ? Object.fromEntries(params.entries()) : undefined,
-					onSuccess() {
-						toast.success("Successfully signed in");
-						onSuccess?.();
+			try {
+				await authClient.signIn.email(
+					{
+						email: data.email,
+						password: data.password,
+						rememberMe: data.rememberMe,
+						callbackURL,
 					},
-					onError(context) {
-						const message = context.error.message || "Sign in failed.";
-						if (message.toLowerCase().includes("email not verified")) {
+					{
+						query: params ? Object.fromEntries(params.entries()) : undefined,
+						onSuccess() {
+							toast.success("Successfully signed in");
+							onSuccess?.();
+						},
+						onError(context) {
+							const message = context.error.message || "Sign in failed.";
+							if (message.toLowerCase().includes("email not verified")) {
+								toast.error(
+									"Email not verified. We sent a new verification email. Check your inbox and spam folder.",
+								);
+								return;
+							}
+							toast.error(message);
+						},
+					},
+				);
+			} finally {
+				setPendingAction(null);
+			}
+		});
+	};
+
+	const onMagicLink = () => {
+		setPendingAction("magic");
+		startTransition(async () => {
+			try {
+				const isEmailValid = await form.trigger("email");
+				if (!isEmailValid) return;
+
+				const email = form.getValues("email");
+				await authClient.signIn.magicLink(
+					{
+						email,
+						callbackURL,
+						newUserCallbackURL: newUserCallbackURL,
+						errorCallbackURL: errorCallbackURL,
+					},
+					{
+						query: params ? Object.fromEntries(params.entries()) : undefined,
+						onSuccess() {
+							router.push(buildMagicLinkSentURL(email, callbackURL));
+						},
+						onError(context) {
 							toast.error(
-								"Email not verified. We sent a new verification email. Check your inbox and spam folder.",
+								context.error.message || "Failed to send magic link.",
 							);
-							return;
-						}
-						toast.error(message);
+						},
 					},
-				},
-			);
+				);
+			} finally {
+				setPendingAction(null);
+			}
 		});
 	};
 
@@ -160,9 +217,26 @@ export function SignInForm({
 				/>
 			</FieldGroup>
 			<Button type="submit" className="w-full relative" disabled={loading}>
-				{loading ? <Loader2 size={16} className="animate-spin" /> : "Login"}
+				{loading && pendingAction === "password" ? (
+					<Loader2 size={16} className="animate-spin" />
+				) : (
+					"Login"
+				)}
 				{isMounted && authClient.isLastUsedLoginMethod("email") && (
 					<LastUsedIndicator />
+				)}
+			</Button>
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full"
+				disabled={loading}
+				onClick={onMagicLink}
+			>
+				{loading && pendingAction === "magic" ? (
+					<Loader2 size={16} className="animate-spin" />
+				) : (
+					"Email me a magic link"
 				)}
 			</Button>
 		</form>

@@ -150,22 +150,22 @@ export function UserNameImageCard({
     const hasChanges = (name !== normalizedUserName) || (image !== normalizedUserImage)
 
     return (
-        <Card className="overflow-hidden transition-all py-0 gap-0">
+        <Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
             {/* Main Card Content - Clickable */}
             <CardContent
                 className="group flex cursor-pointer items-center justify-between gap-4 p-6"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-primary/10">
-                        <AvatarImage src={normalizedUserImage || undefined} alt={displayName} />
-                        <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+                    <Avatar className="h-10 w-10 rounded-lg">
+                        <AvatarImage src={normalizedUserImage || undefined} alt={displayName} className="rounded-lg" />
+                        <AvatarFallback className="rounded-lg bg-violet-100 text-xs font-semibold text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
                             {initials}
                         </AvatarFallback>
                     </Avatar>
                     <div>
-                        <h2 className="text-xl font-semibold">{displayName}</h2>
-                        <p className="text-sm text-muted-foreground">{userEmail}</p>
+                        <h2 className="text-sm font-semibold">{displayName}</h2>
+                        <p className="text-xs text-muted-foreground">{userEmail}</p>
                     </div>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isExpanded ? "rotate-180" : ""}`} />
@@ -173,7 +173,7 @@ export function UserNameImageCard({
 
             {/* Expanded Edit Section */}
             {isExpanded && (
-                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#f5f5f7' }}>
+                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#fcfcfc' }}>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid gap-4">
                             {/* Name Field */}

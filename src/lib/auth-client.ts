@@ -2,12 +2,13 @@ import { createAuthClient } from "better-auth/react";
 import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import {
   customSessionClient,
-  organizationClient,
-  twoFactorClient,
-  multiSessionClient,
   deviceAuthorizationClient,
   lastLoginMethodClient,
+  magicLinkClient,
+  multiSessionClient,
   oneTapClient,
+  organizationClient,
+  twoFactorClient,
 } from "better-auth/client/plugins";
 import { passkeyClient } from "@better-auth/passkey/client";
 import { oauthProviderClient } from "@better-auth/oauth-provider/client";
@@ -38,6 +39,7 @@ export const authClient = createAuthClient({
     multiSessionClient(),
     deviceAuthorizationClient(),
     lastLoginMethodClient(),
+    magicLinkClient(),
     passkeyClient(),
     oauthProviderClient(),
     ...(enableStripe

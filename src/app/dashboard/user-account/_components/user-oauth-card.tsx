@@ -225,16 +225,16 @@ export function UserOAuthCard({
 
     return (
         <>
-            <Card className="py-0 gap-0 overflow-hidden">
+            <Card className="py-0 gap-0 overflow-hidden border-0 shadow-none">
                 <CardContent className="p-0">
                     {/* ---------- Header ---------- */}
-                    <div className="flex items-center justify-between border-b bg-muted/30 px-6 py-4">
+                    <div className="flex items-center justify-between border-b px-6 py-4">
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
                                 <Share2 className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="font-semibold">Social Accounts</h3>
+                                <h3 className="text-sm font-semibold">Social Accounts</h3>
                                 <p className="text-xs text-muted-foreground">
                                     Connect social providers for quick sign-in
                                 </p>
@@ -242,6 +242,7 @@ export function UserOAuthCard({
                         </div>
                         <Badge
                             variant={connectedCount > 0 ? "default" : "secondary"}
+                            className="text-[10px] px-1.5 py-0"
                         >
                             {connectedCount} of {availableProviders.length} connected
                         </Badge>
@@ -261,7 +262,7 @@ export function UserOAuthCard({
                                 return (
                                     <div
                                         key={providerId}
-                                        className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-muted/20"
+                                        className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-muted/20 bg-[#fcfcfc]"
                                     >
                                         {/* Provider info */}
                                         <div className="flex items-center gap-4">

@@ -26,7 +26,7 @@ const ROLE_CONFIG: Record<
 		badgeClass:
 			"bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700",
 		iconBgClass:
-			"border-purple-200 bg-purple-50 dark:border-purple-900 dark:bg-purple-950",
+			"bg-purple-100 dark:bg-purple-900/30",
 	},
 	user: {
 		label: "User",
@@ -36,7 +36,7 @@ const ROLE_CONFIG: Record<
 		badgeClass:
 			"bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700",
 		iconBgClass:
-			"border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950",
+			"bg-blue-100 dark:bg-blue-900/30",
 	},
 }
 
@@ -64,34 +64,33 @@ export function UserRoleCard({
 	const Icon = config.icon
 
 	return (
-		<Card className="overflow-hidden transition-all py-0 gap-0">
+		<Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
 			<CardContent className="flex items-center justify-between gap-4 p-6">
 				<div className="flex items-center gap-4">
 					<div
-						className={`flex h-16 w-16 items-center justify-center rounded-full border-2 ${config.iconBgClass}`}
+						className={`flex h-10 w-10 items-center justify-center rounded-lg ${config.iconBgClass}`}
 					>
 						<Icon
-							className={`h-7 w-7 ${
-								userRole === "admin"
-									? "text-purple-600 dark:text-purple-400"
-									: "text-blue-600 dark:text-blue-400"
-							}`}
+							className={`h-5 w-5 ${userRole === "admin"
+								? "text-purple-600 dark:text-purple-400"
+								: "text-blue-600 dark:text-blue-400"
+								}`}
 						/>
 					</div>
 					<div className="flex flex-col gap-1.5">
 						<div className="flex items-center gap-2 flex-wrap">
-							<h2 className="text-xl font-semibold">
+							<h2 className="text-sm font-semibold">
 								{userName || "Anonymous User"}
 							</h2>
 							<Badge
 								variant="outline"
-								className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium ${config.badgeClass}`}
+								className={`flex items-center gap-1 px-1.5 py-0 text-[10px] font-medium ${config.badgeClass}`}
 							>
 								<Shield className="h-3 w-3" />
 								{config.label}
 							</Badge>
 						</div>
-						<p className="text-sm text-muted-foreground">{userEmail}</p>
+						<p className="text-xs text-muted-foreground">{userEmail}</p>
 						<p className="text-xs text-muted-foreground/80">
 							{config.description}
 						</p>

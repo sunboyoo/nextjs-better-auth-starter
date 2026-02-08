@@ -92,19 +92,19 @@ export function DeleteUserCard({
     const canSubmit = isConfirmValid && isPasswordValid && status !== "loading" && status !== "success"
 
     return (
-        <Card className="overflow-hidden transition-all py-0 gap-0 border-red-200 dark:border-red-900">
+        <Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
             {/* Main Card Content - Clickable */}
             <CardContent
                 className="group flex cursor-pointer items-center justify-between gap-4 p-6"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950">
-                        <Trash2 className="h-7 w-7 text-red-600 dark:text-red-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                        <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-semibold text-red-600 dark:text-red-400">Delete Account</h2>
-                        <p className="text-sm text-muted-foreground">
+                        <h2 className="text-sm font-semibold text-red-600 dark:text-red-400">Delete Account</h2>
+                        <p className="text-xs text-muted-foreground">
                             Permanently delete your account and all data
                         </p>
                     </div>

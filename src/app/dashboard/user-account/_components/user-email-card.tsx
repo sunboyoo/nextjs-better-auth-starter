@@ -103,32 +103,32 @@ export function UserEmailCard({
     const hasChanges = email.trim().length > 0 && email.trim().toLowerCase() !== userEmail.toLowerCase()
 
     return (
-        <Card className="overflow-hidden transition-all py-0 gap-0">
+        <Card className="overflow-hidden transition-all py-0 gap-0 border-0 shadow-none">
             {/* Main Card Content - Clickable */}
             <CardContent
                 className="group flex cursor-pointer items-center justify-between gap-4 p-6"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary/10 bg-primary/5">
-                        <Mail className="h-7 w-7 text-primary" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        <Mail className="h-5 w-5" />
                     </div>
                     <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            <h2 className="text-xl font-semibold">{userEmail}</h2>
+                            <h2 className="text-sm font-semibold">{userEmail}</h2>
                             {emailVerified ? (
-                                <Badge variant="default" className="gap-1 bg-green-600">
+                                <Badge variant="default" className="gap-1 bg-green-600 px-1.5 py-0 text-[10px] font-medium">
                                     <ShieldCheck className="h-3 w-3" />
                                     Verified
                                 </Badge>
                             ) : (
-                                <Badge variant="destructive" className="gap-1">
+                                <Badge variant="destructive" className="gap-1 px-1.5 py-0 text-[10px] font-medium">
                                     <ShieldX className="h-3 w-3" />
                                     Unverified
                                 </Badge>
                             )}
                         </div>
-                        <p className="text-sm text-muted-foreground">Primary email address</p>
+                        <p className="text-xs text-muted-foreground">Primary email address</p>
                     </div>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-300 group-hover:text-primary ${isExpanded ? "rotate-180" : ""}`} />
@@ -136,7 +136,7 @@ export function UserEmailCard({
 
             {/* Expanded Edit Section */}
             {isExpanded && (
-                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#f5f5f7' }}>
+                <div className="border-t p-6 rounded-b-xl" style={{ backgroundColor: '#fcfcfc' }}>
                     <form onSubmit={handleChangeEmail} className="space-y-4">
                         <div className="grid gap-4">
                             {/* Current Email Display */}

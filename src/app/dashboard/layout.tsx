@@ -37,7 +37,7 @@ export default async function DashboardLayout({
 				variant="inset"
 				deviceSessions={deviceSessions}
 			/>
-			<SidebarInset>
+			<SidebarInset className="overflow-hidden bg-[#f5f5f8] dark:bg-muted/40">
 				<SiteHeader />
 				<div className="flex flex-1 flex-col">
 					<div className="@container/main flex flex-1 flex-col gap-2">
