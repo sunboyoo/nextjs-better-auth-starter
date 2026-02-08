@@ -123,8 +123,7 @@ const captchaProvider = (
 ).includes(captchaProviderRaw as CaptchaProvider)
   ? (captchaProviderRaw as CaptchaProvider)
   : "cloudflare-turnstile";
-const captchaSecretKey =
-  process.env.BETTER_AUTH_CAPTCHA_SECRET_KEY || process.env.TURNSTILE_SECRET_KEY;
+const captchaSecretKey = process.env.BETTER_AUTH_CAPTCHA_SECRET_KEY;
 const captchaSiteKey =
   process.env.BETTER_AUTH_CAPTCHA_SITE_KEY ||
   process.env.NEXT_PUBLIC_BETTER_AUTH_CAPTCHA_SITE_KEY;

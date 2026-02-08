@@ -157,9 +157,9 @@ export function UserNameImageCard({
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-4">
-                    <Avatar className="h-10 w-10 rounded-lg">
-                        <AvatarImage src={normalizedUserImage || undefined} alt={displayName} className="rounded-lg" />
-                        <AvatarFallback className="rounded-lg bg-violet-100 text-xs font-semibold text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                    <Avatar className="h-10 w-10 rounded-full">
+                        <AvatarImage src={normalizedUserImage || undefined} alt={displayName} className="rounded-full" />
+                        <AvatarFallback className="rounded-full bg-violet-100 text-xs font-semibold text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
                             {initials}
                         </AvatarFallback>
                     </Avatar>
@@ -249,7 +249,7 @@ export function UserNameImageCard({
                             {/* Image Preview */}
                             <div className="mt-1">
                                 <p className="mb-2 text-xs text-muted-foreground">Image Preview</p>
-                                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border bg-white relative">
+                                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border bg-white relative">
                                     {image && !previewError ? (
                                         <Image
                                             src={image}
