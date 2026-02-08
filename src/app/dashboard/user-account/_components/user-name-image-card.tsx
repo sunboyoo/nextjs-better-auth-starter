@@ -13,7 +13,6 @@ import { ChevronDown, Loader2, CheckCircle2, XCircle, ImageIcon, Upload, Link2 }
 
 interface UserNameImageCardProps {
     userName: string | null | undefined
-    userUsername: string | null | undefined
     userEmail: string
     userImage: string | null | undefined
 }
@@ -29,7 +28,6 @@ function getInitialImageUrl(image: string): string {
 
 export function UserNameImageCard({
     userName,
-    userUsername,
     userEmail,
     userImage,
 }: UserNameImageCardProps) {
@@ -38,13 +36,11 @@ export function UserNameImageCard({
 
     // Normalize props to always be strings
     const normalizedUserName = normalizeString(userName)
-    const normalizedUserUsername = normalizeString(userUsername)
     const normalizedUserImage = normalizeString(userImage)
 
     // Initialize state with normalized values
     const [isExpanded, setIsExpanded] = useState(false)
     const [name, setName] = useState(() => normalizedUserName)
-    const [username, setUsername] = useState(() => normalizedUserUsername)
     const [image, setImage] = useState(() => normalizedUserImage)
     const [imageUrl, setImageUrl] = useState(() => getInitialImageUrl(normalizedUserImage))
     const [imageInputMode, setImageInputMode] = useState<"url" | "upload">("url")
@@ -110,27 +106,7 @@ export function UserNameImageCard({
         setStatus("loading")
         setMessage("Updating...")
 
-        const updates: { name?: string; image?: string; username?: string } = {}
-        const nextUsername = username.trim()
-        if (username !== normalizedUserUsername) {
-            if (!nextUsername) {
-                setStatus("error")
-                setMessage("Username cannot be empty.")
-                return
-            }
-            if (
-                nextUsername.length < 3 ||
-                nextUsername.length > 30 ||
-                !/^[a-zA-Z0-9_.]+$/.test(nextUsername)
-            ) {
-                setStatus("error")
-                setMessage(
-                    "Username must be 3-30 characters and use only letters, numbers, underscores, and dots.",
-                )
-                return
-            }
-            updates.username = nextUsername
-        }
+        const updates: { name?: string; image?: string } = {}
         if (name && name !== normalizedUserName) updates.name = name
         if (image && image !== normalizedUserImage) updates.image = image
 
@@ -161,7 +137,6 @@ export function UserNameImageCard({
 
     const resetForm = () => {
         setName(normalizedUserName)
-        setUsername(normalizedUserUsername)
         setImage(normalizedUserImage)
         setImageUrl(getInitialImageUrl(normalizedUserImage))
         setPreviewError(false)
@@ -174,7 +149,6 @@ export function UserNameImageCard({
 
     const hasChanges =
         (name !== normalizedUserName) ||
-        (username !== normalizedUserUsername) ||
         (image !== normalizedUserImage)
 
     return (
@@ -193,9 +167,6 @@ export function UserNameImageCard({
                     </Avatar>
                     <div>
                         <h2 className="text-sm font-semibold">{displayName}</h2>
-                        {normalizedUserUsername ? (
-                            <p className="text-xs text-muted-foreground">@{normalizedUserUsername}</p>
-                        ) : null}
                         <p className="text-xs text-muted-foreground">{userEmail}</p>
                     </div>
                 </div>
@@ -219,20 +190,6 @@ export function UserNameImageCard({
                                     disabled={status === "loading"}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="username">Username</Label>
-                                <Input
-                                    id="username"
-                                    type="text"
-                                    placeholder="your.username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    autoCapitalize="none"
-                                    autoComplete="username"
-                                    disabled={status === "loading"}
-                                />
-                            </div>
-
                             {/* Image Input Mode Toggle */}
                             <div className="space-y-2">
                                 <Label>Profile Image</Label>

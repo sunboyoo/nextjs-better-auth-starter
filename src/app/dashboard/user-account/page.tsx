@@ -12,6 +12,7 @@ import { UserOAuthCard } from "./_components/user-oauth-card"
 import { UserPasskeyCard } from "./_components/user-passkey-card"
 import { UserTwoFactorCard } from "./_components/user-two-factor-card"
 import { UserNameImageCard } from "./_components/user-name-image-card"
+import { UserUsernameCard } from "./_components/user-username-card"
 import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
 import { DeleteUserCard } from "./_components/delete-user-card"
@@ -91,9 +92,12 @@ export default async function UserAccountPage() {
 				<div className="space-y-4">
 					<UserNameImageCard
 						userName={userName}
-						userUsername={userUsername}
 						userEmail={userEmail}
 						userImage={userImage}
+					/>
+					<UserUsernameCard
+						userUsername={userUsername}
+						userRole={currentSession.user.role}
 					/>
 					<UserEmailCard
 						userEmail={userEmail}

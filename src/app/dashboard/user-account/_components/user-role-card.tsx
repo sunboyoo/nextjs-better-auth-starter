@@ -21,7 +21,7 @@ const ROLE_CONFIG: Record<
 	admin: {
 		label: "Admin",
 		description:
-			"Full platform access. Can manage users, organizations, and all system settings.",
+			"Full platform access. Can manage users, organizations, system settings, and your username profile settings.",
 		icon: Crown,
 		badgeClass:
 			"bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900 dark:text-purple-200 dark:border-purple-700",
@@ -31,7 +31,7 @@ const ROLE_CONFIG: Record<
 	user: {
 		label: "User",
 		description:
-			"Standard account access. Can manage your own profile, sessions, and organization memberships.",
+			"Standard account access. Can manage your own profile, username, sessions, and organization memberships.",
 		icon: User,
 		badgeClass:
 			"bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700",
