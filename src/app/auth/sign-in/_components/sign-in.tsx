@@ -135,12 +135,12 @@ export default function SignIn() {
 								xmlns="http://www.w3.org/2000/svg"
 								width="1em"
 								height="1em"
-								viewBox="0 0 24 24"
+								viewBox="0 0 21 21"
 							>
-								<path
-									fill="currentColor"
-									d="M2 3h9v9H2zm9 19H2v-9h9zM21 3v9h-9V3zm0 19h-9v-9h9z"
-								></path>
+								<rect x="1" y="1" width="9" height="9" fill="#f25022" />
+								<rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+								<rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+								<rect x="11" y="11" width="9" height="9" fill="#ffb900" />
 							</svg>
 							<span className="hidden sm:inline">Microsoft</span>
 							{isMounted && authClient.isLastUsedLoginMethod("microsoft") && (

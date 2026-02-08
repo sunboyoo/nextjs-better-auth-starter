@@ -147,6 +147,9 @@ const socialProviders = {
       microsoft: {
         clientId: process.env.MICROSOFT_CLIENT_ID,
         clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+        tenantId: process.env.MICROSOFT_TENANT_ID || "common",
+        authority: process.env.MICROSOFT_AUTHORITY || "https://login.microsoftonline.com",
+        prompt: "select_account" as const,
       },
     }
     : {}),

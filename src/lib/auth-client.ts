@@ -84,3 +84,19 @@ export const signInWithGoogle = async (callbackUrl?: string | null) => {
     callbackURL: safeCallbackUrl,
   });
 };
+
+export const signInWithMicrosoft = async (callbackUrl?: string | null) => {
+  const safeCallbackUrl = getSafeCallbackUrl(callbackUrl ?? null);
+  await authClient.signIn.social({
+    provider: "microsoft",
+    callbackURL: safeCallbackUrl,
+  });
+};
+
+export const signInWithVercel = async (callbackUrl?: string | null) => {
+  const safeCallbackUrl = getSafeCallbackUrl(callbackUrl ?? null);
+  await authClient.signIn.social({
+    provider: "vercel",
+    callbackURL: safeCallbackUrl,
+  });
+};

@@ -4,10 +4,9 @@ import { redirect } from "next/navigation"
 import {
 	CircleUser,
 	User,
-	Shield,
-	Link2,
+	KeyRound,
+	ShieldCheck,
 	AlertTriangle,
-	Activity
 } from "lucide-react"
 import { UserOAuthCard } from "./_components/user-oauth-card"
 import { UserPasskeyCard } from "./_components/user-passkey-card"
@@ -16,6 +15,7 @@ import { UserNameImageCard } from "./_components/user-name-image-card"
 import { UserEmailCard } from "./_components/user-email-card"
 import { UserPasswordCard } from "./_components/user-password-card"
 import { DeleteUserCard } from "./_components/delete-user-card"
+import { UserRoleCard } from "./_components/user-role-card"
 import { SectionHeader } from "./_components/section-header"
 import { ActiveSessionCard } from "./_components/active-session-card"
 
@@ -81,11 +81,11 @@ export default async function UserAccountPage() {
 				</div>
 			</div>
 
-			{/* Profile Section */}
+			{/* ── Section 1: Profile & Identity ── */}
 			<section className="space-y-3">
 				<SectionHeader
-					title="Profile"
-					description="Your personal information and credentials"
+					title="Profile & Identity"
+					description="Your personal information, email, and platform role"
 					icon={User}
 					iconColor="blue"
 				/>
@@ -99,21 +99,47 @@ export default async function UserAccountPage() {
 						userEmail={userEmail}
 						emailVerified={currentSession.user.emailVerified}
 					/>
-					<UserPasswordCard
-						hasPassword={hasPassword}
+					<UserRoleCard
+						userRole={currentSession.user.role}
+						userEmail={userEmail}
+						userName={userName}
 					/>
 				</div>
 			</section>
 
-			{/* Sessions Section */}
+			{/* ── Section 2: Sign-in Methods ── */}
 			<section className="space-y-3">
 				<SectionHeader
-					title="Sessions"
-					description="Manage your active sessions across devices"
-					icon={Activity}
+					title="Sign-in Methods"
+					description="Manage how you sign in to your account"
+					icon={KeyRound}
+					iconColor="orange"
+				/>
+				<div className="space-y-4">
+					<UserPasswordCard
+						hasPassword={hasPassword}
+					/>
+					{configuredSocialProviderIds.length > 0 && (
+						<UserOAuthCard
+							availableProviders={configuredSocialProviderIds}
+							linkedAccounts={socialOAuthAccounts}
+							accountCount={accountRows.length}
+						/>
+					)}
+					<UserPasskeyCard initialPasskeys={passkeyRows} />
+				</div>
+			</section>
+
+			{/* ── Section 3: Security ── */}
+			<section className="space-y-3">
+				<SectionHeader
+					title="Security"
+					description="Two-factor authentication and active sessions"
+					icon={ShieldCheck}
 					iconColor="green"
 				/>
 				<div className="space-y-4">
+					<UserTwoFactorCard twoFactorEnabled={!!currentSession.user.twoFactorEnabled} />
 					<ActiveSessionCard
 						sessions={activeSessions}
 						currentSessionId={currentSession.session.id}
@@ -121,40 +147,7 @@ export default async function UserAccountPage() {
 				</div>
 			</section>
 
-			{/* Security Section */}
-			<section className="space-y-3">
-				<SectionHeader
-					title="Security"
-					description="Authentication methods and passkeys"
-					icon={Shield}
-					iconColor="blue"
-				/>
-				<div className="space-y-4">
-					<UserTwoFactorCard twoFactorEnabled={!!currentSession.user.twoFactorEnabled} />
-					<UserPasskeyCard initialPasskeys={passkeyRows} />
-				</div>
-			</section>
-
-			{/* Connected Accounts Section */}
-			{configuredSocialProviderIds.length > 0 && (
-				<section className="space-y-3">
-					<SectionHeader
-						title="Connected Accounts"
-						description="Link social providers for quick sign-in and account recovery"
-						icon={Link2}
-						iconColor="purple"
-					/>
-					<div className="space-y-4">
-						<UserOAuthCard
-							availableProviders={configuredSocialProviderIds}
-							linkedAccounts={socialOAuthAccounts}
-							accountCount={accountRows.length}
-						/>
-					</div>
-				</section>
-			)}
-
-			{/* Danger Zone Section */}
+			{/* ── Section 4: Danger Zone ── */}
 			<section className="space-y-3">
 				<SectionHeader
 					title="Danger Zone"
