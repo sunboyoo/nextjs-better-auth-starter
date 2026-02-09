@@ -22,12 +22,6 @@ export const emailSourceEnum = pgEnum("email_source_enum", [
   "user_provided",
 ]);
 
-export const primaryAuthChannelEnum = pgEnum("primary_auth_channel_enum", [
-  "phone",
-  "email",
-  "mixed",
-]);
-
 export const user = table(
   "user",
   {
@@ -45,9 +39,6 @@ export const user = table(
       .default("user_provided")
       .notNull(),
     emailDeliverable: boolean("email_deliverable").default(true).notNull(),
-    primaryAuthChannel: primaryAuthChannelEnum("primary_auth_channel")
-      .default("email")
-      .notNull(),
     image: text("image"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

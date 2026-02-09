@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import {
+  type EmailSource,
   getAuthChannelMetadata,
   isSyntheticEmail,
   normalizeEmail,
@@ -15,6 +16,7 @@ import { passkey } from "@better-auth/passkey";
 import { scim } from "@better-auth/scim";
 import { sso } from "@better-auth/sso";
 import { stripe } from "@better-auth/stripe";
+import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -140,6 +142,25 @@ const phoneOtpWebhookUrl =
   process.env.BETTER_AUTH_PHONE_OTP_WEBHOOK_URL?.trim() || "";
 const phoneOtpWebhookAuthToken =
   process.env.BETTER_AUTH_PHONE_OTP_WEBHOOK_AUTH_TOKEN?.trim() || "";
+type PhoneOtpServiceMode = "twilio-live" | "twilio-test-fixed-otp";
+const phoneOtpServiceModeRaw =
+  process.env.BETTER_AUTH_PHONE_OTP_SERVICE_MODE?.trim().toLowerCase() || "";
+const phoneOtpServiceMode: PhoneOtpServiceMode =
+  phoneOtpServiceModeRaw === "twilio-test-fixed-otp"
+    ? "twilio-test-fixed-otp"
+    : "twilio-live";
+const phoneOtpFixedTestCodeRaw =
+  process.env.BETTER_AUTH_PHONE_OTP_FIXED_TEST_CODE?.trim() || "000000";
+const phoneOtpFixedTestCode = /^\d{4,10}$/.test(phoneOtpFixedTestCodeRaw)
+  ? phoneOtpFixedTestCodeRaw
+  : "000000";
+const phoneOtpUseFixedCodeVerification =
+  phoneOtpServiceMode === "twilio-test-fixed-otp";
+if (phoneOtpUseFixedCodeVerification) {
+  console.warn(
+    "[better-auth] phone OTP fixed-test-code verification is enabled. Use only in test environments.",
+  );
+}
 const phoneOtpThrottleEnabled =
   process.env.BETTER_AUTH_PHONE_OTP_THROTTLE_ENABLED !== "false";
 const phoneOtpThrottleWindowSecondsRaw = Number.parseInt(
@@ -533,6 +554,88 @@ const getSyntheticEmailBlockMessageForPath = (path: string): string => {
   return syntheticEmailFlowErrorMessage;
 };
 
+type AuthChannelUserShape = {
+  id?: string | null;
+  email?: string | null;
+  emailVerified?: boolean | null;
+  phoneNumber?: string | null;
+  phoneNumberVerified?: boolean | null;
+  emailSource?: string | null;
+  emailDeliverable?: boolean | null;
+};
+
+type AuthChannelMetadataPatch = Partial<{
+  email: string;
+  emailSource: EmailSource;
+  emailDeliverable: boolean;
+}>;
+
+const computeAuthChannelMetadataForUser = (user: AuthChannelUserShape) =>
+  getAuthChannelMetadata({
+    email: user.email ?? null,
+    emailVerified: user.emailVerified === true,
+    phoneNumber: user.phoneNumber ?? null,
+    phoneNumberVerified: user.phoneNumberVerified === true,
+    syntheticEmailDomain: phoneTempEmailDomain,
+  });
+
+const buildAuthChannelMetadataPatch = (
+  user: AuthChannelUserShape,
+): AuthChannelMetadataPatch => {
+  const metadata = computeAuthChannelMetadataForUser(user);
+  const patch: AuthChannelMetadataPatch = {};
+  const normalizedEmail = metadata.normalizedEmail ?? null;
+
+  if (
+    typeof normalizedEmail === "string" &&
+    normalizedEmail !== (user.email ?? null)
+  ) {
+    patch.email = normalizedEmail;
+  }
+  if (metadata.emailSource !== (user.emailSource ?? null)) {
+    patch.emailSource = metadata.emailSource;
+  }
+  if (metadata.emailDeliverable !== (user.emailDeliverable ?? null)) {
+    patch.emailDeliverable = metadata.emailDeliverable;
+  }
+
+  return patch;
+};
+
+const persistAuthChannelMetadataPatch = async (
+  userId: string,
+  patch: AuthChannelMetadataPatch,
+) => {
+  if (!Object.keys(patch).length) {
+    return;
+  }
+  await db.update(schema.user).set(patch).where(eq(schema.user.id, userId));
+};
+
+const syncPersistedUserAuthChannelMetadata = async (userId: string) => {
+  const existing = await db
+    .select({
+      id: schema.user.id,
+      email: schema.user.email,
+      emailVerified: schema.user.emailVerified,
+      phoneNumber: schema.user.phoneNumber,
+      phoneNumberVerified: schema.user.phoneNumberVerified,
+      emailSource: schema.user.emailSource,
+      emailDeliverable: schema.user.emailDeliverable,
+    })
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  if (!existing) {
+    return;
+  }
+
+  const patch = buildAuthChannelMetadataPatch(existing);
+  await persistAuthChannelMetadataPatch(userId, patch);
+};
+
 const sendPhoneOtpMessage = ({
   phoneNumber,
   code,
@@ -831,7 +934,6 @@ const authOptions = {
                 : {}),
               emailSource: metadata.emailSource,
               emailDeliverable: metadata.emailDeliverable,
-              primaryAuthChannel: metadata.primaryAuthChannel,
             },
           };
         },
@@ -854,12 +956,67 @@ const authOptions = {
             typeof userDataWithOptionalId.id === "string"
               ? userDataWithOptionalId.id
               : hookContext?.session?.session?.userId;
-          const existingUserRaw =
+          const existingUserByIdRaw =
             typeof targetUserId === "string" && hookContext
               ? await hookContext.internalAdapter
                   .findUserById(targetUserId)
                   .catch(() => null)
               : null;
+          const fallbackLookupPhoneNumber =
+            typeof user.phoneNumber === "string"
+              ? normalizePhoneNumberInput(user.phoneNumber)
+              : extractPhoneNumberFromRequestBody(hookContext?.body);
+          const existingUserByPhoneRaw =
+            !existingUserByIdRaw &&
+            hookContext &&
+            typeof fallbackLookupPhoneNumber === "string"
+              ? await hookContext.adapter
+                  .findOne<{
+                    id: string;
+                    email?: string | null;
+                    emailVerified?: boolean | null;
+                    phoneNumber?: string | null;
+                    phoneNumberVerified?: boolean | null;
+                  }>({
+                    model: "user",
+                    where: [
+                      {
+                        field: "phoneNumber",
+                        value: fallbackLookupPhoneNumber,
+                      },
+                    ],
+                  })
+                  .catch(() => null)
+              : null;
+          const fallbackLookupEmail =
+            typeof user.email === "string"
+              ? normalizeEmail(user.email)
+              : extractEmailFromRequestBody(hookContext?.body);
+          const existingUserByEmailRaw =
+            !existingUserByIdRaw &&
+            !existingUserByPhoneRaw &&
+            hookContext &&
+            typeof fallbackLookupEmail === "string"
+              ? await hookContext.adapter
+                  .findOne<{
+                    id: string;
+                    email?: string | null;
+                    emailVerified?: boolean | null;
+                    phoneNumber?: string | null;
+                    phoneNumberVerified?: boolean | null;
+                  }>({
+                    model: "user",
+                    where: [
+                      {
+                        field: "email",
+                        value: fallbackLookupEmail,
+                      },
+                    ],
+                  })
+                  .catch(() => null)
+              : null;
+          const existingUserRaw =
+            existingUserByIdRaw ?? existingUserByPhoneRaw ?? existingUserByEmailRaw;
           const existingUser = existingUserRaw as
             | {
                 email?: string | null;
@@ -901,7 +1058,6 @@ const authOptions = {
                     emailDeliverable: metadata.emailDeliverable,
                   }
                 : {}),
-              primaryAuthChannel: metadata.primaryAuthChannel,
             },
           };
         },
@@ -934,11 +1090,6 @@ const authOptions = {
       },
       emailDeliverable: {
         type: "boolean",
-        required: false,
-        input: false,
-      },
-      primaryAuthChannel: {
-        type: "string",
         required: false,
         input: false,
       },
@@ -1108,6 +1259,12 @@ const authOptions = {
       expiresIn: phoneOtpExpiresIn,
       allowedAttempts: phoneOtpAllowedAttempts,
       requireVerification: phoneRequireVerification,
+      ...(phoneOtpUseFixedCodeVerification
+        ? {
+            verifyOTP: async ({ code }) =>
+              code.trim() === phoneOtpFixedTestCode,
+          }
+        : {}),
       phoneNumberValidator: (phoneNumber) => e164PhoneRegex.test(phoneNumber),
       sendOTP: ({ phoneNumber, code }) => {
         sendPhoneOtpMessage({
@@ -1122,6 +1279,12 @@ const authOptions = {
           code,
           type: "password-reset",
         });
+      },
+      callbackOnVerification: async ({ user }) => {
+        if (!user?.id) {
+          return;
+        }
+        await syncPersistedUserAuthChannelMetadata(user.id);
       },
       ...(phoneSignUpOnVerification
         ? {
@@ -1335,13 +1498,33 @@ export const auth = betterAuth({
   plugins: [
     ...(authOptions.plugins ?? []),
     customSession(
-      async ({ user, session }) => ({
-        user: {
-          ...user,
-          customField: "customField",
-        },
-        session,
-      }),
+      async ({ user, session }) => {
+        const sessionUser = user as AuthChannelUserShape;
+        const metadata = computeAuthChannelMetadataForUser(sessionUser);
+        const metadataPatch = buildAuthChannelMetadataPatch(sessionUser);
+
+        if (typeof sessionUser.id === "string" && Object.keys(metadataPatch).length) {
+          void persistAuthChannelMetadataPatch(sessionUser.id, metadataPatch).catch(
+            (error) => {
+              console.error(
+                "[better-auth] failed to auto-correct auth channel metadata",
+                error,
+              );
+            },
+          );
+        }
+
+        return {
+          user: {
+            ...user,
+            ...(metadata.normalizedEmail ? { email: metadata.normalizedEmail } : {}),
+            emailSource: metadata.emailSource,
+            emailDeliverable: metadata.emailDeliverable,
+            customField: "customField",
+          },
+          session,
+        };
+      },
       authOptions,
       {
         shouldMutateListDeviceSessionsEndpoint: true,

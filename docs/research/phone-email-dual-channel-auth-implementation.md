@@ -20,24 +20,25 @@ The following strategic reservations were implemented in code:
 
 ## Implemented Changes
 
-### 1. Channel Metadata Model (User Record)
+### 1. Channel Metadata Model (Persisted + Derived)
 
 Added explicit metadata for channel capability decisions:
 
 - `emailSource` (`synthetic | user_provided`)
 - `emailDeliverable` (`boolean`)
-- `primaryAuthChannel` (`phone | email | mixed`)
+- Runtime-derived `primaryAuthChannel` (`phone | email | mixed`)
 
 Implementation:
 
 - `src/db/schema.ts`
 - `src/lib/auth-channel.ts`
 - `src/lib/auth.ts` (`databaseHooks.user.create.before`, `databaseHooks.user.update.before`, `user.additionalFields`)
+- `src/app/dashboard/user-account/page.tsx` (runtime channel derivation)
 
 Behavior:
 
 - Phone-first synthetic emails are marked as synthetic/non-deliverable.
-- Email + phone verification status contributes to `primaryAuthChannel`.
+- Email + phone verification status contributes to runtime `primaryAuthChannel`.
 - Email normalization is centralized.
 
 ### 2. Server-Side Flow Gating for Synthetic Email
@@ -163,7 +164,8 @@ Implementation:
 
 Highlights:
 
-- enum-backed channel fields (`emailSource`, `primaryAuthChannel`)
+- enum-backed channel metadata field (`emailSource`)
+- `primaryAuthChannel` removed from DB schema and computed at runtime from channel capability
 - stricter nullability defaults (`phoneNumberVerified`, `twoFactorEnabled`, `banned`, `role`, etc.)
 - DB-level checks for normalized email/username and E.164 phone format
 - stronger uniqueness/indexes:
@@ -266,7 +268,7 @@ Status legend:
   - Status: `Implemented`
 - Mark synthetic email explicitly.
   - Status: `Implemented`
-- Store explicit metadata (`emailSource`, `emailDeliverable`, `primaryAuthChannel`).
+- Store explicit persisted metadata (`emailSource`, `emailDeliverable`) and compute `primaryAuthChannel` at runtime.
   - Status: `Implemented`
 - Never send magic link/email OTP to synthetic addresses.
   - Status: `Implemented`
@@ -392,3 +394,9 @@ These strategy items remain open and should be handled next:
 1. Finalize endpoint-level anti-enumeration response policy.
 2. Write and approve SIM-loss support recovery runbook.
 3. Add OTP operational dashboards/alerts and connect escalation thresholds.
+
+## Update Note (2026-02-09)
+
+- `primaryAuthChannel` is no longer a persisted user column.
+- Current project policy: keep source-of-truth identity facts in DB, and derive channel summary in code.
+- Account UI now computes channel summary from verified email/phone capability on read.

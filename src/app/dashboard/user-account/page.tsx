@@ -35,7 +35,6 @@ export default async function UserAccountPage() {
   const userImage = currentSession.user.image;
   const userEmailSource = currentSession.user.emailSource;
   const userEmailDeliverable = currentSession.user.emailDeliverable;
-  const userPrimaryAuthChannel = currentSession.user.primaryAuthChannel;
 
   const [accountRows, passkeyRows, activeSessions] = await Promise.all([
     auth.api.listUserAccounts({
@@ -70,6 +69,12 @@ export default async function UserAccountPage() {
   const hasVerifiedPhoneChannel = Boolean(
     userPhoneNumber && currentSession.user.phoneNumberVerified,
   );
+  const userPrimaryAuthChannel =
+    hasVerifiedEmailChannel && hasVerifiedPhoneChannel
+      ? "mixed"
+      : hasVerifiedPhoneChannel || Boolean(userPhoneNumber)
+        ? "phone"
+        : "email";
 
   return (
     <div className="w-full space-y-8">

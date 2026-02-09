@@ -54,10 +54,11 @@ Recommended practices:
 
 - Use a reserved non-deliverable domain, for example `*.invalid`.
 - Mark synthetic email explicitly (do not infer from `emailVerified`).
-- Store explicit metadata (example patterns):
+- Store explicit persisted metadata:
   - `emailSource = synthetic | user_provided`
   - `emailDeliverable = true | false`
-  - `primaryAuthChannel = phone | email | mixed`
+- Derive channel summary at runtime:
+  - `primaryAuthChannel = phone | email | mixed` (computed from verified email/phone capability)
 - Never send magic links or email OTP to synthetic addresses.
 - Prompt phone-first users to add a real email later for recovery and collaboration features.
 
