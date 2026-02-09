@@ -23,24 +23,19 @@ export function SignUp() {
       <CardHeader>
         <CardTitle className="text-lg md:text-xl">Sign Up</CardTitle>
         <CardDescription className="text-xs md:text-sm">
-          Create an account with email or phone OTP
+          Create an account with email or phone number
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="email" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="email">Email</TabsTrigger>
-            <TabsTrigger value="phone">Phone OTP</TabsTrigger>
+            <TabsTrigger value="phone">Phone Number</TabsTrigger>
           </TabsList>
           <TabsContent value="email" className="mt-4">
             <SignUpForm
               params={params}
-              onSuccess={() =>
-                router.push(
-                  `/auth/sign-in?callbackUrl=${encodeURIComponent(callbackURL)}`,
-                )
-              }
-              callbackURL={callbackURL}
+              onSuccess={() => router.push(callbackURL)}
             />
           </TabsContent>
           <TabsContent value="phone" className="mt-4">
