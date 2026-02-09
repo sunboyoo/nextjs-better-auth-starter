@@ -18,10 +18,13 @@ For admin capabilities:
 - Keep admin plugin usage isolated to `src/lib/auth-admin-client.ts`.
 - Execute privileged operations server-side with explicit authorization checks.
 
+## Database Schema Source of Truth
+
+`src/db/schema.ts` is the single source of truth for database schema design and changes.
+
 ## Output Requirement
 
 When proposing or applying auth/session/account changes, include:
 - Policy rules applied.
 - Files changed.
 - Confirmation that no forbidden patterns were introduced.
-
