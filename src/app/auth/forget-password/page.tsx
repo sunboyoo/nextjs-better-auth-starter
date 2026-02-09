@@ -24,8 +24,8 @@ export default function Page() {
 
   if (isSubmitted) {
     return (
-      <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Card className="w-[350px]">
+      <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12">
+        <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Request received</CardTitle>
             <CardDescription>
@@ -54,7 +54,7 @@ export default function Page() {
   }
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] py-12">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Forgot password</CardTitle>
@@ -68,7 +68,7 @@ export default function Page() {
               <TabsTrigger value="email">Email</TabsTrigger>
               <TabsTrigger value="phone">Phone</TabsTrigger>
             </TabsList>
-            <TabsContent value="email" className="mt-4">
+            <TabsContent value="email" className="mt-6">
               <ResetPasswordEmailOtpForm
                 onLinkSuccess={() => setIsSubmitted(true)}
                 onSuccess={() => router.push("/auth/sign-in")}
@@ -77,7 +77,7 @@ export default function Page() {
                 resendCodeLabel="Resend email code"
               />
             </TabsContent>
-            <TabsContent value="phone" className="mt-4">
+            <TabsContent value="phone" className="mt-6">
               <ResetPasswordPhoneOtpForm
                 onSuccess={() => router.push("/auth/sign-in")}
               />

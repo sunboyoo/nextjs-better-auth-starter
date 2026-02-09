@@ -207,7 +207,7 @@ export function PhoneSignUpForm({ onSuccess, params }: PhoneSignUpFormProps) {
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <p className="text-xs text-muted-foreground">
         Sign up with your phone number. Choose your country code, enter your
         number, and we&apos;ll send a verification code to verify your account.

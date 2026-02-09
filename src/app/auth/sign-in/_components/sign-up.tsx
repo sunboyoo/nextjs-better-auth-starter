@@ -32,13 +32,13 @@ export function SignUp() {
             <TabsTrigger value="email">Email</TabsTrigger>
             <TabsTrigger value="phone">Phone Number</TabsTrigger>
           </TabsList>
-          <TabsContent value="email" className="mt-4">
+          <TabsContent value="email" className="mt-6">
             <SignUpForm
               params={params}
               onSuccess={() => router.push(callbackURL)}
             />
           </TabsContent>
-          <TabsContent value="phone" className="mt-4">
+          <TabsContent value="phone" className="mt-6">
             <PhoneSignUpForm
               params={params}
               onSuccess={() => router.push(callbackURL)}

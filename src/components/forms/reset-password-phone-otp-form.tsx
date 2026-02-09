@@ -256,7 +256,7 @@ export function ResetPasswordPhoneOtpForm({
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <FieldGroup>
         <PhoneNumberWithCountryInput
           countryIso2={selectedCountryIso2}

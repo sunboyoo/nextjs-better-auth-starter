@@ -172,14 +172,6 @@ export function SignInForm({
     }
   }, [phoneOtpSentTo, selectedPhoneNumber]);
 
-  const getPasswordLoginButtonLabel = () => {
-    if (activeIdentifierTab === "email") return "Login with email and password";
-    if (activeIdentifierTab === "phone") {
-      return "Login with phone number and password";
-    }
-    return "Login with username and password";
-  };
-
   const onSubmit = (data: SignInFormValues) => {
     setPendingAction("password");
     startTransition(async () => {
@@ -748,7 +740,7 @@ export function SignInForm({
         {loading && pendingAction === "password" ? (
           <Loader2 size={16} className="animate-spin" />
         ) : (
-          getPasswordLoginButtonLabel()
+          "Login with password"
         )}
         {isMounted &&
           ((activeIdentifierTab === "email" &&

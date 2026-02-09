@@ -190,7 +190,7 @@ export function ResetPasswordEmailOtpForm({
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <FieldGroup>
         <Controller
           name="email"
@@ -211,7 +211,7 @@ export function ResetPasswordEmailOtpForm({
           )}
         />
       </FieldGroup>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Button
           type="button"
           variant="outline"

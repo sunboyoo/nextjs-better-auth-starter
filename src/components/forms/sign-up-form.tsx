@@ -164,7 +164,7 @@ export function SignUpForm({ onSuccess, params }: SignUpFormProps) {
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <p className="text-xs text-muted-foreground">
         Enter your email and we&apos;ll send a verification code. After you
         confirm the code, we&apos;ll create your account.
@@ -214,7 +214,7 @@ export function SignUpForm({ onSuccess, params }: SignUpFormProps) {
 
       {otpSentTo && (
         <>
-          <div className="rounded-md border p-3 space-y-3">
+          <div className="rounded-md border p-6 space-y-4">
             <p className="text-xs text-muted-foreground">
               Verification code sent to {otpSentTo}
             </p>
