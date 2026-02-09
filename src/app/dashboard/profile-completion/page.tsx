@@ -86,7 +86,9 @@ export default async function ProfileCompletionPage({
     <ProfileCompletionWizard
       nextUrl={nextUrl}
       initialStep={
-        completionRow?.completed && !hasExplicitNext
+        hasExplicitNext
+          ? 1
+          : completionRow?.completed && !hasExplicitNext
           ? 1
           : (completionRow?.currentStep ?? 1)
       }

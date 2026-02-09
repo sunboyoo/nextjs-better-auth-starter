@@ -273,19 +273,19 @@ export function ProfileCompletionWizard({
     phoneCountryIso2,
     recoveryPhoneNumber,
   );
-  const hasUsernameAlreadySet = normalizedInitialUsername.length > 0;
+  const shouldShowSecurityStep = !hasPassword;
   const hasBothRecoveryChannelsVerified =
     initialUser.emailVerified && Boolean(initialUser.phoneNumberVerified);
   const visibleWizardSteps = useMemo<InteractiveWizardStep[]>(() => {
     const steps: InteractiveWizardStep[] = [1];
-    if (!hasUsernameAlreadySet) {
+    if (shouldShowSecurityStep) {
       steps.push(2);
     }
     if (!hasBothRecoveryChannelsVerified) {
       steps.push(3);
     }
     return steps;
-  }, [hasBothRecoveryChannelsVerified, hasUsernameAlreadySet]);
+  }, [hasBothRecoveryChannelsVerified, shouldShowSecurityStep]);
   const currentVisibleStepIndex =
     step === 4
       ? Math.max(visibleWizardSteps.length - 1, 0)
