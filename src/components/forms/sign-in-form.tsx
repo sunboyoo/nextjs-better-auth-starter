@@ -149,6 +149,13 @@ export function SignInForm({
     normalizedIdentifier.length > 0 &&
     !isEmailIdentifier &&
     !isPhoneIdentifier;
+  const passwordLoginButtonLabel = isEmailIdentifier
+    ? "Login with email and password"
+    : isPhoneIdentifier
+      ? "Login with phone number and password"
+      : isUsernameIdentifier
+        ? "Login with username and password"
+        : "Login";
 
   if (isEmailOtpAvailable) {
     verificationQuery.set("email", parsedIdentifierEmail.data.toLowerCase());
@@ -594,12 +601,8 @@ export function SignInForm({
       <Button type="submit" className="w-full relative" disabled={loading}>
         {loading && pendingAction === "password" ? (
           <Loader2 size={16} className="animate-spin" />
-        ) : isPhoneIdentifier ? (
-          "Login with phone + password"
-        ) : isUsernameIdentifier ? (
-          "Login with username + password"
         ) : (
-          "Login"
+          passwordLoginButtonLabel
         )}
         {isMounted &&
           (authClient.isLastUsedLoginMethod("email") ||
@@ -734,7 +737,7 @@ export function SignInForm({
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                OR SIGN IN / SIGN UP WITH PHONE OTP
+                OR SIGN IN WITH A PHONE VERFIFICATION CODE
               </span>
             </div>
           </div>
@@ -750,7 +753,7 @@ export function SignInForm({
             ) : phoneOtpSentTo ? (
               "Resend phone OTP"
             ) : (
-              "Send OTP to phone"
+              "Send a code to my phone"
             )}
           </Button>
           <CaptchaActionSlot
