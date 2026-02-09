@@ -9,8 +9,17 @@ export const metadata: Metadata = {
 	description: "Select account to authorize this application",
 };
 
+type OAuthDeviceSession = {
+	session: { id?: string | null };
+	user?: { name?: string | null; email?: string | null; image?: string | null };
+};
+
+const oauthSessionApi = auth.api as unknown as {
+	listDeviceSessions: (input: { headers: Headers }) => Promise<OAuthDeviceSession[]>;
+};
+
 export default async function SelectAccountPage() {
-	const sessions = await auth.api.listDeviceSessions({
+	const sessions = await oauthSessionApi.listDeviceSessions({
 		headers: await headers(),
 	});
 	return (

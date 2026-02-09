@@ -169,7 +169,25 @@ export function ProfileCompletionWizard({
   const router = useRouter();
   const [step, setStep] = useState<WizardStep>(clampWizardStep(initialStep));
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [hasPassword, setHasPassword] = useState(initialHasPassword);
+  const savedSecurityHasPasswordValue =
+    initialProgress.stepSecurityData?.hasPassword;
+  const savedSecurityHasPassword =
+    typeof savedSecurityHasPasswordValue === "boolean"
+      ? savedSecurityHasPasswordValue
+      : null;
+  const securityStepAlreadyConfirmed =
+    initialProgress.stepSecurityData?.hasPassword === true;
+  const hasExistingPasswordSignal =
+    savedSecurityHasPassword ?? initialHasPassword;
+  const [hasPassword, setHasPassword] = useState(
+    hasExistingPasswordSignal,
+  );
+  const [forcePasswordSetup, setForcePasswordSetup] = useState(
+    !hasExistingPasswordSignal,
+  );
+  const [securityStepConfirmed, setSecurityStepConfirmed] = useState(
+    securityStepAlreadyConfirmed,
+  );
   const [usernameAvailability, setUsernameAvailability] =
     useState<UsernameAvailability>("idle");
   const [usernameAvailabilityMessage, setUsernameAvailabilityMessage] =
@@ -273,7 +291,7 @@ export function ProfileCompletionWizard({
     phoneCountryIso2,
     recoveryPhoneNumber,
   );
-  const shouldShowSecurityStep = !hasPassword;
+  const shouldShowSecurityStep = !securityStepConfirmed;
   const hasBothRecoveryChannelsVerified =
     initialUser.emailVerified && Boolean(initialUser.phoneNumberVerified);
   const visibleWizardSteps = useMemo<InteractiveWizardStep[]>(() => {
@@ -307,14 +325,21 @@ export function ProfileCompletionWizard({
     }
     return visibleWizardSteps[currentStepIndex - 1] ?? null;
   };
+  const getPersistedNextStep = (nextStep: WizardStep): number | undefined => {
+    if (nextStep === 4) {
+      return undefined;
+    }
+    return nextStep;
+  };
   const stepDescription =
     visibleWizardSteps.length === 1
       ? "Complete the remaining setup item."
-      : `${visibleWizardSteps.length} quick steps. Each step is skippable and saved immediately.`;
+      : `${visibleWizardSteps.length} setup steps remaining.`;
   const passwordStrength = useMemo(
     () => getPasswordStrength(newPassword),
     [newPassword],
   );
+  const shouldCollectPassword = !hasPassword || forcePasswordSetup;
 
   const progressValue = useMemo(() => {
     if (step === 4) return 100;
@@ -537,7 +562,7 @@ export function ProfileCompletionWizard({
           username: normalizedUsername,
           image: normalizedImage || null,
         },
-        nextStep,
+        nextStep: getPersistedNextStep(nextStep),
       });
 
       if (nextStep === 4) {
@@ -563,7 +588,7 @@ export function ProfileCompletionWizard({
           username: normalizedUsername || null,
           image: normalizedImage || null,
         },
-        nextStep,
+        nextStep: getPersistedNextStep(nextStep),
       });
 
       if (nextStep === 4) {
@@ -578,7 +603,7 @@ export function ProfileCompletionWizard({
 
   const handleSecurityContinue = async () => {
     await runWithLoading("security-continue", async () => {
-      if (!hasPassword) {
+      if (shouldCollectPassword) {
         if (newPassword.length < 8) {
           toast.error("Password must be at least 8 characters.");
           return;
@@ -594,6 +619,7 @@ export function ProfileCompletionWizard({
         }
 
         setHasPassword(true);
+        setForcePasswordSetup(false);
       }
 
       const nextStep = getNextWizardStep(2);
@@ -604,8 +630,9 @@ export function ProfileCompletionWizard({
         data: {
           hasPassword: true,
         },
-        nextStep,
+        nextStep: getPersistedNextStep(nextStep),
       });
+      setSecurityStepConfirmed(true);
 
       if (nextStep === 4) {
         await finishProfileCompletion();
@@ -629,7 +656,7 @@ export function ProfileCompletionWizard({
         data: {
           hasPassword,
         },
-        nextStep,
+        nextStep: getPersistedNextStep(nextStep),
       });
 
       if (nextStep === 4) {
@@ -935,7 +962,7 @@ export function ProfileCompletionWizard({
         step: "recovery",
         skipped: skipRecovery,
         data: recoveryData,
-        nextStep: 4,
+        nextStep: getPersistedNextStep(4),
       });
 
       await finishProfileCompletion();
@@ -1172,11 +1199,7 @@ export function ProfileCompletionWizard({
                 </p>
               </div>
 
-              {hasPassword ? (
-                <div className="rounded-md border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-700">
-                  This account already has a password configured.
-                </div>
-              ) : (
+              {shouldCollectPassword ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium" htmlFor="pc-password">
@@ -1225,6 +1248,22 @@ export function ProfileCompletionWizard({
                       value={passwordStrength.value}
                     />
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-md border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-700">
+                  <p>This account appears to already have a password configured.</p>
+                  <p className="text-xs">
+                    If you are unsure, you can set a new password now.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setForcePasswordSetup(true)}
+                    disabled={Boolean(loadingAction)}
+                  >
+                    Set or reset password now
+                  </Button>
                 </div>
               )}
 

@@ -4,6 +4,13 @@ import { auth } from "@/lib/auth";
 import { handleApiError } from "@/lib/api/error-handler";
 import { requireAdmin } from "@/lib/api/auth-guard";
 
+const userSessionsAdminApi = auth.api as unknown as {
+    revokeUserSessions: (input: {
+        body: { userId: string };
+        headers: Headers;
+    }) => Promise<unknown>;
+};
+
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ userId: string }> }
@@ -23,7 +30,7 @@ export async function DELETE(
 
         // Use the official Better Auth admin API to revoke all user sessions
         // This endpoint requires session cookies
-        await auth.api.revokeUserSessions({
+        await userSessionsAdminApi.revokeUserSessions({
             body: {
                 userId,
             },

@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
     if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userRole = (session.user as { role?: string | null }).role;
 
     const searchParams = request.nextUrl.searchParams;
     const memberId = searchParams.get("memberId");
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Authorization check: only admin or the member themselves can check permissions
-    if (session.user.role !== "admin") {
+    if (userRole !== "admin") {
         // Check if the current user owns this member record
         const memberRecord = await db
             .select({ userId: member.userId })

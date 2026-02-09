@@ -683,6 +683,15 @@ const sendPhoneOtpMessage = ({
   console.info(`[better-auth] Phone OTP (${type}) for ${phoneNumber}: ${code}`);
 };
 
+const queueAuthEmail = (
+  payload: Parameters<typeof sendEmail>[0],
+  context: string,
+) => {
+  void sendEmail(payload).catch((error) => {
+    console.error(`[better-auth] failed to send ${context} email`, error);
+  });
+};
+
 const enableStripe =
   process.env.BETTER_AUTH_ENABLE_STRIPE !== "false" &&
   Boolean(process.env.STRIPE_KEY) &&
@@ -1096,7 +1105,7 @@ const authOptions = {
     },
     changeEmail: {
       enabled: true,
-      updateEmailWithoutVerification: true,
+      updateEmailWithoutVerification: false,
       sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
         if (isSyntheticEmailAddress(user.email)) {
           console.info(
@@ -1104,11 +1113,14 @@ const authOptions = {
           );
           return;
         }
-        await sendEmail({
-          to: user.email,
-          subject: "Confirm your email change",
-          text: `We received a request to change your account email to ${newEmail}. Confirm this change by clicking: ${url}`,
-        });
+        queueAuthEmail(
+          {
+            to: user.email,
+            subject: "Confirm your email change",
+            text: `We received a request to change your account email to ${newEmail}. Confirm this change by clicking: ${url}`,
+          },
+          "change-email confirmation",
+        );
       },
     },
     deleteUser: {
@@ -1120,11 +1132,14 @@ const authOptions = {
           );
           return;
         }
-        await sendEmail({
-          to: user.email,
-          subject: "Confirm account deletion",
-          text: `We received a request to delete your account. If you did not make this request, please ignore this email. To confirm deletion, click: ${url}`,
-        });
+        queueAuthEmail(
+          {
+            to: user.email,
+            subject: "Confirm account deletion",
+            text: `We received a request to delete your account. If you did not make this request, please ignore this email. To confirm deletion, click: ${url}`,
+          },
+          "delete-account verification",
+        );
       },
     },
   },
@@ -1139,11 +1154,14 @@ const authOptions = {
         );
         return;
       }
-      await sendEmail({
-        to: user.email,
-        subject: "Reset your password",
-        text: `Click the link to reset your password: ${url}`,
-      });
+      queueAuthEmail(
+        {
+          to: user.email,
+          subject: "Reset your password",
+          text: `Click the link to reset your password: ${url}`,
+        },
+        "reset-password",
+      );
     },
   },
   emailVerification: {
@@ -1154,11 +1172,14 @@ const authOptions = {
         );
         return;
       }
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your email address",
-        text: `Click the link to verify your email: ${url}`,
-      });
+      queueAuthEmail(
+        {
+          to: user.email,
+          subject: "Verify your email address",
+          text: `Click the link to verify your email: ${url}`,
+        },
+        "email verification",
+      );
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
@@ -1231,28 +1252,37 @@ const authOptions = {
         }
 
         if (type === "sign-in") {
-          await sendEmail({
-            to: email,
-            subject: "Your sign-in OTP code",
-            text: `Your one-time sign-in code is: ${otp}`,
-          });
+          queueAuthEmail(
+            {
+              to: email,
+              subject: "Your sign-in OTP code",
+              text: `Your one-time sign-in code is: ${otp}`,
+            },
+            "email OTP sign-in",
+          );
           return;
         }
 
         if (type === "email-verification") {
-          await sendEmail({
-            to: email,
-            subject: "Verify your email address",
-            text: `Your email verification code is: ${otp}`,
-          });
+          queueAuthEmail(
+            {
+              to: email,
+              subject: "Verify your email address",
+              text: `Your email verification code is: ${otp}`,
+            },
+            "email OTP verification",
+          );
           return;
         }
 
-        await sendEmail({
-          to: email,
-          subject: "Your password reset OTP code",
-          text: `Your password reset code is: ${otp}`,
-        });
+        queueAuthEmail(
+          {
+            to: email,
+            subject: "Your password reset OTP code",
+            text: `Your password reset code is: ${otp}`,
+          },
+          "email OTP password-reset",
+        );
       },
     }),
     phoneNumber({
@@ -1306,11 +1336,14 @@ const authOptions = {
           );
           return;
         }
-        await sendEmail({
-          to: email,
-          subject: "Your magic sign-in link",
-          text: `Click the link to sign in: ${url}`,
-        });
+        queueAuthEmail(
+          {
+            to: email,
+            subject: "Your magic sign-in link",
+            text: `Click the link to sign in: ${url}`,
+          },
+          "magic-link",
+        );
       },
     }),
     username(),

@@ -3,11 +3,15 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type { Session, User } from "better-auth";
 
+type AuthUser = User & {
+    role?: string | null;
+};
+
 /**
  * Result type for authentication guard functions
  */
 export type AuthResult =
-    | { success: true; session: Session; user: User }
+    | { success: true; session: Session; user: AuthUser }
     | { success: false; response: NextResponse };
 
 /**
@@ -30,8 +34,9 @@ export async function requireAdmin(): Promise<AuthResult> {
     const session = await auth.api.getSession({
         headers: await headers(),
     });
+    const userRole = (session?.user as AuthUser | undefined)?.role;
 
-    if (!session || session.user.role !== "admin") {
+    if (!session || userRole !== "admin") {
         return {
             success: false,
             response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -41,7 +46,7 @@ export async function requireAdmin(): Promise<AuthResult> {
     return {
         success: true,
         session: session.session,
-        user: session.user,
+        user: session.user as AuthUser,
     };
 }
 
@@ -76,6 +81,6 @@ export async function requireAuth(): Promise<AuthResult> {
     return {
         success: true,
         session: session.session,
-        user: session.user,
+        user: session.user as AuthUser,
     };
 }

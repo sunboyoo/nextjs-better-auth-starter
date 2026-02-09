@@ -29,6 +29,21 @@ interface AuthorizePageProps {
 	}>;
 }
 
+type OAuthPublicClient = {
+	client_name: string;
+	logo_uri?: string | null;
+};
+
+const oauthApi = auth.api as unknown as {
+	getOAuthClientPublic: (input: {
+		query: { client_id: string };
+		headers: Headers;
+	}) => Promise<OAuthPublicClient>;
+	getFullOrganization: (input: {
+		headers: Headers;
+	}) => Promise<{ name?: string | null } | undefined>;
+};
+
 export default async function AuthorizePage({
 	searchParams,
 }: AuthorizePageProps) {
@@ -38,7 +53,7 @@ export default async function AuthorizePage({
 		auth.api.getSession({
 			headers: _headers,
 		}),
-		auth.api.getOAuthClientPublic({
+		oauthApi.getOAuthClientPublic({
 			query: {
 				client_id,
 			},
@@ -48,8 +63,11 @@ export default async function AuthorizePage({
 		throw redirect("/auth/sign-in");
 	});
 
-	const organization = session?.session?.activeOrganizationId
-		? await auth.api.getFullOrganization({
+	const activeOrganizationId = (
+		session?.session as { activeOrganizationId?: string | null } | undefined
+	)?.activeOrganizationId;
+	const organization = activeOrganizationId
+		? await oauthApi.getFullOrganization({
 			headers: _headers,
 		})
 		: undefined;

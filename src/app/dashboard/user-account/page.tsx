@@ -1,4 +1,4 @@
-import { auth, configuredSocialProviderIds } from "@/lib/auth";
+import { auth, configuredSocialProviderIds, type Session } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { CircleUser } from "lucide-react";
@@ -18,6 +18,30 @@ import { AuthResilienceCard } from "./_components/auth-resilience-card";
 
 const nonSocialProviders = new Set(["credential", "email-password"]);
 
+type UserAccountProviderRow = {
+  id: string;
+  providerId: string;
+  accountId: string;
+  createdAt: Date;
+};
+
+type UserAccountPasskeyRow = {
+  id: string;
+  name?: string | null;
+  createdAt: Date;
+  deviceType?: string | null;
+};
+
+type UserAccountSessionRow = Session["session"] & {
+  impersonatedBy?: string | null;
+};
+
+const userAccountApi = auth.api as unknown as {
+  listUserAccounts: (input: { headers: Headers }) => Promise<UserAccountProviderRow[]>;
+  listPasskeys: (input: { headers: Headers }) => Promise<UserAccountPasskeyRow[]>;
+  listSessions: (input: { headers: Headers }) => Promise<UserAccountSessionRow[]>;
+};
+
 export default async function UserAccountPage() {
   const requestHeaders = await headers();
   const currentSession = await auth.api.getSession({
@@ -28,22 +52,32 @@ export default async function UserAccountPage() {
     redirect("/auth/sign-in?callbackUrl=/dashboard/user-account");
   }
 
-  const userEmail = currentSession.user.email;
-  const userName = currentSession.user.name;
-  const userUsername = currentSession.user.username;
-  const userPhoneNumber = currentSession.user.phoneNumber;
-  const userImage = currentSession.user.image;
-  const userEmailSource = currentSession.user.emailSource;
-  const userEmailDeliverable = currentSession.user.emailDeliverable;
+  const sessionUser = currentSession.user as typeof currentSession.user & {
+    username?: string | null;
+    phoneNumber?: string | null;
+    phoneNumberVerified?: boolean | null;
+    emailSource?: string | null;
+    emailDeliverable?: boolean | null;
+    role?: string | null;
+    twoFactorEnabled?: boolean | null;
+  };
+
+  const userEmail = sessionUser.email;
+  const userName = sessionUser.name;
+  const userUsername = sessionUser.username;
+  const userPhoneNumber = sessionUser.phoneNumber;
+  const userImage = sessionUser.image;
+  const userEmailSource = sessionUser.emailSource;
+  const userEmailDeliverable = sessionUser.emailDeliverable;
 
   const [accountRows, passkeyRows, activeSessions] = await Promise.all([
-    auth.api.listUserAccounts({
+    userAccountApi.listUserAccounts({
       headers: requestHeaders,
     }),
-    auth.api.listPasskeys({
+    userAccountApi.listPasskeys({
       headers: requestHeaders,
     }),
-    auth.api.listSessions({
+    userAccountApi.listSessions({
       headers: requestHeaders,
     }),
   ]);
@@ -67,7 +101,7 @@ export default async function UserAccountPage() {
     userEmailSource !== "synthetic" &&
     userEmailDeliverable !== false;
   const hasVerifiedPhoneChannel = Boolean(
-    userPhoneNumber && currentSession.user.phoneNumberVerified,
+    userPhoneNumber && sessionUser.phoneNumberVerified,
   );
   const userPrimaryAuthChannel =
     hasVerifiedEmailChannel && hasVerifiedPhoneChannel
@@ -118,7 +152,7 @@ export default async function UserAccountPage() {
           />
           <UserUsernameCard
             userUsername={userUsername}
-            userRole={currentSession.user.role}
+            userRole={sessionUser.role}
           />
           <UserEmailCard
             userEmail={userEmail}
@@ -129,10 +163,10 @@ export default async function UserAccountPage() {
           />
           <UserPhoneCard
             phoneNumber={userPhoneNumber}
-            phoneNumberVerified={currentSession.user.phoneNumberVerified}
+            phoneNumberVerified={sessionUser.phoneNumberVerified}
           />
           <UserRoleCard
-            userRole={currentSession.user.role}
+            userRole={sessionUser.role}
             userEmail={userEmail}
             userName={userName}
           />
@@ -166,7 +200,7 @@ export default async function UserAccountPage() {
         />
         <div className="space-y-6">
           <UserTwoFactorCard
-            twoFactorEnabled={!!currentSession.user.twoFactorEnabled}
+            twoFactorEnabled={!!sessionUser.twoFactorEnabled}
           />
           <ActiveSessionCard
             sessions={activeSessions}

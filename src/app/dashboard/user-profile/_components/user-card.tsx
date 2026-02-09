@@ -87,6 +87,14 @@ const UserCard = (props: {
 		isCaptchaVisibleFor,
 	} = useCaptchaAction<CaptchaAction>();
 	const [activeSessions, setActiveSessions] = useState(props.activeSessions);
+	const sessionUser = session?.user as
+		| (Session["user"] & { twoFactorEnabled?: boolean | null })
+		| undefined;
+	const sessionState = session?.session as
+		| (Session["session"] & { impersonatedBy?: string | null })
+		| undefined;
+	const hasTwoFactorEnabled = Boolean(sessionUser?.twoFactorEnabled);
+	const isImpersonated = Boolean(sessionState?.impersonatedBy);
 	const removeActiveSession = (id: string) =>
 		setActiveSessions(activeSessions.filter((session) => session.id !== id));
 
@@ -240,7 +248,7 @@ const UserCard = (props: {
 					<div className="flex flex-col gap-2">
 						<p className="text-sm">Two Factor</p>
 						<div className="flex gap-2">
-							{!!session?.user.twoFactorEnabled && (
+							{hasTwoFactorEnabled && (
 								<Dialog>
 									<DialogTrigger asChild>
 										<Button variant="outline" className="gap-2">
@@ -262,18 +270,16 @@ const UserCard = (props: {
 							<Dialog open={twoFactorDialog} onOpenChange={setTwoFactorDialog}>
 								<DialogTrigger asChild>
 									<Button
-										variant={
-											session?.user.twoFactorEnabled ? "destructive" : "outline"
-										}
+										variant={hasTwoFactorEnabled ? "destructive" : "outline"}
 										className="gap-2"
 									>
-										{session?.user.twoFactorEnabled ? (
+										{hasTwoFactorEnabled ? (
 											<ShieldOff size={16} />
 										) : (
 											<ShieldCheck size={16} />
 										)}
 										<span className="md:text-sm text-xs">
-											{session?.user.twoFactorEnabled
+											{hasTwoFactorEnabled
 												? "Disable 2FA"
 												: "Enable 2FA"}
 										</span>
@@ -282,17 +288,17 @@ const UserCard = (props: {
 								<DialogContent className="sm:max-w-[425px] w-11/12">
 									<DialogHeader>
 										<DialogTitle>
-											{session?.user.twoFactorEnabled
+											{hasTwoFactorEnabled
 												? "Disable 2FA"
 												: "Enable 2FA"}
 										</DialogTitle>
 										<DialogDescription>
-											{session?.user.twoFactorEnabled
+											{hasTwoFactorEnabled
 												? "Disable the second factor authentication from your account"
 												: "Enable 2FA to secure your account"}
 										</DialogDescription>
 									</DialogHeader>
-									{session?.user.twoFactorEnabled ? (
+									{hasTwoFactorEnabled ? (
 										<TwoFactorDisableForm
 											onSuccess={() => setTwoFactorDialog(false)}
 										/>
@@ -309,7 +315,7 @@ const UserCard = (props: {
 			</CardContent>
 			<CardFooter className="gap-2 justify-between items-center">
 				<ChangePassword />
-				{session?.session.impersonatedBy ? (
+				{isImpersonated ? (
 					<Button
 						className="gap-2 z-10"
 						variant="secondary"

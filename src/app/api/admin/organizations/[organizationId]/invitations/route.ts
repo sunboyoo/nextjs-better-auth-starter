@@ -9,6 +9,31 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
+type OrganizationInvitation = {
+    id: string;
+    email: string;
+    role: string;
+    status: string;
+    expiresAt: string | Date;
+    inviterId: string;
+};
+
+const organizationInvitationApi = auth.api as unknown as {
+    listInvitations: (input: {
+        query: { organizationId: string };
+        headers: Headers;
+    }) => Promise<OrganizationInvitation[] | null | undefined>;
+    createInvitation: (input: {
+        body: {
+            email: string;
+            role: "member" | "owner" | "admin";
+            organizationId: string;
+            resend: boolean;
+        };
+        headers: Headers;
+    }) => Promise<unknown>;
+};
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
@@ -35,7 +60,7 @@ export async function GET(
         }
 
         // Use Better Auth's official listInvitations API
-        const allInvitations = await auth.api.listInvitations({
+        const allInvitations = await organizationInvitationApi.listInvitations({
             query: { organizationId },
             headers: await headers(),
         });
@@ -153,7 +178,7 @@ export async function POST(
         }
 
         // Use Better Auth's standard createInvitation API
-        const invitationResult = await auth.api.createInvitation({
+        const invitationResult = await organizationInvitationApi.createInvitation({
             body: {
                 email,
                 role: role as "member" | "owner" | "admin",

@@ -76,9 +76,16 @@ export default async function ProfileCompletionPage({
   const hasPassword = accounts.some(
     (accountRow) => accountRow.providerId === "credential",
   );
+  const sessionUser = session.user as typeof session.user & {
+    username?: string | null;
+    emailSource?: string | null;
+    emailDeliverable?: boolean | null;
+    phoneNumber?: string | null;
+    phoneNumberVerified?: boolean | null;
+  };
   const recoveryMode =
-    session.user.emailSource === "synthetic" ||
-    session.user.emailDeliverable === false
+    sessionUser.emailSource === "synthetic" ||
+    sessionUser.emailDeliverable === false
       ? "email"
       : "phone";
 
@@ -95,14 +102,14 @@ export default async function ProfileCompletionPage({
       hasPassword={hasPassword}
       recoveryMode={recoveryMode}
       initialUser={{
-        name: session.user.name,
-        username: session.user.username ?? null,
-        image: session.user.image ?? null,
-        email: session.user.email,
-        emailVerified: session.user.emailVerified,
-        emailSource: session.user.emailSource ?? null,
-        phoneNumber: session.user.phoneNumber ?? null,
-        phoneNumberVerified: session.user.phoneNumberVerified ?? null,
+        name: sessionUser.name,
+        username: sessionUser.username ?? null,
+        image: sessionUser.image ?? null,
+        email: sessionUser.email,
+        emailVerified: sessionUser.emailVerified,
+        emailSource: sessionUser.emailSource ?? null,
+        phoneNumber: sessionUser.phoneNumber ?? null,
+        phoneNumberVerified: sessionUser.phoneNumberVerified ?? null,
       }}
       initialProgress={{
         stepIdentityData: completionRow?.stepIdentityData ?? null,

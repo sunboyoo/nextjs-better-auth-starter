@@ -11,8 +11,18 @@ export const metadata: Metadata = {
 	description: "Specify which organization to authorize to this application",
 };
 
+type OAuthOrganization = {
+	id?: string;
+	name?: string;
+	logo?: string;
+};
+
+const oauthOrganizationApi = auth.api as unknown as {
+	listOrganizations: (input: { headers: Headers }) => Promise<OAuthOrganization[]>;
+};
+
 export default async function SelectOrganizationPage() {
-	const organizations = await auth.api.listOrganizations({
+	const organizations = await oauthOrganizationApi.listOrganizations({
 		headers: await headers(),
 	});
 	return (

@@ -35,7 +35,13 @@ export async function DELETE(
         }
 
         // Use Better Auth's standard cancelInvitation API
-        await auth.api.cancelInvitation({
+        const authApi = auth.api as unknown as {
+            cancelInvitation: (input: {
+                body: { invitationId: string };
+                headers: Headers;
+            }) => Promise<unknown>;
+        };
+        await authApi.cancelInvitation({
             body: {
                 invitationId,
             },

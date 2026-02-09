@@ -19,8 +19,11 @@ import Image from "next/image";
 const Navbar = () => {
   const { signOut, useSession } = authClient;
   const { data: session } = useSession();
+  const sessionUser = session?.user as
+    | { role?: string | null }
+    | undefined;
 
-  const isAdmin = session?.user?.role === "admin";
+  const isAdmin = sessionUser?.role === "admin";
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

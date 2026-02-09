@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 
-export async function GET(): Promise<NextResponse> {
-	const config = await auth.api.getOpenIdConfig();
+export async function GET(request: Request): Promise<NextResponse> {
+	const metadataUrl = new URL(
+		"/api/auth/.well-known/openid-configuration",
+		request.url,
+	);
+	const upstream = await fetch(metadataUrl, {
+		method: "GET",
+		cache: "no-store",
+	});
+	const config = await upstream.json().catch(() => null);
+	if (!upstream.ok || config === null) {
+		return NextResponse.json(
+			{ error: "Failed to load OpenID configuration metadata." },
+			{ status: upstream.status || 500 },
+		);
+	}
 	const headers = new Headers();
 	if (process.env.NODE_ENV === "development") {
 		headers.set("Access-Control-Allow-Methods", "GET");

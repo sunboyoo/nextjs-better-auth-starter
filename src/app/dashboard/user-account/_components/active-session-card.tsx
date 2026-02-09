@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { useRevokeSessionMutation } from "@/data/user/revoke-session-mutation"
 import type { Session } from "@/lib/auth"
 
-type SessionData = Session["session"]
+type SessionData = Session["session"] & {
+    impersonatedBy?: string | null
+}
 
 interface ActiveSessionCardProps {
     sessions: SessionData[]

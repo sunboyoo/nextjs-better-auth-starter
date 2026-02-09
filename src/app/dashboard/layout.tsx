@@ -3,8 +3,13 @@ import { AppSidebar } from "./_components/dashboard/app-sidebar";
 import { SiteHeader } from "./_components/dashboard/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import type { DeviceSession } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+const dashboardSessionApi = auth.api as unknown as {
+	listDeviceSessions: (input: { headers: Headers }) => Promise<DeviceSession[]>;
+};
 
 export default async function DashboardLayout({
 	children,
@@ -20,7 +25,7 @@ export default async function DashboardLayout({
 		redirect("/auth/sign-in?callbackUrl=/dashboard");
 	}
 
-	const deviceSessions = await auth.api.listDeviceSessions({
+	const deviceSessions = await dashboardSessionApi.listDeviceSessions({
 		headers: requestHeaders,
 	});
 

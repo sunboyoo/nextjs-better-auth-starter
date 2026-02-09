@@ -153,6 +153,9 @@ export function SignInForm({
   const verificationQuery = new URLSearchParams({
     callbackUrl: callbackURL,
   });
+  const nextAfterProfileCompletion =
+    callbackURL === "/dashboard/profile-completion" ? "/dashboard" : callbackURL;
+  const profileCompletionRedirect = `/dashboard/profile-completion?next=${encodeURIComponent(nextAfterProfileCompletion)}`;
   if (isEmailOtpAvailable) {
     verificationQuery.set("email", parsedEmail.data.toLowerCase());
   }
@@ -429,7 +432,7 @@ export function SignInForm({
             headers: getCaptchaHeaders(captchaToken),
             onSuccess() {
               toast.success("Successfully signed in with email verification code");
-              onSuccess?.();
+              router.push(profileCompletionRedirect);
             },
             onError(context) {
               toast.error(
@@ -535,7 +538,7 @@ export function SignInForm({
             headers: getCaptchaHeaders(captchaToken),
             onSuccess() {
               toast.success("Phone verification successful. Signed in.");
-              onSuccess?.();
+              router.push(profileCompletionRedirect);
             },
             onError(context) {
               toast.error(
