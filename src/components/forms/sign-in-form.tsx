@@ -15,6 +15,13 @@ import { toast } from "sonner";
 import * as z from "zod";
 import { CaptchaActionSlot } from "@/components/captcha/captcha-action-slot";
 import { useCaptchaAction } from "@/components/captcha/use-captcha-action";
+import {
+  defaultPhoneCountry,
+  getE164PhoneNumber,
+  getPhoneCountryByIso2,
+  PhoneNumberWithCountryInput,
+} from "@/components/forms/phone-number-with-country-input";
+import { LastUsedIndicator } from "@/components/last-used-indicator";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,51 +32,37 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient } from "@/lib/auth-client";
-import {
-  buildMagicLinkSentURL,
-  buildMagicLinkErrorCallbackURL,
-  buildMagicLinkNewUserCallbackURL,
-} from "@/lib/magic-link";
 import {
   CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
   getCaptchaHeaders,
 } from "@/lib/captcha";
-import { LastUsedIndicator } from "../last-used-indicator";
+import {
+  buildMagicLinkErrorCallbackURL,
+  buildMagicLinkNewUserCallbackURL,
+  buildMagicLinkSentURL,
+} from "@/lib/magic-link";
 
 const subscribe = () => () => {};
 const emailSchema = z.email("Please enter a valid email address.");
-const phoneSchema = z
-  .string()
-  .trim()
-  .regex(
-    /^\+[1-9]\d{7,14}$/,
-    "Enter a valid phone number in international format, e.g. +14155551234.",
-  );
-
-const normalizePhoneNumber = (value: string) => value.replace(/[()\s-]/g, "");
 const syntheticEmailDomain = (
   process.env.NEXT_PUBLIC_BETTER_AUTH_PHONE_TEMP_EMAIL_DOMAIN || "phone.invalid"
 )
   .trim()
   .toLowerCase();
 
-const parsePhoneNumber = (value: string): string | null => {
-  const normalized = normalizePhoneNumber(value);
-  const parsed = phoneSchema.safeParse(normalized);
-  return parsed.success ? parsed.data : null;
-};
-
 const signInSchema = z.object({
-  identifier: z
-    .string()
-    .trim()
-    .min(1, "Email, phone number, or username is required."),
+  email: z.string().trim(),
+  phoneCountryIso2: z.string().trim(),
+  phoneNumber: z.string().trim(),
+  username: z.string().trim(),
   password: z.string().min(1, "Password is required."),
   rememberMe: z.boolean(),
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
+type IdentifierTab = "email" | "phone" | "username";
 type CaptchaAction =
   | "password"
   | "magic"
@@ -96,6 +89,8 @@ export function SignInForm({
   magicLinkErrorCallbackURL,
 }: SignInFormProps) {
   const router = useRouter();
+  const [activeIdentifierTab, setActiveIdentifierTab] =
+    useState<IdentifierTab>("email");
   const [loading, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<CaptchaAction | null>(
     null,
@@ -127,54 +122,63 @@ export function SignInForm({
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      identifier: "",
+      email: "",
+      phoneCountryIso2: defaultPhoneCountry?.iso2 ?? "",
+      phoneNumber: "",
+      username: "",
       password: "",
       rememberMe: false,
     },
   });
+
+  const watchedEmail = form.watch("email");
+  const watchedPhoneCountryIso2 = form.watch("phoneCountryIso2");
+  const watchedPhoneNumber = form.watch("phoneNumber");
+  const countryFieldState = form.getFieldState(
+    "phoneCountryIso2",
+    form.formState,
+  );
+  const phoneFieldState = form.getFieldState("phoneNumber", form.formState);
+  const normalizedEmail = watchedEmail.trim().toLowerCase();
+  const parsedEmail = emailSchema.safeParse(normalizedEmail);
+  const isSyntheticEmailIdentifier =
+    parsedEmail.success &&
+    parsedEmail.data.toLowerCase().endsWith(`@${syntheticEmailDomain}`);
+  const isEmailOtpAvailable = parsedEmail.success && !isSyntheticEmailIdentifier;
+  const selectedPhoneNumber = getE164PhoneNumber(
+    watchedPhoneCountryIso2,
+    watchedPhoneNumber.trim(),
+  );
+
   const verificationQuery = new URLSearchParams({
     callbackUrl: callbackURL,
   });
-  const verificationIdentifier = form.watch("identifier");
-  const normalizedIdentifier = verificationIdentifier?.trim() ?? "";
-  const parsedIdentifierEmail = emailSchema.safeParse(normalizedIdentifier);
-  const parsedIdentifierPhone = parsePhoneNumber(normalizedIdentifier);
-  const isEmailIdentifier = parsedIdentifierEmail.success;
-  const isSyntheticEmailIdentifier =
-    isEmailIdentifier &&
-    parsedIdentifierEmail.data.toLowerCase().endsWith(`@${syntheticEmailDomain}`);
-  const isEmailOtpAvailable = isEmailIdentifier && !isSyntheticEmailIdentifier;
-  const isPhoneIdentifier = Boolean(parsedIdentifierPhone);
-  const isUsernameIdentifier =
-    normalizedIdentifier.length > 0 &&
-    !isEmailIdentifier &&
-    !isPhoneIdentifier;
-  const passwordLoginButtonLabel = isEmailIdentifier
-    ? "Login with email and password"
-    : isPhoneIdentifier
-      ? "Login with phone number and password"
-      : isUsernameIdentifier
-        ? "Login with username and password"
-        : "Login";
-
   if (isEmailOtpAvailable) {
-    verificationQuery.set("email", parsedIdentifierEmail.data.toLowerCase());
+    verificationQuery.set("email", parsedEmail.data.toLowerCase());
   }
   const verifyEmailOtpHref = `/auth/email-otp/verify-email?${verificationQuery.toString()}`;
 
   useEffect(() => {
-    if (!isEmailIdentifier) {
+    if (emailOtpSentTo && normalizedEmail !== emailOtpSentTo) {
       setEmailOtpSentTo(null);
       setEmailOtpCode("");
     }
-  }, [isEmailIdentifier]);
+  }, [emailOtpSentTo, normalizedEmail]);
 
   useEffect(() => {
-    if (!isPhoneIdentifier) {
+    if (phoneOtpSentTo && selectedPhoneNumber !== phoneOtpSentTo) {
       setPhoneOtpSentTo(null);
       setPhoneOtpCode("");
     }
-  }, [isPhoneIdentifier]);
+  }, [phoneOtpSentTo, selectedPhoneNumber]);
+
+  const getPasswordLoginButtonLabel = () => {
+    if (activeIdentifierTab === "email") return "Login with email and password";
+    if (activeIdentifierTab === "phone") {
+      return "Login with phone number and password";
+    }
+    return "Login with username and password";
+  };
 
   const onSubmit = (data: SignInFormValues) => {
     setPendingAction("password");
@@ -184,9 +188,6 @@ export function SignInForm({
           toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
         });
         if (captchaToken === undefined) return;
-        const identifier = data.identifier.trim();
-        const parsedEmail = emailSchema.safeParse(identifier);
-        const parsedPhone = parsePhoneNumber(identifier);
         const fetchOptions = {
           query: requestQuery,
           headers: getCaptchaHeaders(captchaToken),
@@ -204,7 +205,7 @@ export function SignInForm({
             }
             if (message.toLowerCase().includes("phone number not verified")) {
               toast.error(
-                "Phone number not verified. We sent an OTP code to start verification.",
+                "Phone number not verified. We sent a verification code to start verification.",
               );
               return;
             }
@@ -212,10 +213,19 @@ export function SignInForm({
           },
         };
 
-        if (parsedEmail.success) {
+        if (activeIdentifierTab === "email") {
+          const email = data.email.trim().toLowerCase();
+          const parsed = emailSchema.safeParse(email);
+          if (!parsed.success) {
+            form.setError("email", {
+              message: "Please enter a valid email address.",
+            });
+            return;
+          }
+
           await authClient.signIn.email(
             {
-              email: parsedEmail.data.toLowerCase(),
+              email: parsed.data,
               password: data.password,
               rememberMe: data.rememberMe,
               callbackURL,
@@ -225,10 +235,29 @@ export function SignInForm({
           return;
         }
 
-        if (parsedPhone) {
+        if (activeIdentifierTab === "phone") {
+          if (!getPhoneCountryByIso2(data.phoneCountryIso2)) {
+            form.setError("phoneCountryIso2", {
+              message: "Select a valid country code.",
+            });
+            return;
+          }
+
+          const phoneNumber = getE164PhoneNumber(
+            data.phoneCountryIso2,
+            data.phoneNumber.trim(),
+          );
+          if (!phoneNumber) {
+            form.setError("phoneNumber", {
+              message:
+                "Enter a valid phone number for the selected country.",
+            });
+            return;
+          }
+
           await authClient.signIn.phoneNumber(
             {
-              phoneNumber: parsedPhone,
+              phoneNumber,
               password: data.password,
               rememberMe: data.rememberMe,
             },
@@ -237,9 +266,17 @@ export function SignInForm({
           return;
         }
 
+        const username = data.username.trim();
+        if (!username) {
+          form.setError("username", {
+            message: "Username is required.",
+          });
+          return;
+        }
+
         await authClient.signIn.username(
           {
-            username: identifier,
+            username,
             password: data.password,
             rememberMe: data.rememberMe,
             callbackURL,
@@ -257,21 +294,29 @@ export function SignInForm({
     setPendingAction("magic");
     startTransition(async () => {
       try {
-        const identifier = form.getValues("identifier").trim();
-        const parsedEmail = emailSchema.safeParse(identifier);
-        if (!parsedEmail.success) {
-          toast.error("Enter a valid email to use magic link sign-in.");
+        const email = form.getValues("email").trim().toLowerCase();
+        const parsed = emailSchema.safeParse(email);
+        if (!parsed.success) {
+          form.setError("email", {
+            message: "Please enter a valid email address.",
+          });
           return;
         }
+        if (email.endsWith(`@${syntheticEmailDomain}`)) {
+          toast.error(
+            "This is a phone-first placeholder email. Use phone verification code sign-in.",
+          );
+          return;
+        }
+
         const captchaToken = await runCaptchaForActionOrFail("magic", () => {
           toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
         });
         if (captchaToken === undefined) return;
 
-        const email = parsedEmail.data.toLowerCase();
         await authClient.signIn.magicLink(
           {
-            email,
+            email: parsed.data,
             callbackURL,
             newUserCallbackURL: newUserCallbackURL,
             errorCallbackURL: errorCallbackURL,
@@ -280,14 +325,14 @@ export function SignInForm({
             query: requestQuery,
             headers: getCaptchaHeaders(captchaToken),
             onSuccess() {
-              router.push(buildMagicLinkSentURL(email, callbackURL));
+              router.push(buildMagicLinkSentURL(parsed.data, callbackURL));
             },
             onError(context) {
               if (context.error.status === 429) {
                 toast.error("Too many requests. Please try again later.");
                 return;
               }
-              router.push(buildMagicLinkSentURL(email, callbackURL));
+              router.push(buildMagicLinkSentURL(parsed.data, callbackURL));
             },
           },
         );
@@ -302,12 +347,21 @@ export function SignInForm({
     setPendingAction("email-otp-send");
     startTransition(async () => {
       try {
-        const identifier = form.getValues("identifier").trim();
-        const parsedEmail = emailSchema.safeParse(identifier);
-        if (!parsedEmail.success) {
-          toast.error("Enter a valid email to receive an OTP code.");
+        const email = form.getValues("email").trim().toLowerCase();
+        const parsed = emailSchema.safeParse(email);
+        if (!parsed.success) {
+          form.setError("email", {
+            message: "Please enter a valid email address.",
+          });
           return;
         }
+        if (email.endsWith(`@${syntheticEmailDomain}`)) {
+          toast.error(
+            "This is a phone-first placeholder email. Use phone verification code sign-in.",
+          );
+          return;
+        }
+
         const captchaToken = await runCaptchaForActionOrFail(
           "email-otp-send",
           () => {
@@ -316,26 +370,19 @@ export function SignInForm({
         );
         if (captchaToken === undefined) return;
 
-        const email = parsedEmail.data.toLowerCase();
-        if (email.endsWith(`@${syntheticEmailDomain}`)) {
-          toast.error(
-            "This is a phone-first placeholder email. Use phone OTP sign-in.",
-          );
-          return;
-        }
         await authClient.emailOtp.sendVerificationOtp(
           {
-            email,
+            email: parsed.data,
             type: "sign-in",
           },
           {
             query: requestQuery,
             headers: getCaptchaHeaders(captchaToken),
             onSuccess() {
-              setEmailOtpSentTo(email);
+              setEmailOtpSentTo(parsed.data);
               setEmailOtpCode("");
               toast.success(
-                "Email OTP sent. Check your inbox and spam folder.",
+                "Verification code sent. Check your inbox and spam folder.",
               );
             },
             onError(context) {
@@ -343,10 +390,10 @@ export function SignInForm({
                 toast.error("Too many requests. Please try again later.");
                 return;
               }
-              setEmailOtpSentTo(email);
+              setEmailOtpSentTo(parsed.data);
               setEmailOtpCode("");
               toast.success(
-                "If your account supports email OTP, check your inbox and spam folder.",
+                "If your account supports verification codes, check your inbox and spam folder.",
               );
             },
           },
@@ -363,7 +410,7 @@ export function SignInForm({
     startTransition(async () => {
       try {
         if (!emailOtpSentTo) {
-          toast.error("Send an OTP code first.");
+          toast.error("Send a verification code first.");
           return;
         }
         const captchaToken = await runCaptchaForActionOrFail(
@@ -376,7 +423,7 @@ export function SignInForm({
 
         const otp = emailOtpCode.trim();
         if (!otp || !/^\d+$/.test(otp)) {
-          toast.error("Enter a valid OTP code.");
+          toast.error("Enter a valid verification code.");
           return;
         }
 
@@ -389,11 +436,14 @@ export function SignInForm({
             query: requestQuery,
             headers: getCaptchaHeaders(captchaToken),
             onSuccess() {
-              toast.success("Successfully signed in with email OTP");
+              toast.success("Successfully signed in with email verification code");
               onSuccess?.();
             },
             onError(context) {
-              toast.error(context.error.message || "Email OTP sign-in failed.");
+              toast.error(
+                context.error.message ||
+                  "Email verification code sign-in failed.",
+              );
             },
           },
         );
@@ -408,12 +458,23 @@ export function SignInForm({
     setPendingAction("phone-otp-send");
     startTransition(async () => {
       try {
-        const identifier = form.getValues("identifier").trim();
-        const phoneNumber = parsePhoneNumber(identifier);
+        const { phoneCountryIso2, phoneNumber: localPhoneNumber } =
+          form.getValues();
+        if (!getPhoneCountryByIso2(phoneCountryIso2)) {
+          form.setError("phoneCountryIso2", {
+            message: "Select a valid country code.",
+          });
+          return;
+        }
+
+        const phoneNumber = getE164PhoneNumber(
+          phoneCountryIso2,
+          localPhoneNumber.trim(),
+        );
         if (!phoneNumber) {
-          toast.error(
-            "Enter a valid phone number in international format, e.g. +14155551234.",
-          );
+          form.setError("phoneNumber", {
+            message: "Enter a valid phone number for the selected country.",
+          });
           return;
         }
         const captchaToken = await runCaptchaForActionOrFail(
@@ -434,10 +495,12 @@ export function SignInForm({
             onSuccess() {
               setPhoneOtpSentTo(phoneNumber);
               setPhoneOtpCode("");
-              toast.success("Phone OTP sent.");
+              toast.success("Verification code sent to your phone.");
             },
             onError(context) {
-              toast.error(context.error.message || "Failed to send phone OTP.");
+              toast.error(
+                context.error.message || "Failed to send verification code.",
+              );
             },
           },
         );
@@ -453,7 +516,7 @@ export function SignInForm({
     startTransition(async () => {
       try {
         if (!phoneOtpSentTo) {
-          toast.error("Send a phone OTP first.");
+          toast.error("Send a verification code first.");
           return;
         }
         const captchaToken = await runCaptchaForActionOrFail(
@@ -466,7 +529,7 @@ export function SignInForm({
 
         const code = phoneOtpCode.trim();
         if (!code || !/^\d+$/.test(code)) {
-          toast.error("Enter a valid OTP code.");
+          toast.error("Enter a valid verification code.");
           return;
         }
 
@@ -484,7 +547,8 @@ export function SignInForm({
             },
             onError(context) {
               toast.error(
-                context.error.message || "Phone OTP verification failed.",
+                context.error.message ||
+                  "Phone verification code sign-in failed.",
               );
             },
           },
@@ -496,55 +560,135 @@ export function SignInForm({
     });
   };
 
+  const showEmailMethods = activeIdentifierTab === "email";
+  const showPhoneMethods = activeIdentifierTab === "phone";
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
       <FieldGroup>
-        <Controller
-          name="identifier"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="sign-in-identifier">
-                Email, Phone, or Username
-              </FieldLabel>
-              <Input
-                {...field}
-                id="sign-in-identifier"
-                type="text"
-                placeholder="m@example.com, +14155551234, or your.username"
-                aria-invalid={fieldState.invalid}
-                autoCapitalize="none"
-                autoComplete="username"
-              />
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-        <p className="text-xs text-muted-foreground">
-          {isEmailIdentifier
-            ? isSyntheticEmailIdentifier
-              ? "This looks like a phone-first placeholder email. Use phone OTP or username/password."
-              : "Email options are available below."
-            : isPhoneIdentifier
-              ? "Phone OTP options are available below."
-              : isUsernameIdentifier
-                ? "Username/password sign-in is available. Use an email or phone number to unlock channel-specific OTP options."
-                : "Enter email, phone number, or username."}
-        </p>
-        <div className="text-right">
-          {isEmailOtpAvailable ? (
-            <Link
-              href={verifyEmailOtpHref}
-              className="inline-block text-xs underline text-foreground"
-            >
-              Verify email with OTP
-            </Link>
-          ) : (
-            <span className="inline-block text-xs text-muted-foreground">
-              Enter a real email to verify via OTP.
-            </span>
-          )}
-        </div>
+        <Tabs
+          value={activeIdentifierTab}
+          onValueChange={(value) => {
+            const next = value as IdentifierTab;
+            setActiveIdentifierTab(next);
+            form.clearErrors([
+              "email",
+              "phoneCountryIso2",
+              "phoneNumber",
+              "username",
+            ]);
+          }}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="email">Email</TabsTrigger>
+            <TabsTrigger value="phone">Phone Number</TabsTrigger>
+            <TabsTrigger value="username">Username</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="email" className="mt-4 space-y-2">
+            <Controller
+              name="email"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
+                  <Input
+                    {...field}
+                    id="sign-in-email"
+                    type="email"
+                    placeholder="m@example.com"
+                    aria-invalid={fieldState.invalid}
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Use password, a verification code, or a magic link.
+            </p>
+            <div className="text-right">
+              {isEmailOtpAvailable ? (
+                <Link
+                  href={verifyEmailOtpHref}
+                  className="inline-block text-xs underline text-foreground"
+                >
+                  Verify email with a verification code
+                </Link>
+              ) : (
+                <span className="inline-block text-xs text-muted-foreground">
+                  Enter a real email to verify via code.
+                </span>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="phone" className="mt-4 space-y-2">
+            <PhoneNumberWithCountryInput
+              countryIso2={watchedPhoneCountryIso2}
+              phoneNumber={watchedPhoneNumber}
+              onCountryIso2Change={(countryIso2) => {
+                form.setValue("phoneCountryIso2", countryIso2, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                });
+                form.clearErrors("phoneCountryIso2");
+              }}
+              onPhoneNumberChange={(phoneNumber) => {
+                form.setValue("phoneNumber", phoneNumber, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                });
+              }}
+              countryId="sign-in-phone-country-code"
+              phoneId="sign-in-phone-number"
+              disabled={loading}
+              countryAriaInvalid={countryFieldState.invalid}
+              phoneAriaInvalid={phoneFieldState.invalid}
+              countryError={
+                countryFieldState.invalid ? (
+                  <FieldError errors={[countryFieldState.error]} />
+                ) : null
+              }
+              phoneError={
+                phoneFieldState.invalid ? (
+                  <FieldError errors={[phoneFieldState.error]} />
+                ) : null
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Use password or a verification code.
+            </p>
+          </TabsContent>
+
+          <TabsContent value="username" className="mt-4 space-y-2">
+            <Controller
+              name="username"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="sign-in-username">Username</FieldLabel>
+                  <Input
+                    {...field}
+                    id="sign-in-username"
+                    type="text"
+                    placeholder="your.username"
+                    aria-invalid={fieldState.invalid}
+                    autoCapitalize="none"
+                    autoComplete="username"
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+            <p className="text-xs text-muted-foreground">
+              Username sign-in uses password only.
+            </p>
+          </TabsContent>
+        </Tabs>
+
         <Controller
           name="password"
           control={form.control}
@@ -581,6 +725,7 @@ export function SignInForm({
             </Field>
           )}
         />
+
         <Controller
           name="rememberMe"
           control={form.control}
@@ -598,16 +743,20 @@ export function SignInForm({
           )}
         />
       </FieldGroup>
+
       <Button type="submit" className="w-full relative" disabled={loading}>
         {loading && pendingAction === "password" ? (
           <Loader2 size={16} className="animate-spin" />
         ) : (
-          passwordLoginButtonLabel
+          getPasswordLoginButtonLabel()
         )}
         {isMounted &&
-          (authClient.isLastUsedLoginMethod("email") ||
-            authClient.isLastUsedLoginMethod("username") ||
-            authClient.isLastUsedLoginMethod("phone-number")) && (
+          ((activeIdentifierTab === "email" &&
+            authClient.isLastUsedLoginMethod("email")) ||
+          (activeIdentifierTab === "phone" &&
+            authClient.isLastUsedLoginMethod("phone-number")) ||
+          (activeIdentifierTab === "username" &&
+            authClient.isLastUsedLoginMethod("username"))) && (
             <LastUsedIndicator />
           )}
       </Button>
@@ -616,16 +765,15 @@ export function SignInForm({
         captchaRef={captchaRef}
       />
 
-      {isEmailOtpAvailable && (
+      {showEmailMethods && (
         <>
-          {/* Separation Line */}
           <div className="relative py-6">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                OR SIGN IN WITH AN EMAIL LINK
+                OR SIGN IN WITH A MAGIC LINK
               </span>
             </div>
           </div>
@@ -652,9 +800,8 @@ export function SignInForm({
         </>
       )}
 
-      {isEmailOtpAvailable && (
+      {showEmailMethods && (
         <>
-          {/* Separation Line */}
           <div className="relative py-6">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -675,9 +822,9 @@ export function SignInForm({
             {loading && pendingAction === "email-otp-send" ? (
               <Loader2 size={16} className="animate-spin" />
             ) : emailOtpSentTo ? (
-              "Resend email OTP"
+              "Resend email verification code"
             ) : (
-              "Email me a code"
+              "Email me a verification code"
             )}
             {isMounted && authClient.isLastUsedLoginMethod("email-otp") && (
               <LastUsedIndicator />
@@ -690,10 +837,12 @@ export function SignInForm({
           {emailOtpSentTo && (
             <div className="rounded-md border p-3 space-y-3">
               <p className="text-xs text-muted-foreground">
-                OTP sent to {emailOtpSentTo}
+                Verification code sent to {emailOtpSentTo}
               </p>
               <Field>
-                <FieldLabel htmlFor="sign-in-email-otp">Email OTP</FieldLabel>
+                <FieldLabel htmlFor="sign-in-email-otp">
+                  Email verification code
+                </FieldLabel>
                 <Input
                   id="sign-in-email-otp"
                   value={emailOtpCode}
@@ -703,7 +852,7 @@ export function SignInForm({
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder="Enter OTP code"
+                  placeholder="Enter verification code"
                   maxLength={10}
                 />
               </Field>
@@ -716,7 +865,7 @@ export function SignInForm({
                 {loading && pendingAction === "email-otp-verify" ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
-                  "Sign in with Email OTP"
+                  "Sign in with email verification code"
                 )}
               </Button>
               <CaptchaActionSlot
@@ -728,16 +877,15 @@ export function SignInForm({
         </>
       )}
 
-      {isPhoneIdentifier && (
+      {showPhoneMethods && (
         <>
-          {/* Separation Line */}
           <div className="relative py-6">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                OR SIGN IN WITH A PHONE VERFIFICATION CODE
+                OR SIGN IN WITH A PHONE VERIFICATION CODE
               </span>
             </div>
           </div>
@@ -751,9 +899,9 @@ export function SignInForm({
             {loading && pendingAction === "phone-otp-send" ? (
               <Loader2 size={16} className="animate-spin" />
             ) : phoneOtpSentTo ? (
-              "Resend phone OTP"
+              "Resend phone verification code"
             ) : (
-              "Send a code to my phone"
+              "Send a verification code to my phone"
             )}
           </Button>
           <CaptchaActionSlot
@@ -763,10 +911,12 @@ export function SignInForm({
           {phoneOtpSentTo && (
             <div className="rounded-md border p-3 space-y-3">
               <p className="text-xs text-muted-foreground">
-                OTP sent to {phoneOtpSentTo}
+                Verification code sent to {phoneOtpSentTo}
               </p>
               <Field>
-                <FieldLabel htmlFor="sign-in-phone-otp">Phone OTP</FieldLabel>
+                <FieldLabel htmlFor="sign-in-phone-otp">
+                  Phone verification code
+                </FieldLabel>
                 <Input
                   id="sign-in-phone-otp"
                   value={phoneOtpCode}
@@ -776,7 +926,7 @@ export function SignInForm({
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder="Enter OTP code"
+                  placeholder="Enter verification code"
                   maxLength={10}
                 />
               </Field>
@@ -789,7 +939,7 @@ export function SignInForm({
                 {loading && pendingAction === "phone-otp-verify" ? (
                   <Loader2 size={16} className="animate-spin" />
                 ) : (
-                  "Verify phone OTP"
+                  "Verify code and sign in"
                 )}
               </Button>
               <CaptchaActionSlot
@@ -799,13 +949,6 @@ export function SignInForm({
             </div>
           )}
         </>
-      )}
-
-      {!isEmailIdentifier && !isPhoneIdentifier && (
-        <p className="text-xs text-muted-foreground">
-          Tip: use an email to sign in with magic link/email OTP, or use a
-          phone number in E.164 format to sign in or sign up with phone OTP.
-        </p>
       )}
     </form>
   );

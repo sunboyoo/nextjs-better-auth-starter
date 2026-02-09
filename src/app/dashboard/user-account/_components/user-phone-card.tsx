@@ -189,7 +189,7 @@ export function UserPhoneCard({
     }
 
     setStatus("loading");
-    setMessage("Sending OTP code...");
+    setMessage("Sending verification code...");
 
     try {
       const captchaToken = await runCaptchaForActionOrFail(
@@ -217,11 +217,13 @@ export function UserPhoneCard({
       setOtpCode("");
       setStatus("success");
       setMessage(
-        "OTP sent. Enter it below to verify and update your phone number.",
+        "Verification code sent. Enter it below to verify and update your phone number.",
       );
     } catch (error: unknown) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Failed to send OTP");
+      setMessage(
+        error instanceof Error ? error.message : "Failed to send verification code",
+      );
     } finally {
       resetCaptcha();
     }
@@ -230,17 +232,17 @@ export function UserPhoneCard({
   const handleVerifyOtp = async () => {
     if (!otpSentTo) {
       setStatus("error");
-      setMessage("Send OTP first.");
+      setMessage("Send a verification code first.");
       return;
     }
     if (!otpCode.trim() || !/^\d+$/.test(otpCode.trim())) {
       setStatus("error");
-      setMessage("Enter a valid OTP code.");
+      setMessage("Enter a valid verification code.");
       return;
     }
 
     setStatus("loading");
-    setMessage("Verifying OTP...");
+    setMessage("Verifying code...");
 
     try {
       const captchaToken = await runCaptchaForActionOrFail(
@@ -361,7 +363,7 @@ export function UserPhoneCard({
               </div>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              Use phone OTP for sign-in and recovery
+              Use phone verification codes for sign-in and recovery
             </p>
           </div>
         </div>
@@ -516,18 +518,18 @@ export function UserPhoneCard({
                 <p className="text-xs text-muted-foreground">
                   {normalizedNewPhone
                     ? `Will be saved as ${normalizedNewPhone}`
-                    : "Enter your phone number to receive an OTP."}
+                    : "Enter your phone number to receive a verification code."}
                 </p>
               </div>
               {otpSentTo && (
                 <div className="space-y-2">
-                  <Label htmlFor="phone-number-otp">OTP Code</Label>
+                  <Label htmlFor="phone-number-otp">Verification code</Label>
                   <Input
                     id="phone-number-otp"
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    placeholder="Enter OTP code"
+                    placeholder="Enter verification code"
                     value={otpCode}
                     onChange={(event) =>
                       setOtpCode(event.target.value.replace(/[^\d]/g, ""))
@@ -578,14 +580,16 @@ export function UserPhoneCard({
                 variant="outline"
                 disabled={status === "loading"}
               >
-                {otpSentTo ? "Resend OTP" : "Send OTP"}
+                {otpSentTo
+                  ? "Resend verification code"
+                  : "Send verification code"}
               </Button>
               <Button
                 type="button"
                 onClick={handleVerifyOtp}
                 disabled={status === "loading" || !otpSentTo}
               >
-                Verify & Update
+                Verify code and update
               </Button>
             </div>
             <CaptchaActionSlot

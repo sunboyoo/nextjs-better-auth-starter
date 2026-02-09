@@ -33,12 +33,14 @@ interface ForgetPasswordFormProps {
 	onSuccess?: () => void;
 	onError?: (error: string) => void;
 	redirectTo?: string;
+	submitLabel?: string;
 }
 
 export function ForgetPasswordForm({
 	onSuccess,
 	onError,
 	redirectTo = "/auth/reset-password",
+	submitLabel = "Send reset link",
 }: ForgetPasswordFormProps) {
 	const [loading, startTransition] = useTransition();
 	const {
@@ -118,7 +120,7 @@ export function ForgetPasswordForm({
 				{loading ? (
 					<Loader2 size={16} className="animate-spin" />
 				) : (
-					"Send reset link"
+					submitLabel
 				)}
 			</Button>
 			<CaptchaActionSlot

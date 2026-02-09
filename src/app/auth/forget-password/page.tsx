@@ -4,7 +4,6 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ForgetPasswordForm } from "@/components/forms/forget-password-form";
 import { ResetPasswordEmailOtpForm } from "@/components/forms/reset-password-email-otp-form";
 import { ResetPasswordPhoneOtpForm } from "@/components/forms/reset-password-phone-otp-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -60,25 +59,25 @@ export default function Page() {
         <CardHeader>
           <CardTitle>Forgot password</CardTitle>
           <CardDescription>
-            Use a reset link, email OTP, or phone OTP to reset my password.
+            Choose email or phone to reset my password.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="link" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="link">Reset Link</TabsTrigger>
-              <TabsTrigger value="otp">Email OTP</TabsTrigger>
-              <TabsTrigger value="phone-otp">Phone OTP</TabsTrigger>
+          <Tabs defaultValue="email" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="email">Email</TabsTrigger>
+              <TabsTrigger value="phone">Phone</TabsTrigger>
             </TabsList>
-            <TabsContent value="link" className="mt-4">
-              <ForgetPasswordForm onSuccess={() => setIsSubmitted(true)} />
-            </TabsContent>
-            <TabsContent value="otp" className="mt-4">
+            <TabsContent value="email" className="mt-4">
               <ResetPasswordEmailOtpForm
+                onLinkSuccess={() => setIsSubmitted(true)}
                 onSuccess={() => router.push("/auth/sign-in")}
+                linkLabel="Email me a link"
+                sendCodeLabel="Email me a code"
+                resendCodeLabel="Resend email code"
               />
             </TabsContent>
-            <TabsContent value="phone-otp" className="mt-4">
+            <TabsContent value="phone" className="mt-4">
               <ResetPasswordPhoneOtpForm
                 onSuccess={() => router.push("/auth/sign-in")}
               />

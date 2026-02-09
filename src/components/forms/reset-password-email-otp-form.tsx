@@ -34,19 +34,29 @@ const resetPasswordEmailOtpSchema = z
   });
 
 type ResetPasswordEmailOtpFormValues = z.infer<typeof resetPasswordEmailOtpSchema>;
-type CaptchaAction = "send-reset-otp";
+type CaptchaAction = "send-reset-otp" | "send-reset-link";
 
 interface ResetPasswordEmailOtpFormProps {
   initialEmail?: string;
   onSuccess?: () => void;
+  onLinkSuccess?: () => void;
+  sendCodeLabel?: string;
+  resendCodeLabel?: string;
+  linkLabel?: string;
 }
 
 export function ResetPasswordEmailOtpForm({
   initialEmail = "",
   onSuccess,
+  onLinkSuccess,
+  sendCodeLabel = "Send password reset OTP",
+  resendCodeLabel = "Resend password reset OTP",
+  linkLabel = "Email me a link",
 }: ResetPasswordEmailOtpFormProps) {
   const [loading, startTransition] = useTransition();
-  const [pendingAction, setPendingAction] = useState<"send" | "reset" | null>(
+  const [pendingAction, setPendingAction] = useState<
+    "send" | "reset" | "link" | null
+  >(
     null,
   );
   const [otpSent, setOtpSent] = useState(false);
@@ -66,6 +76,42 @@ export function ResetPasswordEmailOtpForm({
       confirmPassword: "",
     },
   });
+
+  const onSendLink = () => {
+    setPendingAction("link");
+    startTransition(async () => {
+      try {
+        const isEmailValid = await form.trigger("email");
+        if (!isEmailValid) return;
+        const captchaToken = await runCaptchaForActionOrFail(
+          "send-reset-link",
+          () => {
+            toast.error(CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE);
+          },
+        );
+        if (captchaToken === undefined) return;
+
+        const email = form.getValues("email").trim().toLowerCase();
+        const result = await authClient.requestPasswordReset({
+          email,
+          redirectTo: "/auth/reset-password",
+          fetchOptions: {
+            headers: getCaptchaHeaders(captchaToken),
+          },
+        });
+
+        if (result.error && result.error.status === 429) {
+          toast.error("Too many requests. Please try again later.");
+          return;
+        }
+
+        onLinkSuccess?.();
+      } finally {
+        resetCaptcha();
+        setPendingAction(null);
+      }
+    });
+  };
 
   const onSendOtp = () => {
     setPendingAction("send");
@@ -165,17 +211,39 @@ export function ResetPasswordEmailOtpForm({
           )}
         />
       </FieldGroup>
-      <Button type="button" variant="outline" onClick={onSendOtp} disabled={loading}>
-        {loading && pendingAction === "send" ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : otpSent ? (
-          "Resend password reset OTP"
-        ) : (
-          "Send password reset OTP"
-        )}
-      </Button>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSendLink}
+          disabled={loading}
+        >
+          {loading && pendingAction === "link" ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            linkLabel
+          )}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSendOtp}
+          disabled={loading}
+        >
+          {loading && pendingAction === "send" ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : otpSent ? (
+            resendCodeLabel
+          ) : (
+            sendCodeLabel
+          )}
+        </Button>
+      </div>
       <CaptchaActionSlot
-        show={isCaptchaVisibleFor("send-reset-otp")}
+        show={
+          isCaptchaVisibleFor("send-reset-link") ||
+          isCaptchaVisibleFor("send-reset-otp")
+        }
         captchaRef={captchaRef}
       />
 
