@@ -22,7 +22,7 @@ import {
 } from "@/lib/magic-link";
 import { cn } from "@/lib/utils";
 
-const subscribe = () => () => {};
+const subscribe = () => () => { };
 
 export default function SignIn() {
   const isMounted = useSyncExternalStore(
@@ -46,7 +46,7 @@ export default function SignIn() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           <SignInForm
             params={params}
             onSuccess={() => router.push(callbackURL)}
@@ -56,7 +56,7 @@ export default function SignIn() {
           />
 
           {/* Separation Line */}
-          <div className="relative py-6">
+          <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -68,7 +68,7 @@ export default function SignIn() {
           </div>
 
           {/* OAuth Buttons - 2 per row */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <Button
               variant="outline"
               className={cn("gap-2 flex relative")}
@@ -202,7 +202,7 @@ export default function SignIn() {
           </div>
 
           {/* Divider */}
-          <div className="relative py-6">
+          <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>

@@ -44,7 +44,7 @@ import {
   buildMagicLinkSentURL,
 } from "@/lib/magic-link";
 
-const subscribe = () => () => {};
+const subscribe = () => () => { };
 const emailSchema = z.email("Please enter a valid email address.");
 const syntheticEmailDomain = (
   process.env.NEXT_PUBLIC_BETTER_AUTH_PHONE_TEMP_EMAIL_DOMAIN || "phone.invalid"
@@ -434,7 +434,7 @@ export function SignInForm({
             onError(context) {
               toast.error(
                 context.error.message ||
-                  "Email verification code sign-in failed.",
+                "Email verification code sign-in failed.",
               );
             },
           },
@@ -540,7 +540,7 @@ export function SignInForm({
             onError(context) {
               toast.error(
                 context.error.message ||
-                  "Phone verification code sign-in failed.",
+                "Phone verification code sign-in failed.",
               );
             },
           },
@@ -556,7 +556,7 @@ export function SignInForm({
   const showPhoneMethods = activeIdentifierTab === "phone";
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-2">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
       <FieldGroup>
         <Tabs
           value={activeIdentifierTab}
@@ -578,7 +578,7 @@ export function SignInForm({
             <TabsTrigger value="username">Username</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="email" className="mt-4 space-y-2">
+          <TabsContent value="email" className="mt-6 space-y-2">
             <Controller
               name="email"
               control={form.control}
@@ -617,7 +617,7 @@ export function SignInForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="phone" className="mt-4 space-y-2">
+          <TabsContent value="phone" className="mt-6 space-y-2">
             <PhoneNumberWithCountryInput
               countryIso2={watchedPhoneCountryIso2}
               phoneNumber={watchedPhoneNumber}
@@ -655,7 +655,7 @@ export function SignInForm({
             </p>
           </TabsContent>
 
-          <TabsContent value="username" className="mt-4 space-y-2">
+          <TabsContent value="username" className="mt-6 space-y-2">
             <Controller
               name="username"
               control={form.control}
@@ -745,10 +745,10 @@ export function SignInForm({
         {isMounted &&
           ((activeIdentifierTab === "email" &&
             authClient.isLastUsedLoginMethod("email")) ||
-          (activeIdentifierTab === "phone" &&
-            authClient.isLastUsedLoginMethod("phone-number")) ||
-          (activeIdentifierTab === "username" &&
-            authClient.isLastUsedLoginMethod("username"))) && (
+            (activeIdentifierTab === "phone" &&
+              authClient.isLastUsedLoginMethod("phone-number")) ||
+            (activeIdentifierTab === "username" &&
+              authClient.isLastUsedLoginMethod("username"))) && (
             <LastUsedIndicator />
           )}
       </Button>
@@ -759,7 +759,7 @@ export function SignInForm({
 
       {showEmailMethods && (
         <>
-          <div className="relative py-6">
+          <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -794,7 +794,7 @@ export function SignInForm({
 
       {showEmailMethods && (
         <>
-          <div className="relative py-6">
+          <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -827,7 +827,7 @@ export function SignInForm({
             captchaRef={captchaRef}
           />
           {emailOtpSentTo && (
-            <div className="rounded-md border p-3 space-y-3">
+            <div className="rounded-md border p-6 space-y-4">
               <p className="text-xs text-muted-foreground">
                 Verification code sent to {emailOtpSentTo}
               </p>
@@ -871,7 +871,7 @@ export function SignInForm({
 
       {showPhoneMethods && (
         <>
-          <div className="relative py-6">
+          <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
@@ -901,7 +901,7 @@ export function SignInForm({
             captchaRef={captchaRef}
           />
           {phoneOtpSentTo && (
-            <div className="rounded-md border p-3 space-y-3">
+            <div className="rounded-md border p-6 space-y-4">
               <p className="text-xs text-muted-foreground">
                 Verification code sent to {phoneOtpSentTo}
               </p>
