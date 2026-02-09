@@ -141,16 +141,18 @@ export function UserPasskeyCard({ initialPasskeys }: UserPasskeyCardProps) {
                                 <KeyRound className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-sm font-semibold">Passkeys</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold">Passkeys</h3>
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-black text-white hover:bg-black/90">
+                                        {passkeyCount} {passkeyCount === 1 ? "passkey" : "passkeys"}
+                                    </Badge>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     Password-free sign-in with biometrics or security keys
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Badge variant={passkeyCount > 0 ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                                {passkeyCount} {passkeyCount === 1 ? "passkey" : "passkeys"}
-                            </Badge>
                             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button size="sm" className="gap-1.5">

@@ -17,6 +17,9 @@ export function SignUp() {
   const router = useRouter();
   const params = useSearchParams();
   const callbackURL = getCallbackURL(params);
+  const nextAfterProfileCompletion =
+    callbackURL === "/dashboard/profile-completion" ? "/dashboard" : callbackURL;
+  const profileCompletionURL = `/dashboard/profile-completion?next=${encodeURIComponent(nextAfterProfileCompletion)}`;
 
   return (
     <Card className="rounded-md rounded-t-none w-full">
@@ -35,13 +38,13 @@ export function SignUp() {
           <TabsContent value="email" className="mt-6">
             <SignUpForm
               params={params}
-              onSuccess={() => router.push(callbackURL)}
+              onSuccess={() => router.push(profileCompletionURL)}
             />
           </TabsContent>
           <TabsContent value="phone" className="mt-6">
             <PhoneSignUpForm
               params={params}
-              onSuccess={() => router.push(callbackURL)}
+              onSuccess={() => router.push(profileCompletionURL)}
             />
           </TabsContent>
         </Tabs>

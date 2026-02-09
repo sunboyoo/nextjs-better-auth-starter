@@ -60,7 +60,7 @@ export function TwoFactorTotpForm({
 
 	if (isVerified) {
 		return (
-			<div className="flex flex-col items-center justify-center space-y-2 py-4">
+			<div className="flex flex-col items-center justify-center space-y-4 py-6">
 				<CheckCircle2 className="w-12 h-12 text-green-500" />
 				<p className="text-lg font-semibold">Verification Successful</p>
 			</div>
@@ -68,7 +68,7 @@ export function TwoFactorTotpForm({
 	}
 
 	return (
-		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
 			<FieldGroup>
 				<Controller
 					name="code"

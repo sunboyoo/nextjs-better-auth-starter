@@ -476,6 +476,49 @@ export const invitation = table(
   ],
 );
 
+export const profileCompletion = table(
+  "profile_completion",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    currentStep: integer("current_step").default(1).notNull(),
+    completed: boolean("completed").default(false).notNull(),
+    completedAt: timestamp("completed_at"),
+    stepIdentityData: jsonb("step_identity_data").$type<
+      Record<string, unknown>
+    >(),
+    stepIdentitySkipped: boolean("step_identity_skipped")
+      .default(false)
+      .notNull(),
+    stepIdentitySavedAt: timestamp("step_identity_saved_at"),
+    stepSecurityData: jsonb("step_security_data").$type<
+      Record<string, unknown>
+    >(),
+    stepSecuritySkipped: boolean("step_security_skipped")
+      .default(false)
+      .notNull(),
+    stepSecuritySavedAt: timestamp("step_security_saved_at"),
+    stepRecoveryData: jsonb("step_recovery_data").$type<
+      Record<string, unknown>
+    >(),
+    stepRecoverySkipped: boolean("step_recovery_skipped")
+      .default(false)
+      .notNull(),
+    stepRecoverySavedAt: timestamp("step_recovery_saved_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("profileCompletion_userId_uidx").on(table.userId),
+    index("profileCompletion_completed_idx").on(table.completed),
+  ],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
@@ -485,6 +528,7 @@ export const userRelations = relations(user, ({ many }) => ({
   ssoProviders: many(ssoProvider),
   members: many(member),
   invitations: many(invitation),
+  profileCompletions: many(profileCompletion),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -566,6 +610,16 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const profileCompletionRelations = relations(
+  profileCompletion,
+  ({ one }) => ({
+    user: one(user, {
+      fields: [profileCompletion.userId],
+      references: [user.id],
+    }),
+  }),
+);
 
 // =========================================================
 // RBAC Extension Tables

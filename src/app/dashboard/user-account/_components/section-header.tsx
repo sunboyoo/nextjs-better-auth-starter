@@ -23,7 +23,7 @@ export function SectionHeader({
     iconColor = "gray"
 }: SectionHeaderProps) {
     return (
-        <div className="flex items-center gap-3 border-b border-border/50 pb-3 pt-6 first:pt-0">
+        <div className="flex items-center gap-3 border-b border-border/50 pb-4 pt-8 first:pt-0">
             {Icon && (
                 <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconColorStyles[iconColor]} shadow-sm`}>
                     <Icon className="h-4 w-4" />

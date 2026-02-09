@@ -139,7 +139,7 @@ export function UserPasswordCard({
                     <div>
                         <div className="flex items-center gap-2">
                             <h2 className="text-sm font-semibold">Password</h2>
-                            <Badge variant={hasPassword ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                            <Badge variant={hasPassword ? "default" : "destructive"} className={`text-[10px] px-1.5 py-0 ${hasPassword ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>
                                 {hasPassword ? "Enabled" : "Not Enabled"}
                             </Badge>
                         </div>

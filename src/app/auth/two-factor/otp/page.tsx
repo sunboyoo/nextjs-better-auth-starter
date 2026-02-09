@@ -15,7 +15,7 @@ export default function Page() {
 
 	return (
 		<main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-			<Card className="w-[350px]">
+			<Card className="w-full max-w-md">
 				<CardHeader>
 					<CardTitle>Two-Factor Authentication</CardTitle>
 					<CardDescription>

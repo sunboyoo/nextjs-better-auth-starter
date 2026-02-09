@@ -1096,6 +1096,7 @@ const authOptions = {
     },
     changeEmail: {
       enabled: true,
+      updateEmailWithoutVerification: true,
       sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
         if (isSyntheticEmailAddress(user.email)) {
           console.info(

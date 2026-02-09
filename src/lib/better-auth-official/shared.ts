@@ -2,6 +2,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 
 const allowedCallbackSet: ReadonlySet<string> = new Set([
     "/dashboard",
+    "/dashboard/profile-completion",
     "/auth/device",
 ]);
 

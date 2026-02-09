@@ -77,7 +77,7 @@ export default async function UserAccountPage() {
         : "email";
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-10">
       {/* Page Header */}
       <div className="rounded-xl border-0 shadow-none bg-card p-6 md:p-8">
         <div className="flex items-center gap-3">
@@ -105,12 +105,12 @@ export default async function UserAccountPage() {
       />
 
       {/* ── Section 1: Profile & Identity ── */}
-      <section className="space-y-3">
+      <section className="space-y-6">
         <SectionHeader
           title="Profile & Identity"
           description="Your personal information, email, and platform role"
         />
-        <div className="space-y-4">
+        <div className="space-y-6">
           <UserNameImageCard
             userName={userName}
             userEmail={userEmail}
@@ -140,12 +140,12 @@ export default async function UserAccountPage() {
       </section>
 
       {/* ── Section 2: Sign-in Methods ── */}
-      <section className="space-y-3">
+      <section className="space-y-6">
         <SectionHeader
           title="Sign-in Methods"
           description="Manage how you sign in to your account"
         />
-        <div className="space-y-4">
+        <div className="space-y-6">
           <UserPasswordCard hasPassword={hasPassword} />
           {configuredSocialProviderIds.length > 0 && (
             <UserOAuthCard
@@ -159,12 +159,12 @@ export default async function UserAccountPage() {
       </section>
 
       {/* ── Section 3: Security ── */}
-      <section className="space-y-3">
+      <section className="space-y-6">
         <SectionHeader
           title="Security"
           description="Two-factor authentication and active sessions"
         />
-        <div className="space-y-4">
+        <div className="space-y-6">
           <UserTwoFactorCard
             twoFactorEnabled={!!currentSession.user.twoFactorEnabled}
           />
@@ -176,12 +176,12 @@ export default async function UserAccountPage() {
       </section>
 
       {/* ── Section 4: Danger Zone ── */}
-      <section className="space-y-3">
+      <section className="space-y-6">
         <SectionHeader
           title="Danger Zone"
           description="Irreversible account actions"
         />
-        <div className="space-y-4">
+        <div className="space-y-6">
           <DeleteUserCard
             hasPassword={hasPassword}
             userEmail={userEmail}

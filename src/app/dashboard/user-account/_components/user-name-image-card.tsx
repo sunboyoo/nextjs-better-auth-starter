@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useUpdateUserMutation } from "@/data/user/update-user-mutation"
 import { ChevronDown, Loader2, CheckCircle2, XCircle, ImageIcon, Upload, Link2 } from "lucide-react"
 
@@ -193,59 +194,48 @@ export function UserNameImageCard({
                             {/* Image Input Mode Toggle */}
                             <div className="space-y-2">
                                 <Label>Profile Image</Label>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        variant={imageInputMode === "upload" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setImageInputMode("upload")}
-                                        className="flex-1"
-                                    >
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Image
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant={imageInputMode === "url" ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setImageInputMode("url")}
-                                        className="flex-1"
-                                    >
-                                        <Link2 className="mr-2 h-4 w-4" />
-                                        Paste URL
-                                    </Button>
-                                </div>
+                                <Tabs
+                                    value={imageInputMode}
+                                    onValueChange={(value) => setImageInputMode(value as "url" | "upload")}
+                                    className="w-full"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="upload" disabled={status === "loading"}>
+                                            <Upload className="mr-2 h-4 w-4" />
+                                            Upload Image
+                                        </TabsTrigger>
+                                        <TabsTrigger value="url" disabled={status === "loading"}>
+                                            <Link2 className="mr-2 h-4 w-4" />
+                                            Paste URL
+                                        </TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="upload" className="mt-3 space-y-2">
+                                        <Label htmlFor="image-upload">Upload Image (max 2MB)</Label>
+                                        <Input
+                                            key="image-upload-input"
+                                            ref={fileInputRef}
+                                            id="image-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleFileUpload}
+                                            disabled={status === "loading"}
+                                            className="cursor-pointer"
+                                        />
+                                    </TabsContent>
+                                    <TabsContent value="url" className="mt-3 space-y-2">
+                                        <Label htmlFor="image-url">Image URL</Label>
+                                        <Input
+                                            key="image-url-input"
+                                            id="image-url"
+                                            type="url"
+                                            placeholder="https://example.com/avatar.jpg"
+                                            value={imageUrl}
+                                            onChange={handleUrlChange}
+                                            disabled={status === "loading"}
+                                        />
+                                    </TabsContent>
+                                </Tabs>
                             </div>
-
-                            {/* Image Input Based on Mode */}
-                            {imageInputMode === "upload" ? (
-                                <div className="space-y-2">
-                                    <Label htmlFor="image-upload">Upload Image (max 2MB)</Label>
-                                    <Input
-                                        key="image-upload-input"
-                                        ref={fileInputRef}
-                                        id="image-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleFileUpload}
-                                        disabled={status === "loading"}
-                                        className="cursor-pointer"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    <Label htmlFor="image-url">Image URL</Label>
-                                    <Input
-                                        key="image-url-input"
-                                        id="image-url"
-                                        type="url"
-                                        placeholder="https://example.com/avatar.jpg"
-                                        value={imageUrl}
-                                        onChange={handleUrlChange}
-                                        disabled={status === "loading"}
-                                    />
-                                </div>
-                            )}
 
                             {/* Image Preview */}
                             <div className="mt-1">

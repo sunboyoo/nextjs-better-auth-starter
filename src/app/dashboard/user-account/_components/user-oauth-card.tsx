@@ -234,18 +234,21 @@ export function UserOAuthCard({
                                 <Share2 className="h-5 w-5" />
                             </div>
                             <div>
-                                <h3 className="text-sm font-semibold">Social Accounts</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-semibold">Social Accounts</h3>
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-[10px] px-1.5 py-0 bg-black text-white hover:bg-black/90"
+                                    >
+                                        {connectedCount} of {availableProviders.length} connected
+                                    </Badge>
+                                </div>
                                 <p className="text-xs text-muted-foreground">
                                     Connect social providers for quick sign-in
                                 </p>
                             </div>
                         </div>
-                        <Badge
-                            variant={connectedCount > 0 ? "default" : "secondary"}
-                            className="text-[10px] px-1.5 py-0"
-                        >
-                            {connectedCount} of {availableProviders.length} connected
-                        </Badge>
+
                     </div>
 
                     {/* ---------- Provider list ---------- */}

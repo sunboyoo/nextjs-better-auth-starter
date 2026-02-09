@@ -102,15 +102,18 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
                             )}
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold">Two-Factor Authentication</h3>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-semibold">Two-Factor Authentication</h3>
+                                <Badge variant={twoFactorEnabled ? "default" : "destructive"} className={`text-[10px] px-1.5 py-0 ${twoFactorEnabled ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>
+                                    {twoFactorEnabled ? "Enabled" : "Not Enabled"}
+                                </Badge>
+                            </div>
                             <p className="text-xs text-muted-foreground">
                                 Add an extra layer of security to your account
                             </p>
                         </div>
                     </div>
-                    <Badge variant={twoFactorEnabled ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                        {twoFactorEnabled ? "Enabled" : "Disabled"}
-                    </Badge>
+
                 </div>
 
                 {/* Content Actions */}

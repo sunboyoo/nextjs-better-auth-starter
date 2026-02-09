@@ -73,7 +73,7 @@ export function TwoFactorEmailOtpForm({
 
 	if (isVerified) {
 		return (
-			<div className="flex flex-col items-center justify-center space-y-2 py-4">
+			<div className="flex flex-col items-center justify-center space-y-4 py-6">
 				<CheckCircle2 className="w-12 h-12 text-green-500" />
 				<p className="text-lg font-semibold">Verification Successful</p>
 			</div>
@@ -82,7 +82,7 @@ export function TwoFactorEmailOtpForm({
 
 	if (!isOtpSent) {
 		return (
-			<div className="grid gap-4">
+			<div className="grid gap-6">
 				<Button onClick={handleSendOtp} className="w-full" disabled={loading}>
 					{loading ? (
 						<Loader2 size={16} className="animate-spin" />
@@ -97,7 +97,7 @@ export function TwoFactorEmailOtpForm({
 	}
 
 	return (
-		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+		<form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
 			<FieldGroup>
 				<Controller
 					name="code"
