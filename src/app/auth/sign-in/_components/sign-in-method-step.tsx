@@ -155,112 +155,116 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
 
   if (!hasIdentifier && hasMethodsRequiringIdentifier && !passkeyEnabled && !socialVisible) {
     return (
-      <Card className="w-full rounded-none max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
-          <CardDescription className="text-xs md:text-sm">
-            Continue from the identify step before choosing an authentication method.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => router.push(identifyHref)} className="w-full">
-            Back to Identify
-          </Button>
-        </CardContent>
-      </Card>
+      <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <CardHeader>
+            <CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
+            <CardDescription className="text-xs md:text-sm">
+              Continue from the identify step before choosing an authentication method.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push(identifyHref)} className="w-full">
+              Back to Identify
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
     );
   }
 
   return (
-    <Card className="w-full rounded-none max-h-[90vh] overflow-y-auto">
-      <CardHeader>
-        <CardTitle className="text-lg md:text-xl">Choose how to sign in</CardTitle>
-        <CardDescription className="text-xs md:text-sm">
-          Only methods enabled by the active authentication profile are shown.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6">
-          {identifierType && identifier ? (
-            <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-              Using {identifierType}: <span className="font-medium text-foreground">{identifier}</span>
-            </div>
-          ) : null}
-
-          {passkeyEnabled ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={async () => {
-                  await authClient.signIn.passkey({
-                    fetchOptions: {
-                      query: requestQuery,
-                      onSuccess() {
-                        toast.success("Successfully signed in");
-                        router.push(callbackUrl);
-                      },
-                      onError(context) {
-                        toast.error(
-                          context.error.message ||
-                            "Passkey sign-in failed. Try another method.",
-                        );
-                      },
-                    },
-                  });
-                }}
-              >
-                <KeyRound className="mr-2 size-4" />
-                Sign in with Passkey
-              </Button>
-              {autoPasskeyFailed ? (
-                <p className="text-xs text-muted-foreground">
-                  Passkey was not completed. Use one of the fallback methods below.
-                </p>
-              ) : null}
-            </>
-          ) : null}
-
-          {signInFormMethods.length > 0 ? (
-            <SignInForm
-              params={params}
-              callbackURL={callbackUrl}
-              onSuccess={() => router.push(callbackUrl)}
-              magicLinkNewUserCallbackURL={buildMagicLinkNewUserCallbackURL(callbackUrl)}
-              magicLinkErrorCallbackURL={buildMagicLinkErrorCallbackURL(callbackUrl)}
-              allowedMethods={signInFormMethods}
-              allowedIdentifierTabs={
-                identifierType
-                  ? [identifierType]
-                  : profile.identify.identifiers
-              }
-              fixedIdentifier={fixedIdentifier}
-              hideIdentifierTabs={Boolean(identifierType)}
-            />
-          ) : null}
-
-          {socialVisible ? (
-            <>
-              <div className="relative py-8">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    OR CONTINUE WITH SOCIAL
-                  </span>
-                </div>
+    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle className="text-lg md:text-xl">Choose how to sign in</CardTitle>
+          <CardDescription className="text-xs md:text-sm">
+            Only methods enabled by the active authentication profile are shown.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6">
+            {identifierType && identifier ? (
+              <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
+                Using {identifierType}: <span className="font-medium text-foreground">{identifier}</span>
               </div>
-              <SocialSignInButtons callbackURL={callbackUrl} params={params} />
-            </>
-          ) : null}
+            ) : null}
 
-          <Button type="button" variant="ghost" onClick={() => router.push(identifyHref)}>
-            Use a different identifier
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            {passkeyEnabled ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={async () => {
+                    await authClient.signIn.passkey({
+                      fetchOptions: {
+                        query: requestQuery,
+                        onSuccess() {
+                          toast.success("Successfully signed in");
+                          router.push(callbackUrl);
+                        },
+                        onError(context) {
+                          toast.error(
+                            context.error.message ||
+                            "Passkey sign-in failed. Try another method.",
+                          );
+                        },
+                      },
+                    });
+                  }}
+                >
+                  <KeyRound className="mr-2 size-4" />
+                  Sign in with Passkey
+                </Button>
+                {autoPasskeyFailed ? (
+                  <p className="text-xs text-muted-foreground">
+                    Passkey was not completed. Use one of the fallback methods below.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+            {signInFormMethods.length > 0 ? (
+              <SignInForm
+                params={params}
+                callbackURL={callbackUrl}
+                onSuccess={() => router.push(callbackUrl)}
+                magicLinkNewUserCallbackURL={buildMagicLinkNewUserCallbackURL(callbackUrl)}
+                magicLinkErrorCallbackURL={buildMagicLinkErrorCallbackURL(callbackUrl)}
+                allowedMethods={signInFormMethods}
+                allowedIdentifierTabs={
+                  identifierType
+                    ? [identifierType]
+                    : profile.identify.identifiers
+                }
+                fixedIdentifier={fixedIdentifier}
+                hideIdentifierTabs={Boolean(identifierType)}
+              />
+            ) : null}
+
+            {socialVisible ? (
+              <>
+                <div className="relative py-8">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      OR CONTINUE WITH SOCIAL
+                    </span>
+                  </div>
+                </div>
+                <SocialSignInButtons callbackURL={callbackUrl} params={params} />
+              </>
+            ) : null}
+
+            <Button type="button" variant="ghost" onClick={() => router.push(identifyHref)}>
+              Use a different identifier
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
   );
 }
