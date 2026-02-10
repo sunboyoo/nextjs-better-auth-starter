@@ -168,7 +168,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
   if (!hasIdentifier && hasMethodsRequiringIdentifier && !passkeyEnabled && !socialVisible) {
     return (
       <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-        <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <Card className="w-full max-w-md max-h-[90vh] overflow-x-visible overflow-y-auto">
           <CardHeader>
             <CardTitle className="text-lg md:text-xl">Sign In</CardTitle>
             <CardDescription className="text-xs md:text-sm">
@@ -187,7 +187,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-x-visible overflow-y-auto">
         <CardHeader>
           <CardTitle className="text-lg md:text-xl">Choose how to sign in</CardTitle>
           <CardDescription className="text-xs md:text-sm">
