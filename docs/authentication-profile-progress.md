@@ -223,6 +223,19 @@ Known assumptions / gaps:
 1. Passkey success -> MFA skip behavior relies on Better Auth runtime behavior for passkey flows (UI routes are configured correctly, but hardware/WebAuthn execution was not end-to-end tested in this environment).
 2. MFA UI currently supports `totp` and `emailOtp`; configured `backupCode`/`smsOtp` factors are surfaced as unsupported in the sign-in MFA page message.
 
+### Post-M6 Patch (2026-02-10)
+Issue:
+1. `PROFILE_IDENTIFIER_FIRST_EMAIL` reported runtime `APIError` during dashboard access due enforcement being applied too broadly across Better Auth endpoints.
+
+Fix:
+1. Added `isPrimarySignInFlowPath(...)` in `src/config/authentication/enforcement.ts`.
+2. Updated `src/lib/auth.ts` enforcement so method blocking only runs for primary sign-in flow paths (sign-in, callbacks, passkey auth challenge paths, magic-link verify), not all Better Auth endpoints.
+
+Validation:
+1. `pnpm exec eslint src/config/authentication/enforcement.ts src/lib/auth.ts` (pass).
+2. `pnpm exec tsc --noEmit` (pass).
+3. `pnpm run build` (pass).
+
 ## Open Questions / Risks
 1. `profile.server.methodToPaths` includes broad patterns (for example `/email-otp/*` and `/phone-number/*`), so enforcement must avoid breaking non-sign-in authenticated flows.
 2. Current app has TOTP and email OTP 2FA UI; backup-code/sms-OTP MFA UI may need graceful handling if present in profile factors.

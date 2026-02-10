@@ -3,6 +3,7 @@ import * as schema from "@/db/schema";
 import {
   findAuthenticationMethodForPath,
   isAuthCallbackPath,
+  isPrimarySignInFlowPath,
   isPrimaryMethodAllowed,
 } from "@/config/authentication/enforcement";
 import { getActiveAuthenticationProfileServer } from "@/config/authentication/resolve";
@@ -848,10 +849,9 @@ const authOptions = {
       });
 
       const activeProfile = getActiveAuthenticationProfileServer();
-      const matchedPrimaryMethod = findAuthenticationMethodForPath(
-        activeProfile,
-        ctx.path,
-      );
+      const matchedPrimaryMethod = isPrimarySignInFlowPath(ctx.path)
+        ? findAuthenticationMethodForPath(activeProfile, ctx.path)
+        : null;
 
       if (matchedPrimaryMethod) {
         const hasAuthenticatedUser = Boolean(ctx.context.session?.session?.userId);

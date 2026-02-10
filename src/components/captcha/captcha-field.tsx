@@ -98,7 +98,7 @@ export const CaptchaField = forwardRef<CaptchaFieldHandle, CaptchaFieldProps>(
     }
 
     return (
-      <div className="w-full overflow-visible pr-px">
+      <div className="w-full overflow-visible p-px">
         <Turnstile
           ref={turnstileRef}
           siteKey={siteKey}
