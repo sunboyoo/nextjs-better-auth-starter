@@ -12,6 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  PhoneNumberWithCountryInput,
+  defaultPhoneCountry,
+  getE164PhoneNumber,
+} from "@/components/forms/phone-number-with-country-input";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -59,6 +64,10 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
   const [identifierType, setIdentifierType] =
     useState<IdentifierTab>(initialIdentifier);
   const [identifierValue, setIdentifierValue] = useState("");
+  const [phoneCountryIso2, setPhoneCountryIso2] = useState(
+    defaultPhoneCountry.iso2,
+  );
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fieldCopy = useMemo(
@@ -69,14 +78,24 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalizedIdentifier = normalizeIdentifierValue(
-      identifierType,
-      identifierValue,
-    );
+    let normalizedIdentifier: string;
 
-    if (!normalizedIdentifier) {
-      setErrorMessage(`Enter your ${fieldCopy.label.toLowerCase()} to continue.`);
-      return;
+    if (identifierType === "phone") {
+      const e164 = getE164PhoneNumber(phoneCountryIso2, phoneLocalNumber);
+      if (!e164) {
+        setErrorMessage("Enter a valid phone number to continue.");
+        return;
+      }
+      normalizedIdentifier = e164;
+    } else {
+      normalizedIdentifier = normalizeIdentifierValue(
+        identifierType,
+        identifierValue,
+      );
+      if (!normalizedIdentifier) {
+        setErrorMessage(`Enter your ${fieldCopy.label.toLowerCase()} to continue.`);
+        return;
+      }
     }
 
     setErrorMessage(null);
@@ -112,6 +131,7 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
             onValueChange={(value) => {
               setIdentifierType(value as IdentifierTab);
               setIdentifierValue("");
+              setPhoneLocalNumber("");
               setErrorMessage(null);
             }}
             className="w-full"
@@ -133,28 +153,37 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
 
             {supportedIdentifiers.map((identifier) => (
               <TabsContent key={identifier} value={identifier} className="mt-6">
-                <label
-                  htmlFor={`identify-${identifier}`}
-                  className="text-sm font-medium leading-none"
-                >
-                  {FIELD_COPY[identifier].label}
-                </label>
-                <Input
-                  id={`identify-${identifier}`}
-                  type={FIELD_COPY[identifier].type}
-                  value={identifierType === identifier ? identifierValue : ""}
-                  onChange={(event) => setIdentifierValue(event.target.value)}
-                  placeholder={FIELD_COPY[identifier].placeholder}
-                  className="mt-2"
-                  autoCapitalize="none"
-                  autoComplete={
-                    identifier === "email"
-                      ? "email"
-                      : identifier === "phone"
-                        ? "tel"
-                        : "username"
-                  }
-                />
+                {identifier === "phone" ? (
+                  <PhoneNumberWithCountryInput
+                    countryIso2={phoneCountryIso2}
+                    phoneNumber={phoneLocalNumber}
+                    onCountryIso2Change={setPhoneCountryIso2}
+                    onPhoneNumberChange={setPhoneLocalNumber}
+                    countryId="identify-phone-country"
+                    phoneId="identify-phone"
+                  />
+                ) : (
+                  <>
+                    <label
+                      htmlFor={`identify-${identifier}`}
+                      className="text-sm font-medium leading-none"
+                    >
+                      {FIELD_COPY[identifier].label}
+                    </label>
+                    <Input
+                      id={`identify-${identifier}`}
+                      type={FIELD_COPY[identifier].type}
+                      value={identifierType === identifier ? identifierValue : ""}
+                      onChange={(event) => setIdentifierValue(event.target.value)}
+                      placeholder={FIELD_COPY[identifier].placeholder}
+                      className="mt-2"
+                      autoCapitalize="none"
+                      autoComplete={
+                        identifier === "email" ? "email" : "username"
+                      }
+                    />
+                  </>
+                )}
               </TabsContent>
             ))}
           </Tabs>

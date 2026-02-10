@@ -7,6 +7,11 @@ import { toast } from "sonner";
 import type { ClientAuthenticationProfile } from "@/config/authentication/client";
 import type { AuthenticationMethod } from "@/config/authentication/types";
 import { SignInForm, type IdentifierTab } from "@/components/forms/sign-in-form";
+import {
+  PhoneNumberWithCountryInput,
+  defaultPhoneCountry,
+  parseE164PhoneNumber,
+} from "@/components/forms/phone-number-with-country-input";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -87,9 +92,16 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
     SIGN_IN_FORM_METHODS.includes(method),
   );
   const fixedIdentifier =
-    identifierType && identifier && identifierType !== "phone"
+    identifierType && identifier
       ? { type: identifierType as IdentifierTab, value: identifier }
       : null;
+  const parsedPhone = useMemo(
+    () =>
+      identifierType === "phone" && identifier
+        ? parseE164PhoneNumber(identifier)
+        : null,
+    [identifierType, identifier],
+  );
   const canAutoAttemptPasskey =
     passkeyEnabled &&
     profile.authenticate.autoAttemptPasskey?.enabled === true &&
@@ -184,7 +196,17 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-6">
-            {identifierType && identifier ? (
+            {identifierType === "phone" && identifier && parsedPhone ? (
+              <PhoneNumberWithCountryInput
+                countryIso2={parsedPhone.countryIso2}
+                phoneNumber={parsedPhone.localNumber}
+                onCountryIso2Change={() => { }}
+                onPhoneNumberChange={() => { }}
+                countryId="method-phone-country"
+                phoneId="method-phone"
+                disabled
+              />
+            ) : identifierType && identifier ? (
               <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
                 Using {identifierType}: <span className="font-medium text-foreground">{identifier}</span>
               </div>

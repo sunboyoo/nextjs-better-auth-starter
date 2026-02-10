@@ -2,18 +2,24 @@
 
 import { useSyncExternalStore } from "react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
+import {
+  GithubIcon,
+  GoogleIcon,
+  MicrosoftIcon,
+  VercelIcon,
+} from "@/components/ui/icons";
 import { LastUsedIndicator } from "@/components/last-used-indicator";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
-const subscribe = () => () => {};
+const subscribe = () => () => { };
 
 const SOCIAL_PROVIDERS = [
-  { id: "google", label: "Google" },
-  { id: "github", label: "GitHub" },
-  { id: "microsoft", label: "Microsoft" },
-  { id: "vercel", label: "Vercel" },
+  { id: "google", label: "Google", icon: GoogleIcon },
+  { id: "github", label: "GitHub", icon: GithubIcon },
+  { id: "microsoft", label: "Microsoft", icon: MicrosoftIcon },
+  { id: "vercel", label: "Vercel", icon: VercelIcon },
 ] as const;
 
 type SocialProvider = (typeof SOCIAL_PROVIDERS)[number]["id"];
@@ -55,6 +61,7 @@ export function SocialSignInButtons({
           aria-label={`Sign in with ${provider.label}`}
           type="button"
         >
+          <provider.icon className="mr-2 h-4 w-4" />
           {provider.label}
           {isMounted &&
             authClient.isLastUsedLoginMethod(provider.id as SocialProvider) && (

@@ -50,6 +50,28 @@ export const getE164PhoneNumber = (
   return PHONE_NUMBER_E164_REGEX.test(phoneNumber) ? phoneNumber : null;
 };
 
+export const parseE164PhoneNumber = (
+  e164: string,
+): { countryIso2: string; localNumber: string } | null => {
+  if (!e164.startsWith("+")) return null;
+
+  // Try longest dial code first for best match
+  const sorted = [...PHONE_COUNTRIES].sort(
+    (a, b) => b.dialCode.length - a.dialCode.length,
+  );
+
+  for (const country of sorted) {
+    if (e164.startsWith(country.dialCode)) {
+      const local = e164.slice(country.dialCode.length);
+      if (local.length > 0) {
+        return { countryIso2: country.iso2, localNumber: local };
+      }
+    }
+  }
+
+  return null;
+};
+
 interface PhoneNumberWithCountryInputProps {
   countryIso2: string;
   phoneNumber: string;

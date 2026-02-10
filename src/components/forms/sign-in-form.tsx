@@ -20,6 +20,7 @@ import {
   defaultPhoneCountry,
   getE164PhoneNumber,
   getPhoneCountryByIso2,
+  parseE164PhoneNumber,
   PhoneNumberWithCountryInput,
 } from "@/components/forms/phone-number-with-country-input";
 import { LastUsedIndicator } from "@/components/last-used-indicator";
@@ -210,9 +211,19 @@ export function SignInForm({
     }
 
     if (fixedIdentifier.type === "phone") {
-      form.setValue("phoneNumber", normalizedValue, {
-        shouldDirty: false,
-      });
+      const parsed = parseE164PhoneNumber(normalizedValue);
+      if (parsed) {
+        form.setValue("phoneCountryIso2", parsed.countryIso2, {
+          shouldDirty: false,
+        });
+        form.setValue("phoneNumber", parsed.localNumber, {
+          shouldDirty: false,
+        });
+      } else {
+        form.setValue("phoneNumber", normalizedValue, {
+          shouldDirty: false,
+        });
+      }
       return;
     }
 
