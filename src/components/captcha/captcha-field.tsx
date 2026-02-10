@@ -98,22 +98,24 @@ export const CaptchaField = forwardRef<CaptchaFieldHandle, CaptchaFieldProps>(
     }
 
     return (
-      <Turnstile
-        ref={turnstileRef}
-        siteKey={siteKey}
-        onWidgetLoad={() => {
-          widgetLoadedRef.current = true;
-        }}
-        options={{
-          theme: "auto",
-          size: "flexible",
-          execution: "execute",
-          appearance: "execute",
-        }}
-        onSuccess={(token) => onTokenChange?.(token)}
-        onExpire={() => onTokenChange?.(null)}
-        onError={() => onTokenChange?.(null)}
-      />
+      <div className="w-full overflow-visible pr-px">
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={siteKey}
+          onWidgetLoad={() => {
+            widgetLoadedRef.current = true;
+          }}
+          options={{
+            theme: "auto",
+            size: "flexible",
+            execution: "execute",
+            appearance: "execute",
+          }}
+          onSuccess={(token) => onTokenChange?.(token)}
+          onExpire={() => onTokenChange?.(null)}
+          onError={() => onTokenChange?.(null)}
+        />
+      </div>
     );
   },
 );
