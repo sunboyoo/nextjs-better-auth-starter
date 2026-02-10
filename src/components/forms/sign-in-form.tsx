@@ -3,9 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, type ReadonlyURLSearchParams } from "next/navigation";
 import {
   useEffect,
+  useMemo,
   useState,
   useSyncExternalStore,
   useTransition,
@@ -33,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { AuthenticationMethod } from "@/config/authentication/types";
 import { authClient } from "@/lib/auth-client";
 import {
   CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
@@ -57,12 +59,12 @@ const signInSchema = z.object({
   phoneCountryIso2: z.string().trim(),
   phoneNumber: z.string().trim(),
   username: z.string().trim(),
-  password: z.string().min(1, "Password is required."),
+  password: z.string().trim(),
   rememberMe: z.boolean(),
 });
 
 type SignInFormValues = z.infer<typeof signInSchema>;
-type IdentifierTab = "email" | "phone" | "username";
+export type IdentifierTab = "email" | "phone" | "username";
 type CaptchaAction =
   | "password"
   | "magic"
@@ -71,13 +73,35 @@ type CaptchaAction =
   | "phone-otp-send"
   | "phone-otp-verify";
 
+const DEFAULT_IDENTIFIER_TABS: readonly IdentifierTab[] = [
+  "email",
+  "phone",
+  "username",
+];
+
+const DEFAULT_ALLOWED_METHODS: readonly AuthenticationMethod[] = [
+  "password",
+  "magicLink",
+  "emailOtp",
+  "smsOtp",
+];
+
+interface FixedIdentifier {
+  type: IdentifierTab;
+  value: string;
+}
+
 interface SignInFormProps {
   onSuccess?: () => void;
   callbackURL?: string;
   showPasswordToggle?: boolean;
-  params?: URLSearchParams;
+  params?: URLSearchParams | ReadonlyURLSearchParams;
   magicLinkNewUserCallbackURL?: string;
   magicLinkErrorCallbackURL?: string;
+  allowedIdentifierTabs?: readonly IdentifierTab[];
+  allowedMethods?: readonly AuthenticationMethod[];
+  fixedIdentifier?: FixedIdentifier | null;
+  hideIdentifierTabs?: boolean;
 }
 
 export function SignInForm({
@@ -87,10 +111,31 @@ export function SignInForm({
   params,
   magicLinkNewUserCallbackURL,
   magicLinkErrorCallbackURL,
+  allowedIdentifierTabs,
+  allowedMethods = DEFAULT_ALLOWED_METHODS,
+  fixedIdentifier = null,
+  hideIdentifierTabs = false,
 }: SignInFormProps) {
   const router = useRouter();
+  const availableIdentifierTabs = useMemo(() => {
+    const requestedTabs =
+      allowedIdentifierTabs?.length
+        ? allowedIdentifierTabs
+        : DEFAULT_IDENTIFIER_TABS;
+
+    const uniqueTabs = Array.from(new Set(requestedTabs)) as IdentifierTab[];
+
+    if (fixedIdentifier && !uniqueTabs.includes(fixedIdentifier.type)) {
+      uniqueTabs.unshift(fixedIdentifier.type);
+    }
+
+    return uniqueTabs.filter((tab) => DEFAULT_IDENTIFIER_TABS.includes(tab));
+  }, [allowedIdentifierTabs, fixedIdentifier]);
+  const initialIdentifierTab = fixedIdentifier?.type
+    ? fixedIdentifier.type
+    : availableIdentifierTabs[0] ?? "email";
   const [activeIdentifierTab, setActiveIdentifierTab] =
-    useState<IdentifierTab>("email");
+    useState<IdentifierTab>(initialIdentifierTab);
   const [loading, startTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<CaptchaAction | null>(
     null,
@@ -118,6 +163,14 @@ export function SignInForm({
   const requestQuery = params
     ? Object.fromEntries(params.entries())
     : undefined;
+  const allowedMethodSet = useMemo(
+    () => new Set<AuthenticationMethod>(allowedMethods),
+    [allowedMethods],
+  );
+  const passwordMethodEnabled = allowedMethodSet.has("password");
+  const magicLinkMethodEnabled = allowedMethodSet.has("magicLink");
+  const emailOtpMethodEnabled = allowedMethodSet.has("emailOtp");
+  const smsOtpMethodEnabled = allowedMethodSet.has("smsOtp");
 
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(signInSchema),
@@ -130,6 +183,43 @@ export function SignInForm({
       rememberMe: false,
     },
   });
+
+  useEffect(() => {
+    if (!availableIdentifierTabs.length) {
+      return;
+    }
+
+    if (!availableIdentifierTabs.includes(activeIdentifierTab)) {
+      setActiveIdentifierTab(availableIdentifierTabs[0]);
+    }
+  }, [activeIdentifierTab, availableIdentifierTabs]);
+
+  useEffect(() => {
+    if (!fixedIdentifier) {
+      return;
+    }
+
+    setActiveIdentifierTab(fixedIdentifier.type);
+    const normalizedValue = fixedIdentifier.value.trim();
+
+    if (fixedIdentifier.type === "email") {
+      form.setValue("email", normalizedValue.toLowerCase(), {
+        shouldDirty: false,
+      });
+      return;
+    }
+
+    if (fixedIdentifier.type === "phone") {
+      form.setValue("phoneNumber", normalizedValue, {
+        shouldDirty: false,
+      });
+      return;
+    }
+
+    form.setValue("username", normalizedValue.toLowerCase(), {
+      shouldDirty: false,
+    });
+  }, [fixedIdentifier, form]);
 
   const watchedEmail = form.watch("email");
   const watchedPhoneCountryIso2 = form.watch("phoneCountryIso2");
@@ -176,6 +266,18 @@ export function SignInForm({
   }, [phoneOtpSentTo, selectedPhoneNumber]);
 
   const onSubmit = (data: SignInFormValues) => {
+    if (!passwordMethodEnabled) {
+      return;
+    }
+
+    const password = data.password.trim();
+    if (!password) {
+      form.setError("password", {
+        message: "Password is required.",
+      });
+      return;
+    }
+
     setPendingAction("password");
     startTransition(async () => {
       try {
@@ -221,7 +323,7 @@ export function SignInForm({
           await authClient.signIn.email(
             {
               email: parsed.data,
-              password: data.password,
+              password,
               rememberMe: data.rememberMe,
               callbackURL,
             },
@@ -253,7 +355,7 @@ export function SignInForm({
           await authClient.signIn.phoneNumber(
             {
               phoneNumber,
-              password: data.password,
+              password,
               rememberMe: data.rememberMe,
             },
             fetchOptions,
@@ -272,7 +374,7 @@ export function SignInForm({
         await authClient.signIn.username(
           {
             username,
-            password: data.password,
+            password,
             rememberMe: data.rememberMe,
             callbackURL,
           },
@@ -286,6 +388,10 @@ export function SignInForm({
   };
 
   const onMagicLink = () => {
+    if (!magicLinkMethodEnabled) {
+      return;
+    }
+
     setPendingAction("magic");
     startTransition(async () => {
       try {
@@ -339,6 +445,10 @@ export function SignInForm({
   };
 
   const onSendEmailOtp = () => {
+    if (!emailOtpMethodEnabled) {
+      return;
+    }
+
     setPendingAction("email-otp-send");
     startTransition(async () => {
       try {
@@ -401,6 +511,10 @@ export function SignInForm({
   };
 
   const onSignInWithEmailOtp = () => {
+    if (!emailOtpMethodEnabled) {
+      return;
+    }
+
     setPendingAction("email-otp-verify");
     startTransition(async () => {
       try {
@@ -450,6 +564,10 @@ export function SignInForm({
   };
 
   const onSendPhoneOtp = () => {
+    if (!smsOtpMethodEnabled) {
+      return;
+    }
+
     setPendingAction("phone-otp-send");
     startTransition(async () => {
       try {
@@ -507,6 +625,10 @@ export function SignInForm({
   };
 
   const onSignInWithPhoneOtp = () => {
+    if (!smsOtpMethodEnabled) {
+      return;
+    }
+
     setPendingAction("phone-otp-verify");
     startTransition(async () => {
       try {
@@ -555,8 +677,26 @@ export function SignInForm({
     });
   };
 
-  const showEmailMethods = activeIdentifierTab === "email";
-  const showPhoneMethods = activeIdentifierTab === "phone";
+  const showIdentifierTabs =
+    !hideIdentifierTabs && availableIdentifierTabs.length > 1;
+  const showEmailMethods =
+    activeIdentifierTab === "email" &&
+    (magicLinkMethodEnabled || emailOtpMethodEnabled);
+  const showPhoneMethods =
+    activeIdentifierTab === "phone" && smsOtpMethodEnabled;
+  const emailMethodCopy = [
+    passwordMethodEnabled ? "password" : null,
+    emailOtpMethodEnabled ? "verification code" : null,
+    magicLinkMethodEnabled ? "magic link" : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const phoneMethodCopy = [
+    passwordMethodEnabled ? "password" : null,
+    smsOtpMethodEnabled ? "verification code" : null,
+  ]
+    .filter(Boolean)
+    .join(" or ");
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
@@ -564,6 +704,10 @@ export function SignInForm({
         <Tabs
           value={activeIdentifierTab}
           onValueChange={(value) => {
+            if (fixedIdentifier) {
+              return;
+            }
+
             const next = value as IdentifierTab;
             setActiveIdentifierTab(next);
             form.clearErrors([
@@ -575,192 +719,235 @@ export function SignInForm({
           }}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="email">Email</TabsTrigger>
-            <TabsTrigger value="phone">Phone Number</TabsTrigger>
-            <TabsTrigger value="username">Username</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="email" className="mt-6 space-y-2">
-            <Controller
-              name="email"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
-                  <Input
-                    {...field}
-                    id="sign-in-email"
-                    type="email"
-                    placeholder="m@example.com"
-                    aria-invalid={fieldState.invalid}
-                    autoCapitalize="none"
-                    autoComplete="email"
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              Use password, a verification code, or a magic link.
-            </p>
-            <div className="text-right">
-              {isEmailOtpAvailable ? (
-                <Link
-                  href={verifyEmailOtpHref}
-                  className="inline-block text-xs underline text-foreground"
-                >
-                  Verify email with a verification code
-                </Link>
-              ) : (
-                <span className="inline-block text-xs text-muted-foreground">
-                  Enter a real email to verify via code.
-                </span>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="phone" className="mt-6 space-y-2">
-            <PhoneNumberWithCountryInput
-              countryIso2={watchedPhoneCountryIso2}
-              phoneNumber={watchedPhoneNumber}
-              onCountryIso2Change={(countryIso2) => {
-                form.setValue("phoneCountryIso2", countryIso2, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                });
-                form.clearErrors("phoneCountryIso2");
+          {showIdentifierTabs && (
+            <TabsList
+              className="grid w-full"
+              style={{
+                gridTemplateColumns: `repeat(${availableIdentifierTabs.length}, minmax(0, 1fr))`,
               }}
-              onPhoneNumberChange={(phoneNumber) => {
-                form.setValue("phoneNumber", phoneNumber, {
-                  shouldDirty: true,
-                  shouldTouch: true,
-                });
-              }}
-              countryId="sign-in-phone-country-code"
-              phoneId="sign-in-phone-number"
-              disabled={loading}
-              countryAriaInvalid={countryFieldState.invalid}
-              phoneAriaInvalid={phoneFieldState.invalid}
-              countryError={
-                countryFieldState.invalid ? (
-                  <FieldError errors={[countryFieldState.error]} />
-                ) : null
-              }
-              phoneError={
-                phoneFieldState.invalid ? (
-                  <FieldError errors={[phoneFieldState.error]} />
-                ) : null
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              Use password or a verification code.
-            </p>
-          </TabsContent>
+            >
+              {availableIdentifierTabs.includes("email") ? (
+                <TabsTrigger value="email">Email</TabsTrigger>
+              ) : null}
+              {availableIdentifierTabs.includes("phone") ? (
+                <TabsTrigger value="phone">Phone Number</TabsTrigger>
+              ) : null}
+              {availableIdentifierTabs.includes("username") ? (
+                <TabsTrigger value="username">Username</TabsTrigger>
+              ) : null}
+            </TabsList>
+          )}
 
-          <TabsContent value="username" className="mt-6 space-y-2">
-            <Controller
-              name="username"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="sign-in-username">Username</FieldLabel>
-                  <Input
-                    {...field}
-                    id="sign-in-username"
-                    type="text"
-                    placeholder="your.username"
-                    aria-invalid={fieldState.invalid}
-                    autoCapitalize="none"
-                    autoComplete="username"
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
-            <p className="text-xs text-muted-foreground">
-              Username sign-in uses password only.
-            </p>
-          </TabsContent>
+          {availableIdentifierTabs.includes("email") ? (
+            <TabsContent value="email" className="mt-6 space-y-2">
+              <Controller
+                name="email"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
+                    <Input
+                      {...field}
+                      id="sign-in-email"
+                      type="email"
+                      placeholder="m@example.com"
+                      aria-invalid={fieldState.invalid}
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      readOnly={fixedIdentifier?.type === "email"}
+                      disabled={fixedIdentifier?.type === "email"}
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : null}
+                  </Field>
+                )}
+              />
+              {emailMethodCopy ? (
+                <p className="text-xs text-muted-foreground">
+                  Use {emailMethodCopy} for this identifier.
+                </p>
+              ) : null}
+              {emailOtpMethodEnabled ? (
+                <div className="text-right">
+                  {isEmailOtpAvailable ? (
+                    <Link
+                      href={verifyEmailOtpHref}
+                      className="inline-block text-xs underline text-foreground"
+                    >
+                      Verify email with a verification code
+                    </Link>
+                  ) : (
+                    <span className="inline-block text-xs text-muted-foreground">
+                      Enter a real email to verify via code.
+                    </span>
+                  )}
+                </div>
+              ) : null}
+            </TabsContent>
+          ) : null}
+
+          {availableIdentifierTabs.includes("phone") ? (
+            <TabsContent value="phone" className="mt-6 space-y-2">
+              <PhoneNumberWithCountryInput
+                countryIso2={watchedPhoneCountryIso2}
+                phoneNumber={watchedPhoneNumber}
+                onCountryIso2Change={(countryIso2) => {
+                  form.setValue("phoneCountryIso2", countryIso2, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                  form.clearErrors("phoneCountryIso2");
+                }}
+                onPhoneNumberChange={(phoneNumber) => {
+                  form.setValue("phoneNumber", phoneNumber, {
+                    shouldDirty: true,
+                    shouldTouch: true,
+                  });
+                }}
+                countryId="sign-in-phone-country-code"
+                phoneId="sign-in-phone-number"
+                disabled={loading || fixedIdentifier?.type === "phone"}
+                countryAriaInvalid={countryFieldState.invalid}
+                phoneAriaInvalid={phoneFieldState.invalid}
+                countryError={
+                  countryFieldState.invalid ? (
+                    <FieldError errors={[countryFieldState.error]} />
+                  ) : null
+                }
+                phoneError={
+                  phoneFieldState.invalid ? (
+                    <FieldError errors={[phoneFieldState.error]} />
+                  ) : null
+                }
+              />
+              {phoneMethodCopy ? (
+                <p className="text-xs text-muted-foreground">
+                  Use {phoneMethodCopy} for this identifier.
+                </p>
+              ) : null}
+            </TabsContent>
+          ) : null}
+
+          {availableIdentifierTabs.includes("username") ? (
+            <TabsContent value="username" className="mt-6 space-y-2">
+              <Controller
+                name="username"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="sign-in-username">Username</FieldLabel>
+                    <Input
+                      {...field}
+                      id="sign-in-username"
+                      type="text"
+                      placeholder="your.username"
+                      aria-invalid={fieldState.invalid}
+                      autoCapitalize="none"
+                      autoComplete="username"
+                      readOnly={fixedIdentifier?.type === "username"}
+                      disabled={fixedIdentifier?.type === "username"}
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : null}
+                  </Field>
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                Username sign-in uses password only.
+              </p>
+            </TabsContent>
+          ) : null}
         </Tabs>
 
-        <Controller
-          name="password"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <div className="flex items-center">
-                <FieldLabel htmlFor="sign-in-password">Password</FieldLabel>
-                <Link
-                  href="/auth/forget-password"
-                  className="ml-auto inline-block text-sm underline text-foreground"
-                >
-                  Forgot my password?
-                </Link>
-              </div>
-              {showPasswordToggle ? (
-                <PasswordInput
-                  {...field}
-                  id="sign-in-password"
-                  placeholder="Password"
-                  aria-invalid={fieldState.invalid}
-                  autoComplete="current-password"
-                />
-              ) : (
-                <Input
-                  {...field}
-                  id="sign-in-password"
-                  type="password"
-                  placeholder="password"
-                  aria-invalid={fieldState.invalid}
-                  autoComplete="current-password"
-                />
+        {passwordMethodEnabled ? (
+          <>
+            <Controller
+              name="password"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <div className="flex items-center">
+                    <FieldLabel htmlFor="sign-in-password">Password</FieldLabel>
+                    <Link
+                      href="/auth/forget-password"
+                      className="ml-auto inline-block text-sm underline text-foreground"
+                    >
+                      Forgot my password?
+                    </Link>
+                  </div>
+                  {showPasswordToggle ? (
+                    <PasswordInput
+                      {...field}
+                      id="sign-in-password"
+                      placeholder="Password"
+                      aria-invalid={fieldState.invalid}
+                      autoComplete="current-password"
+                    />
+                  ) : (
+                    <Input
+                      {...field}
+                      id="sign-in-password"
+                      type="password"
+                      placeholder="password"
+                      aria-invalid={fieldState.invalid}
+                      autoComplete="current-password"
+                    />
+                  )}
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
               )}
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
+            />
 
-        <Controller
-          name="rememberMe"
-          control={form.control}
-          render={({ field }) => (
-            <Field orientation="horizontal">
-              <Checkbox
-                id="sign-in-remember"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-              />
-              <FieldLabel htmlFor="sign-in-remember" className="font-normal">
-                Remember me
-              </FieldLabel>
-            </Field>
-          )}
-        />
+            <Controller
+              name="rememberMe"
+              control={form.control}
+              render={({ field }) => (
+                <Field orientation="horizontal">
+                  <Checkbox
+                    id="sign-in-remember"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                  <FieldLabel htmlFor="sign-in-remember" className="font-normal">
+                    Remember me
+                  </FieldLabel>
+                </Field>
+              )}
+            />
+          </>
+        ) : null}
       </FieldGroup>
 
-      <Button type="submit" className="w-full relative" disabled={loading}>
-        {loading && pendingAction === "password" ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          "Login with password"
-        )}
-        {isMounted &&
-          ((activeIdentifierTab === "email" &&
-            authClient.isLastUsedLoginMethod("email")) ||
-            (activeIdentifierTab === "phone" &&
-              authClient.isLastUsedLoginMethod("phone-number")) ||
-            (activeIdentifierTab === "username" &&
-              authClient.isLastUsedLoginMethod("username"))) && (
-            <LastUsedIndicator />
-          )}
-      </Button>
-      <CaptchaActionSlot
-        show={isCaptchaVisibleFor("password")}
-        captchaRef={captchaRef}
-      />
+      {passwordMethodEnabled ? (
+        <>
+          <Button type="submit" className="w-full relative" disabled={loading}>
+            {loading && pendingAction === "password" ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              "Login with password"
+            )}
+            {isMounted &&
+              ((activeIdentifierTab === "email" &&
+                authClient.isLastUsedLoginMethod("email")) ||
+                (activeIdentifierTab === "phone" &&
+                  authClient.isLastUsedLoginMethod("phone-number")) ||
+                (activeIdentifierTab === "username" &&
+                  authClient.isLastUsedLoginMethod("username"))) && (
+                <LastUsedIndicator />
+              )}
+          </Button>
+          <CaptchaActionSlot
+            show={isCaptchaVisibleFor("password")}
+            captchaRef={captchaRef}
+          />
+        </>
+      ) : null}
 
-      {showEmailMethods && (
+      {showEmailMethods && magicLinkMethodEnabled ? (
         <>
           <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
@@ -784,18 +971,18 @@ export function SignInForm({
             ) : (
               "Email me a magic link"
             )}
-            {isMounted && authClient.isLastUsedLoginMethod("magic-link") && (
+            {isMounted && authClient.isLastUsedLoginMethod("magic-link") ? (
               <LastUsedIndicator />
-            )}
+            ) : null}
           </Button>
           <CaptchaActionSlot
             show={isCaptchaVisibleFor("magic")}
             captchaRef={captchaRef}
           />
         </>
-      )}
+      ) : null}
 
-      {showEmailMethods && (
+      {showEmailMethods && emailOtpMethodEnabled ? (
         <>
           <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
@@ -821,15 +1008,15 @@ export function SignInForm({
             ) : (
               "Email me a verification code"
             )}
-            {isMounted && authClient.isLastUsedLoginMethod("email-otp") && (
+            {isMounted && authClient.isLastUsedLoginMethod("email-otp") ? (
               <LastUsedIndicator />
-            )}
+            ) : null}
           </Button>
           <CaptchaActionSlot
             show={isCaptchaVisibleFor("email-otp-send")}
             captchaRef={captchaRef}
           />
-          {emailOtpSentTo && (
+          {emailOtpSentTo ? (
             <div className="rounded-md border p-6 space-y-4">
               <p className="text-xs text-muted-foreground">
                 Verification code sent to {emailOtpSentTo}
@@ -868,11 +1055,11 @@ export function SignInForm({
                 captchaRef={captchaRef}
               />
             </div>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
 
-      {showPhoneMethods && (
+      {showPhoneMethods ? (
         <>
           <div className="relative py-8">
             <div className="absolute inset-0 flex items-center">
@@ -903,7 +1090,7 @@ export function SignInForm({
             show={isCaptchaVisibleFor("phone-otp-send")}
             captchaRef={captchaRef}
           />
-          {phoneOtpSentTo && (
+          {phoneOtpSentTo ? (
             <div className="rounded-md border p-6 space-y-4">
               <p className="text-xs text-muted-foreground">
                 Verification code sent to {phoneOtpSentTo}
@@ -942,9 +1129,9 @@ export function SignInForm({
                 captchaRef={captchaRef}
               />
             </div>
-          )}
+          ) : null}
         </>
-      )}
+      ) : null}
     </form>
   );
 }

@@ -1,42 +1,26 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { TwoFactorTotpForm } from "@/components/forms/two-factor-totp-form";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+interface LegacyTwoFactorPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-export default function Page() {
-	const router = useRouter();
+export default async function Page({ searchParams }: LegacyTwoFactorPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const query = new URLSearchParams();
 
-	return (
-		<main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle>Two-Factor Authentication</CardTitle>
-					<CardDescription>
-						Enter the 6-digit code from your Authenticator App (like Google
-						Authenticator, Authy, or Microsoft Authenticator)
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<TwoFactorTotpForm onSuccess={() => router.push("/dashboard")} />
-				</CardContent>
-				<CardFooter className="text-sm text-muted-foreground gap-2">
-					<Link href="/auth/two-factor/otp">
-						<Button variant="link" size="sm">
-							Switch to Email Verification
-						</Button>
-					</Link>
-				</CardFooter>
-			</Card>
-		</main>
-	);
+  for (const [key, value] of Object.entries(resolvedSearchParams)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        query.append(key, item);
+      }
+      continue;
+    }
+
+    if (typeof value === "string") {
+      query.set(key, value);
+    }
+  }
+
+  const suffix = query.toString();
+  redirect(suffix ? `/auth/sign-in/two-factor?${suffix}` : "/auth/sign-in/two-factor");
 }

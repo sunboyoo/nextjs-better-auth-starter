@@ -80,7 +80,18 @@ export const authClient = createAuthClient({
     }),
     twoFactorClient({
       onTwoFactorRedirect() {
-        window.location.href = "/auth/two-factor";
+        const currentUrl = new URL(window.location.href);
+        const callbackUrl = currentUrl.searchParams.get("callbackUrl");
+        const redirectUrl = new URL(
+          "/auth/sign-in/two-factor",
+          window.location.origin,
+        );
+
+        if (callbackUrl) {
+          redirectUrl.searchParams.set("callbackUrl", callbackUrl);
+        }
+
+        window.location.href = `${redirectUrl.pathname}${redirectUrl.search}`;
       },
     }),
     multiSessionClient(),

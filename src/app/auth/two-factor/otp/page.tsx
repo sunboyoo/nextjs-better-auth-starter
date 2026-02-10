@@ -1,31 +1,32 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useRouter } from "next/navigation";
-import { TwoFactorEmailOtpForm } from "@/components/forms/two-factor-email-otp-form";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+interface LegacyTwoFactorOtpPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
 
-export default function Page() {
-	const router = useRouter();
+export default async function Page({
+  searchParams,
+}: LegacyTwoFactorOtpPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const query = new URLSearchParams();
+  query.set("factor", "emailOtp");
 
-	return (
-		<main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
-			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle>Two-Factor Authentication</CardTitle>
-					<CardDescription>
-						Verify your identity with a one-time password
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<TwoFactorEmailOtpForm onSuccess={() => router.push("/dashboard")} />
-				</CardContent>
-			</Card>
-		</main>
-	);
+  for (const [key, value] of Object.entries(resolvedSearchParams)) {
+    if (key === "factor") {
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        query.append(key, item);
+      }
+      continue;
+    }
+
+    if (typeof value === "string") {
+      query.set(key, value);
+    }
+  }
+
+  redirect(`/auth/sign-in/two-factor?${query.toString()}`);
 }

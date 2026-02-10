@@ -1,6 +1,12 @@
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import {
+  findAuthenticationMethodForPath,
+  isAuthCallbackPath,
+  isPrimaryMethodAllowed,
+} from "@/config/authentication/enforcement";
+import { getActiveAuthenticationProfileServer } from "@/config/authentication/resolve";
+import {
   type EmailSource,
   getAuthChannelMetadata,
   isSyntheticEmail,
@@ -369,6 +375,8 @@ const syntheticEmailFlowErrorMessage =
 const genericCredentialErrorMessage = "Invalid credentials.";
 const genericEmailRecoveryMessage =
   "If an account exists for this email and supports email delivery, a message will be sent.";
+const profileMethodUnavailableErrorMessage =
+  "This sign-in method is not available. Please use a supported sign-in option.";
 
 const extractEmailFromRequestBody = (body: unknown): string | null => {
   if (!body || typeof body !== "object") return null;
@@ -838,6 +846,40 @@ const authOptions = {
         headers: ctx.headers ?? new Headers(),
         body: ctx.body,
       });
+
+      const activeProfile = getActiveAuthenticationProfileServer();
+      const matchedPrimaryMethod = findAuthenticationMethodForPath(
+        activeProfile,
+        ctx.path,
+      );
+
+      if (matchedPrimaryMethod) {
+        const hasAuthenticatedUser = Boolean(ctx.context.session?.session?.userId);
+        const callbackRequest = isAuthCallbackPath(ctx.path);
+
+        if (!hasAuthenticatedUser && callbackRequest) {
+          if (activeProfile.server.allowCallbacks === false) {
+            throw new APIError("BAD_REQUEST", {
+              message: profileMethodUnavailableErrorMessage,
+            });
+          }
+        }
+
+        if (!hasAuthenticatedUser) {
+          const methodAllowed = isPrimaryMethodAllowed(
+            activeProfile,
+            matchedPrimaryMethod,
+          );
+          const callbackBypassAllowed =
+            callbackRequest && activeProfile.server.allowCallbacks === true;
+
+          if (!methodAllowed && !callbackBypassAllowed) {
+            throw new APIError("BAD_REQUEST", {
+              message: profileMethodUnavailableErrorMessage,
+            });
+          }
+        }
+      }
 
       if (ctx.path.includes("invitation")) {
         const invitationEmail = extractEmailFromRequestBody(ctx.body);
