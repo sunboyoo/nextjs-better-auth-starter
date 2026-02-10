@@ -77,6 +77,111 @@ const MFA_DEFAULT: AuthenticationProfile["mfa"] = {
      - Allowed methods: password, passkey, social (depending on flow)
 ============================================================================= */
 
+export const PROFILE_IDENTIFIER_PASSWORD: AuthenticationProfile = {
+  id: "identifier_password",
+  label: "Identifier + Password (Email/Phone/Username)",
+  pages: PAGES_BASE,
+
+  identify: {
+    identifiers: ["email", "phone", "username"],
+    primaryIdentifier: "email",
+    socialPlacement: "step1",
+    antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.PASSWORD_SINGLE_SCREEN },
+  },
+
+  authenticate: {
+    // single-screen still can allow social as a bypass
+    methods: ["password", "social"],
+    preferred: "password",
+    requireIdentifierFor: ["password"],
+    autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
+  },
+
+  mfa: MFA_DEFAULT,
+
+  server: {
+    basePath: "/api/auth",
+    allowedPrimaryMethods: ["password", "social"],
+    methodToPaths: DEFAULT_METHOD_PATHS,
+    allowCallbacks: true,
+  },
+};
+
+export const PROFILE_IDENTIFIER_FIRST: AuthenticationProfile = {
+  id: "identifier_first",
+  label: "Identifier First (Email/Phone/Username)",
+  pages: PAGES_BASE,
+
+  identify: {
+    identifiers: ["email", "phone", "username"],
+    primaryIdentifier: "email",
+    socialPlacement: "step1",
+    antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.IDENTIFIER_FIRST },
+  },
+
+  authenticate: {
+    // passkey first, then fallback
+    methods: ["passkey", "password", "emailOtp", "smsOtp", "magicLink", "social"],
+    preferred: "passkey",
+    requireIdentifierFor: ["password", "emailOtp", "smsOtp", "magicLink"],
+    // Optional but matches your "identifier first, then passkey" intent:
+    autoAttemptPasskey: { enabled: true, when: "supportedOnly", maxAttempts: 1 },
+  },
+
+  mfa: MFA_DEFAULT,
+
+  smsOtpDelivery: SMS_WEBHOOK_DELIVERY,
+
+  server: {
+    basePath: "/api/auth",
+    allowedPrimaryMethods: ["passkey", "password", "emailOtp", "smsOtp", "magicLink", "social"],
+    methodToPaths: DEFAULT_METHOD_PATHS,
+    allowCallbacks: true,
+  },
+};
+
+export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS: AuthenticationProfile = {
+  id: "identifier_first_biometrics",
+  label: "Identifier First + Biometrics (Email/Phone/Username)",
+  pages: PAGES_WITH_BIOMETRIC,
+
+  identify: {
+    identifiers: ["email", "phone", "username"],
+    primaryIdentifier: "email",
+    socialPlacement: "step1",
+    antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.IDENTIFIER_FIRST_BIOMETRICS },
+  },
+
+  biometric: {
+    enabled: true,
+    method: "passkey",
+    useDedicatedPage: true,
+    completesSignInOnSuccess: true,
+    fallback: { toMethodPage: true },
+  },
+
+  authenticate: {
+    // passkey handled in biometric page; this is fallback list
+    methods: ["password", "emailOtp", "smsOtp", "magicLink", "social"],
+    preferred: "password",
+    requireIdentifierFor: ["password", "emailOtp", "smsOtp", "magicLink"],
+    autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
+  },
+
+  mfa: MFA_DEFAULT,
+
+  smsOtpDelivery: SMS_WEBHOOK_DELIVERY,
+
+  server: {
+    basePath: "/api/auth",
+    // passkey must be allowed because biometric step uses it
+    allowedPrimaryMethods: ["passkey", "password", "emailOtp", "smsOtp", "magicLink", "social"],
+    methodToPaths: DEFAULT_METHOD_PATHS,
+    allowCallbacks: true,
+  },
+};
+
+
 /* -------------------- A) Identifier + Password (single screen) -------------------- */
 
 export const PROFILE_IDENTIFIER_PASSWORD_EMAIL: AuthenticationProfile = {
@@ -376,6 +481,10 @@ export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_USERNAME: AuthenticationProfile
 /* ----------------------------- Registry ----------------------------- */
 
 export const AUTHENTICATION_PROFILES = {
+  PROFILE_IDENTIFIER_PASSWORD,
+  PROFILE_IDENTIFIER_FIRST,
+  PROFILE_IDENTIFIER_FIRST_BIOMETRICS,
+  
   PROFILE_IDENTIFIER_PASSWORD_EMAIL,
   PROFILE_IDENTIFIER_PASSWORD_PHONE,
   PROFILE_IDENTIFIER_PASSWORD_USERNAME,
