@@ -1,5 +1,3 @@
-// config/authentication/resolve.ts
-
 import type { AuthenticationProfile } from "./types";
 import {
   AUTHENTICATION_PROFILES,
@@ -8,50 +6,72 @@ import {
 } from "./profiles";
 
 /**
- * Recommended env key for deployment-time selection.
- * Keep it server-side by default.
+ * You can set this to either:
+ * - a registry key (e.g. "PROFILE_IDENTIFIER_FIRST_EMAIL")
+ * - or a profile.id (e.g. "identifier_first_email")
  */
 export const AUTH_PROFILE_ENV_KEY = "AUTHENTICATION_PROFILE";
 
 /**
- * Pick a sensible default (choose what you want as your global fallback).
+ * Default fallback: registry key
  */
-export const DEFAULT_AUTH_PROFILE_KEY: AuthenticationProfileKey = "PROFILE_IDENTIFIER_FIRST_EMAIL";
+export const DEFAULT_AUTH_PROFILE_KEY: AuthenticationProfileKey =
+  "PROFILE_IDENTIFIER_FIRST_EMAIL";
+
+function isProfileKey(value: string): value is AuthenticationProfileKey {
+  return Object.prototype.hasOwnProperty.call(AUTHENTICATION_PROFILES, value);
+}
+
+function findProfileById(profileId: string): AuthenticationProfile | undefined {
+  for (const profile of Object.values(AUTHENTICATION_PROFILES)) {
+    if (profile.id === profileId) return profile;
+  }
+  return undefined;
+}
 
 /**
- * Resolve by explicit key (e.g., from DB/org policy).
- * Returns a profile; falls back to DEFAULT_AUTH_PROFILE_KEY if unknown.
+ * Resolve by explicit key or id.
+ * - If value matches a registry key => return that profile
+ * - Else if value matches a profile.id => return that profile
+ * - Else fallback to DEFAULT_AUTH_PROFILE_KEY
  */
 export function resolveAuthenticationProfile(
-  key: string | null | undefined
+  value: string | null | undefined
 ): AuthenticationProfile {
-  if (!key) return getAuthenticationProfile(DEFAULT_AUTH_PROFILE_KEY);
+  if (!value) return getAuthenticationProfile(DEFAULT_AUTH_PROFILE_KEY);
 
-  // Typesafe map check
-  if (key in AUTHENTICATION_PROFILES) {
-    return (AUTHENTICATION_PROFILES as Record<string, AuthenticationProfile>)[key];
-  }
+  if (isProfileKey(value)) return getAuthenticationProfile(value);
+
+  const byId = findProfileById(value);
+  if (byId) return byId;
 
   return getAuthenticationProfile(DEFAULT_AUTH_PROFILE_KEY);
 }
 
 /**
- * Server-side active profile resolution via env.
- * Use this in:
- * - Next.js Server Components
- * - Route Handlers
- * - Server Actions
+ * Server-only resolution via env.
  */
 export function getActiveAuthenticationProfileServer(): AuthenticationProfile {
-  const key = process.env[AUTH_PROFILE_ENV_KEY];
-  return resolveAuthenticationProfile(key);
+  return resolveAuthenticationProfile(process.env[AUTH_PROFILE_ENV_KEY]);
 }
 
 /**
- * Optional helper if you DO want to expose a profile choice to the client:
- * You should pass the resolved profile (or just its id/key) from server -> client as props,
- * rather than reading env directly in client components.
+ * If you need the stable identifier for storage (DB/cookie), use profile.id.
  */
-export function getAuthenticationProfileKeyFromProfile(profile: AuthenticationProfile): string {
+export function getAuthenticationProfileId(profile: AuthenticationProfile): string {
   return profile.id;
+}
+
+/**
+ * If you really need the registry key (rare), derive it from id.
+ */
+export function getAuthenticationProfileKey(profile: AuthenticationProfile): AuthenticationProfileKey | undefined {
+  const entries = Object.entries(AUTHENTICATION_PROFILES) as Array<
+    [AuthenticationProfileKey, AuthenticationProfile]
+  >;
+
+  for (const [key, p] of entries) {
+    if (p.id === profile.id) return key;
+  }
+  return undefined;
 }

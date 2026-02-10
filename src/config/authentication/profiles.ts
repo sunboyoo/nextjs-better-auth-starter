@@ -64,7 +64,7 @@ const MFA_DEFAULT: AuthenticationProfile["mfa"] = {
 
 
 /* =============================================================================
-   9 PROFILES (hard-coded, suffix-pruned as requested)
+   PROFILES (hard-coded, suffix-pruned as requested)
 
    *_EMAIL:
      - No phone/sms methods at all (no smsOtp, no phone identifier)
