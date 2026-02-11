@@ -1,6 +1,11 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import {
+  KeyRound,
+  Mail,
+  Phone,
+  User,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -207,8 +212,24 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
                 disabled
               />
             ) : identifierType && identifier ? (
-              <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-                Using {identifierType}: <span className="font-medium text-foreground">{identifier}</span>
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground shadow-sm">
+                  {identifierType === "email" ? (
+                    <Mail className="size-4" />
+                  ) : identifierType === "phone" ? (
+                    <Phone className="size-4" />
+                  ) : (
+                    <User className="size-4" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {identifierType}
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {identifier}
+                  </span>
+                </div>
               </div>
             ) : null}
 

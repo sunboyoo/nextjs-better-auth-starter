@@ -712,165 +712,163 @@ export function SignInForm({
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
       <FieldGroup>
-        <Tabs
-          value={activeIdentifierTab}
-          onValueChange={(value) => {
-            if (fixedIdentifier) {
-              return;
-            }
+        {!fixedIdentifier ? (
+          <Tabs
+            value={activeIdentifierTab}
+            onValueChange={(value) => {
+              const next = value as IdentifierTab;
+              setActiveIdentifierTab(next);
+              form.clearErrors([
+                "email",
+                "phoneCountryIso2",
+                "phoneNumber",
+                "username",
+              ]);
+            }}
+            className="w-full"
+          >
+            {showIdentifierTabs && (
+              <TabsList
+                className="grid w-full"
+                style={{
+                  gridTemplateColumns: `repeat(${availableIdentifierTabs.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {availableIdentifierTabs.includes("email") ? (
+                  <TabsTrigger value="email">Email</TabsTrigger>
+                ) : null}
+                {availableIdentifierTabs.includes("phone") ? (
+                  <TabsTrigger value="phone">Phone Number</TabsTrigger>
+                ) : null}
+                {availableIdentifierTabs.includes("username") ? (
+                  <TabsTrigger value="username">Username</TabsTrigger>
+                ) : null}
+              </TabsList>
+            )}
 
-            const next = value as IdentifierTab;
-            setActiveIdentifierTab(next);
-            form.clearErrors([
-              "email",
-              "phoneCountryIso2",
-              "phoneNumber",
-              "username",
-            ]);
-          }}
-          className="w-full"
-        >
-          {showIdentifierTabs && (
-            <TabsList
-              className="grid w-full"
-              style={{
-                gridTemplateColumns: `repeat(${availableIdentifierTabs.length}, minmax(0, 1fr))`,
-              }}
-            >
-              {availableIdentifierTabs.includes("email") ? (
-                <TabsTrigger value="email">Email</TabsTrigger>
-              ) : null}
-              {availableIdentifierTabs.includes("phone") ? (
-                <TabsTrigger value="phone">Phone Number</TabsTrigger>
-              ) : null}
-              {availableIdentifierTabs.includes("username") ? (
-                <TabsTrigger value="username">Username</TabsTrigger>
-              ) : null}
-            </TabsList>
-          )}
-
-          {availableIdentifierTabs.includes("email") ? (
-            <TabsContent value="email" className="mt-6 space-y-2">
-              <Controller
-                name="email"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
-                    <Input
-                      {...field}
-                      id="sign-in-email"
-                      type="email"
-                      placeholder="m@example.com"
-                      aria-invalid={fieldState.invalid}
-                      autoCapitalize="none"
-                      autoComplete="email"
-                      readOnly={fixedIdentifier?.type === "email"}
-                      disabled={fixedIdentifier?.type === "email"}
-                    />
-                    {fieldState.invalid ? (
-                      <FieldError errors={[fieldState.error]} />
-                    ) : null}
-                  </Field>
-                )}
-              />
-              {emailMethodCopy ? (
-                <p className="text-xs text-muted-foreground">
-                  Use {emailMethodCopy} for this identifier.
-                </p>
-              ) : null}
-              {emailOtpMethodEnabled ? (
-                <div className="text-right">
-                  {isEmailOtpAvailable ? (
-                    <Link
-                      href={verifyEmailOtpHref}
-                      className="inline-block text-xs underline text-foreground"
-                    >
-                      Verify email with a verification code
-                    </Link>
-                  ) : (
-                    <span className="inline-block text-xs text-muted-foreground">
-                      Enter a real email to verify via code.
-                    </span>
+            {availableIdentifierTabs.includes("email") ? (
+              <TabsContent value="email" className="mt-6 space-y-2">
+                <Controller
+                  name="email"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
+                      <Input
+                        {...field}
+                        id="sign-in-email"
+                        type="email"
+                        placeholder="m@example.com"
+                        aria-invalid={fieldState.invalid}
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        readOnly={fixedIdentifier?.type === "email"}
+                        disabled={fixedIdentifier?.type === "email"}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
                   )}
-                </div>
-              ) : null}
-            </TabsContent>
-          ) : null}
+                />
+                {emailMethodCopy ? (
+                  <p className="text-xs text-muted-foreground">
+                    Use {emailMethodCopy} for this identifier.
+                  </p>
+                ) : null}
+                {emailOtpMethodEnabled ? (
+                  <div className="text-right">
+                    {isEmailOtpAvailable ? (
+                      <Link
+                        href={verifyEmailOtpHref}
+                        className="inline-block text-xs underline text-foreground"
+                      >
+                        Verify email with a verification code
+                      </Link>
+                    ) : (
+                      <span className="inline-block text-xs text-muted-foreground">
+                        Enter a real email to verify via code.
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+              </TabsContent>
+            ) : null}
 
-          {availableIdentifierTabs.includes("phone") ? (
-            <TabsContent value="phone" className="mt-6 space-y-2">
-              <PhoneNumberWithCountryInput
-                countryIso2={watchedPhoneCountryIso2}
-                phoneNumber={watchedPhoneNumber}
-                onCountryIso2Change={(countryIso2) => {
-                  form.setValue("phoneCountryIso2", countryIso2, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                  form.clearErrors("phoneCountryIso2");
-                }}
-                onPhoneNumberChange={(phoneNumber) => {
-                  form.setValue("phoneNumber", phoneNumber, {
-                    shouldDirty: true,
-                    shouldTouch: true,
-                  });
-                }}
-                countryId="sign-in-phone-country-code"
-                phoneId="sign-in-phone-number"
-                disabled={loading || fixedIdentifier?.type === "phone"}
-                countryAriaInvalid={countryFieldState.invalid}
-                phoneAriaInvalid={phoneFieldState.invalid}
-                countryError={
-                  countryFieldState.invalid ? (
-                    <FieldError errors={[countryFieldState.error]} />
-                  ) : null
-                }
-                phoneError={
-                  phoneFieldState.invalid ? (
-                    <FieldError errors={[phoneFieldState.error]} />
-                  ) : null
-                }
-              />
-              {phoneMethodCopy ? (
+            {availableIdentifierTabs.includes("phone") ? (
+              <TabsContent value="phone" className="mt-6 space-y-2">
+                <PhoneNumberWithCountryInput
+                  countryIso2={watchedPhoneCountryIso2}
+                  phoneNumber={watchedPhoneNumber}
+                  onCountryIso2Change={(countryIso2) => {
+                    form.setValue("phoneCountryIso2", countryIso2, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                    });
+                    form.clearErrors("phoneCountryIso2");
+                  }}
+                  onPhoneNumberChange={(phoneNumber) => {
+                    form.setValue("phoneNumber", phoneNumber, {
+                      shouldDirty: true,
+                      shouldTouch: true,
+                    });
+                  }}
+                  countryId="sign-in-phone-country-code"
+                  phoneId="sign-in-phone-number"
+                  disabled={loading || fixedIdentifier?.type === "phone"}
+                  countryAriaInvalid={countryFieldState.invalid}
+                  phoneAriaInvalid={phoneFieldState.invalid}
+                  countryError={
+                    countryFieldState.invalid ? (
+                      <FieldError errors={[countryFieldState.error]} />
+                    ) : null
+                  }
+                  phoneError={
+                    phoneFieldState.invalid ? (
+                      <FieldError errors={[phoneFieldState.error]} />
+                    ) : null
+                  }
+                />
+                {phoneMethodCopy ? (
+                  <p className="text-xs text-muted-foreground">
+                    Use {phoneMethodCopy} for this identifier.
+                  </p>
+                ) : null}
+              </TabsContent>
+            ) : null}
+
+            {availableIdentifierTabs.includes("username") ? (
+              <TabsContent value="username" className="mt-6 space-y-2">
+                <Controller
+                  name="username"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="sign-in-username">Username</FieldLabel>
+                      <Input
+                        {...field}
+                        id="sign-in-username"
+                        type="text"
+                        placeholder="your.username"
+                        aria-invalid={fieldState.invalid}
+                        autoCapitalize="none"
+                        autoComplete="username"
+                        readOnly={fixedIdentifier?.type === "username"}
+                        disabled={fixedIdentifier?.type === "username"}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Use {phoneMethodCopy} for this identifier.
+                  Username sign-in uses password only.
                 </p>
-              ) : null}
-            </TabsContent>
-          ) : null}
-
-          {availableIdentifierTabs.includes("username") ? (
-            <TabsContent value="username" className="mt-6 space-y-2">
-              <Controller
-                name="username"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="sign-in-username">Username</FieldLabel>
-                    <Input
-                      {...field}
-                      id="sign-in-username"
-                      type="text"
-                      placeholder="your.username"
-                      aria-invalid={fieldState.invalid}
-                      autoCapitalize="none"
-                      autoComplete="username"
-                      readOnly={fixedIdentifier?.type === "username"}
-                      disabled={fixedIdentifier?.type === "username"}
-                    />
-                    {fieldState.invalid ? (
-                      <FieldError errors={[fieldState.error]} />
-                    ) : null}
-                  </Field>
-                )}
-              />
-              <p className="text-xs text-muted-foreground">
-                Username sign-in uses password only.
-              </p>
-            </TabsContent>
-          ) : null}
-        </Tabs>
+              </TabsContent>
+            ) : null}
+          </Tabs>
+        ) : null}
 
         {passwordMethodEnabled ? (
           <>
@@ -1029,9 +1027,11 @@ export function SignInForm({
           />
           {emailOtpSentTo ? (
             <div className="rounded-md border p-6 space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Verification code sent to {emailOtpSentTo}
-              </p>
+              {!fixedIdentifier ? (
+                <p className="text-xs text-muted-foreground">
+                  Verification code sent to {emailOtpSentTo}
+                </p>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="sign-in-email-otp">
                   Email verification code
@@ -1103,9 +1103,11 @@ export function SignInForm({
           />
           {phoneOtpSentTo ? (
             <div className="rounded-md border p-6 space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Verification code sent to {phoneOtpSentTo}
-              </p>
+              {!fixedIdentifier ? (
+                <p className="text-xs text-muted-foreground">
+                  Verification code sent to {phoneOtpSentTo}
+                </p>
+              ) : null}
               <Field>
                 <FieldLabel htmlFor="sign-in-phone-otp">
                   Phone verification code
