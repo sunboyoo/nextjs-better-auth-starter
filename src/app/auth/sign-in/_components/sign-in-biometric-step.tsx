@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ClientAuthenticationProfile } from "@/config/authentication/client";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ export function SignInBiometricStep({ profile }: SignInBiometricStepProps) {
   const [statusMessage, setStatusMessage] = useState(
     "Use the button below to start passkey authentication.",
   );
+  const autoAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (!shouldUseDedicatedBiometricPage(profile)) {
@@ -46,7 +47,7 @@ export function SignInBiometricStep({ profile }: SignInBiometricStepProps) {
     }
   }, [methodFallbackHref, profile, router]);
 
-  const resolvePasskeyErrorMessage = (error: unknown): string => {
+  const resolvePasskeyErrorMessage = useCallback((error: unknown): string => {
     if (error && typeof error === "object") {
       const name =
         "name" in error && typeof error.name === "string"
@@ -70,19 +71,22 @@ export function SignInBiometricStep({ profile }: SignInBiometricStepProps) {
     }
 
     return "Passkey was canceled or failed. Continuing with fallback methods.";
-  };
+  }, []);
 
-  const handlePasskeyFailure = (message: string) => {
-    if (profile.biometric?.fallback.toMethodPage) {
-      toast.message(message);
-      router.replace(methodFallbackHref);
-      return;
-    }
+  const handlePasskeyFailure = useCallback(
+    (message: string) => {
+      if (profile.biometric?.fallback.toMethodPage) {
+        toast.message(message);
+        router.replace(methodFallbackHref);
+        return;
+      }
 
-    setStatusMessage(message);
-  };
+      setStatusMessage(message);
+    },
+    [methodFallbackHref, profile, router],
+  );
 
-  const handlePasskeySignIn = async () => {
+  const handlePasskeySignIn = useCallback(async () => {
     if (isAuthenticating) {
       return;
     }
@@ -108,7 +112,27 @@ export function SignInBiometricStep({ profile }: SignInBiometricStepProps) {
     } finally {
       setIsAuthenticating(false);
     }
-  };
+  }, [
+    callbackUrl,
+    handlePasskeyFailure,
+    isAuthenticating,
+    requestQuery,
+    resolvePasskeyErrorMessage,
+    router,
+  ]);
+
+  useEffect(() => {
+    if (!shouldUseDedicatedBiometricPage(profile)) {
+      return;
+    }
+
+    if (autoAttemptedRef.current) {
+      return;
+    }
+
+    autoAttemptedRef.current = true;
+    void handlePasskeySignIn();
+  }, [handlePasskeySignIn, profile]);
 
   return (
     <main className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">

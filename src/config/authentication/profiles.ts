@@ -80,18 +80,18 @@ const MFA_DEFAULT: AuthenticationProfile["mfa"] = {
 export const PROFILE_IDENTIFIER_PASSWORD: AuthenticationProfile = {
   id: "identifier_password",
   label: "Identifier + Password (Email/Phone/Username)",
+  flow: "singleScreen",
   pages: PAGES_BASE,
 
   identify: {
     identifiers: ["email", "phone", "username"],
     primaryIdentifier: "email",
-    socialPlacement: "step1",
+    socialPlacement: "hidden",
     antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.PASSWORD_SINGLE_SCREEN },
   },
 
   authenticate: {
-    // single-screen still can allow social as a bypass
-    methods: ["password", "social"],
+    methods: ["password"],
     preferred: "password",
     requireIdentifierFor: ["password"],
     autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
@@ -101,21 +101,22 @@ export const PROFILE_IDENTIFIER_PASSWORD: AuthenticationProfile = {
 
   server: {
     basePath: "/api/auth",
-    allowedPrimaryMethods: ["password", "social"],
+    allowedPrimaryMethods: ["password"],
     methodToPaths: DEFAULT_METHOD_PATHS,
-    allowCallbacks: true,
+    allowCallbacks: false,
   },
 };
 
 export const PROFILE_IDENTIFIER_FIRST: AuthenticationProfile = {
   id: "identifier_first",
   label: "Identifier First (Email/Phone/Username)",
+  flow: "identifierFirst",
   pages: PAGES_BASE,
 
   identify: {
     identifiers: ["email", "phone", "username"],
     primaryIdentifier: "email",
-    socialPlacement: "step1",
+    socialPlacement: "step2",
     antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.IDENTIFIER_FIRST },
   },
 
@@ -143,12 +144,13 @@ export const PROFILE_IDENTIFIER_FIRST: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS: AuthenticationProfile = {
   id: "identifier_first_biometrics",
   label: "Identifier First + Biometrics (Email/Phone/Username)",
+  flow: "identifierFirst",
   pages: PAGES_WITH_BIOMETRIC,
 
   identify: {
     identifiers: ["email", "phone", "username"],
     primaryIdentifier: "email",
-    socialPlacement: "step1",
+    socialPlacement: "step2",
     antiEnumeration: { enabled: true, genericSuccessMessage: ANTI_ENUM.IDENTIFIER_FIRST_BIOMETRICS },
   },
 
@@ -187,6 +189,7 @@ export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_PASSWORD_EMAIL: AuthenticationProfile = {
   id: "identifier_password_email",
   label: "Identifier + Password (Email only)",
+  flow: "singleScreen",
   pages: PAGES_BASE,
 
   identify: {
@@ -216,6 +219,7 @@ export const PROFILE_IDENTIFIER_PASSWORD_EMAIL: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_PASSWORD_PHONE: AuthenticationProfile = {
   id: "identifier_password_phone",
   label: "Identifier + Password (Phone only)",
+  flow: "singleScreen",
   pages: PAGES_BASE,
 
   identify: {
@@ -245,6 +249,7 @@ export const PROFILE_IDENTIFIER_PASSWORD_PHONE: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_PASSWORD_USERNAME: AuthenticationProfile = {
   id: "identifier_password_username",
   label: "Identifier + Password (Username only)",
+  flow: "singleScreen",
   pages: PAGES_BASE,
 
   identify: {
@@ -276,6 +281,7 @@ export const PROFILE_IDENTIFIER_PASSWORD_USERNAME: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_FIRST_EMAIL: AuthenticationProfile = {
   id: "identifier_first_email",
   label: "Identifier First (Email only)",
+  flow: "identifierFirst",
   pages: PAGES_BASE,
 
   identify: {
@@ -289,7 +295,7 @@ export const PROFILE_IDENTIFIER_FIRST_EMAIL: AuthenticationProfile = {
     methods: ["passkey", "password", "emailOtp", "magicLink", "social"],
     preferred: "password",
     requireIdentifierFor: ["password", "emailOtp", "magicLink"],
-    autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
+    autoAttemptPasskey: { enabled: true, when: "supportedOnly", maxAttempts: 1 },
   },
 
   mfa: MFA_DEFAULT,
@@ -305,6 +311,7 @@ export const PROFILE_IDENTIFIER_FIRST_EMAIL: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_FIRST_PHONE: AuthenticationProfile = {
   id: "identifier_first_phone",
   label: "Identifier First (Phone only)",
+  flow: "identifierFirst",
   pages: PAGES_BASE,
 
   identify: {
@@ -318,7 +325,7 @@ export const PROFILE_IDENTIFIER_FIRST_PHONE: AuthenticationProfile = {
     methods: ["passkey", "password", "smsOtp", "social"],
     preferred: "password",
     requireIdentifierFor: ["password", "smsOtp"],
-    autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
+    autoAttemptPasskey: { enabled: true, when: "supportedOnly", maxAttempts: 1 },
   },
 
   mfa: MFA_DEFAULT,
@@ -336,6 +343,7 @@ export const PROFILE_IDENTIFIER_FIRST_PHONE: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_FIRST_USERNAME: AuthenticationProfile = {
   id: "identifier_first_username",
   label: "Identifier First (Username only)",
+  flow: "identifierFirst",
   pages: PAGES_BASE,
 
   identify: {
@@ -349,7 +357,7 @@ export const PROFILE_IDENTIFIER_FIRST_USERNAME: AuthenticationProfile = {
     methods: ["passkey", "password", "social"],
     preferred: "password",
     requireIdentifierFor: ["password"],
-    autoAttemptPasskey: { enabled: false, when: "supportedOnly", maxAttempts: 1 },
+    autoAttemptPasskey: { enabled: true, when: "supportedOnly", maxAttempts: 1 },
   },
 
   mfa: MFA_DEFAULT,
@@ -367,6 +375,7 @@ export const PROFILE_IDENTIFIER_FIRST_USERNAME: AuthenticationProfile = {
 export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_EMAIL: AuthenticationProfile = {
   id: "identifier_first_biometrics_email",
   label: "Identifier First + Biometrics (Email only)",
+  flow: "identifierFirst",
   pages: PAGES_WITH_BIOMETRIC,
 
   identify: {
@@ -405,6 +414,7 @@ export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_EMAIL: AuthenticationProfile = 
 export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_PHONE: AuthenticationProfile = {
   id: "identifier_first_biometrics_phone",
   label: "Identifier First + Biometrics (Phone only)",
+  flow: "identifierFirst",
   pages: PAGES_WITH_BIOMETRIC,
 
   identify: {
@@ -444,6 +454,7 @@ export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_PHONE: AuthenticationProfile = 
 export const PROFILE_IDENTIFIER_FIRST_BIOMETRICS_USERNAME: AuthenticationProfile = {
   id: "identifier_first_biometrics_username",
   label: "Identifier First + Biometrics (Username only)",
+  flow: "identifierFirst",
   pages: PAGES_WITH_BIOMETRIC,
 
   identify: {

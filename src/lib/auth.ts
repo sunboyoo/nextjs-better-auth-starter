@@ -14,6 +14,10 @@ import {
   normalizeEmail,
   normalizeSyntheticEmailDomain,
 } from "@/lib/auth-channel";
+import {
+  OTP_SIGN_UP_INTENT_HEADER,
+  OTP_SIGN_UP_INTENT_VALUE,
+} from "@/lib/auth-otp-flow-intent";
 import { ac } from "@/lib/built-in-organization-role-permissions";
 import { ORGANIZATION_INVITATION_EXPIRES_IN_DAYS } from "@/lib/constants";
 import { sendEmail } from "@/lib/email";
@@ -37,6 +41,7 @@ import {
   customSession,
   deviceAuthorization,
   emailOTP,
+  haveIBeenPwned,
   jwt,
   lastLoginMethod,
   magicLink,
@@ -376,8 +381,29 @@ const syntheticEmailFlowErrorMessage =
 const genericCredentialErrorMessage = "Invalid credentials.";
 const genericEmailRecoveryMessage =
   "If an account exists for this email and supports email delivery, a message will be sent.";
+const compromisedPasswordErrorMessage =
+  "This password has appeared in known data breaches. Please choose a different password.";
 const profileMethodUnavailableErrorMessage =
   "This sign-in method is not available. Please use a supported sign-in option.";
+const unsupportedMfaFactorErrorMessage =
+  "This two-factor verification method is not enabled for the current authentication profile.";
+const unsupportedMfaTriggerConfigurationErrorMessage =
+  "This sign-in method is currently unavailable due to the active MFA policy configuration.";
+
+const resolveTwoFactorVerificationFactor = (
+  path: string,
+): "totp" | "emailOtp" | "backupCode" | null => {
+  if (path === "/two-factor/verify-totp") {
+    return "totp";
+  }
+  if (path === "/two-factor/send-otp" || path === "/two-factor/verify-otp") {
+    return "emailOtp";
+  }
+  if (path === "/two-factor/verify-backup-code") {
+    return "backupCode";
+  }
+  return null;
+};
 
 const extractEmailFromRequestBody = (body: unknown): string | null => {
   if (!body || typeof body !== "object") return null;
@@ -397,6 +423,10 @@ const extractPhoneNumberFromRequestBody = (body: unknown): string | null => {
   const normalized = normalizePhoneNumberInput(phoneNumber.trim());
   return normalized || null;
 };
+
+const hasOtpSignUpIntentHeader = (headers: Headers | undefined): boolean =>
+  (headers?.get(OTP_SIGN_UP_INTENT_HEADER)?.trim().toLowerCase() ?? "") ===
+  OTP_SIGN_UP_INTENT_VALUE;
 
 const getClientIpAddress = (headers: Headers): string => {
   const xForwardedFor = headers.get("x-forwarded-for");
@@ -852,6 +882,18 @@ const authOptions = {
       const matchedPrimaryMethod = isPrimarySignInFlowPath(ctx.path)
         ? findAuthenticationMethodForPath(activeProfile, ctx.path)
         : null;
+      const requestedTwoFactorFactor = resolveTwoFactorVerificationFactor(
+        ctx.path,
+      );
+
+      if (
+        requestedTwoFactorFactor &&
+        !activeProfile.mfa.factors.includes(requestedTwoFactorFactor)
+      ) {
+        throw new APIError("BAD_REQUEST", {
+          message: unsupportedMfaFactorErrorMessage,
+        });
+      }
 
       if (matchedPrimaryMethod) {
         const hasAuthenticatedUser = Boolean(ctx.context.session?.session?.userId);
@@ -866,6 +908,18 @@ const authOptions = {
         }
 
         if (!hasAuthenticatedUser) {
+          const requiresMfaForMethod =
+            activeProfile.mfa.policy !== "disabled" &&
+            activeProfile.mfa.triggerOnPrimary.includes(matchedPrimaryMethod) &&
+            !activeProfile.mfa.skipIfPrimaryIn.includes(matchedPrimaryMethod);
+          const serverCanEnforceMfaForMethod = matchedPrimaryMethod === "password";
+
+          if (requiresMfaForMethod && !serverCanEnforceMfaForMethod) {
+            throw new APIError("BAD_REQUEST", {
+              message: unsupportedMfaTriggerConfigurationErrorMessage,
+            });
+          }
+
           const methodAllowed = isPrimaryMethodAllowed(
             activeProfile,
             matchedPrimaryMethod,
@@ -888,6 +942,59 @@ const authOptions = {
             message:
               "Organization invitations require a real, deliverable email address.",
           });
+        }
+      }
+
+      const hasAuthenticatedUser = Boolean(ctx.context.session?.session?.userId);
+      if (!hasAuthenticatedUser && !hasOtpSignUpIntentHeader(ctx.headers)) {
+        if (ctx.path === "/sign-in/email-otp") {
+          const email = extractEmailFromRequestBody(ctx.body);
+          if (email) {
+            const existingUser = await ctx.context.adapter.findOne<{
+              id: string;
+            }>({
+              model: "user",
+              where: [
+                {
+                  field: "email",
+                  value: email,
+                },
+              ],
+            });
+
+            if (!existingUser) {
+              throw new APIError("BAD_REQUEST", {
+                message: genericCredentialErrorMessage,
+              });
+            }
+          }
+        }
+
+        if (
+          ctx.path === "/phone-number/verify" &&
+          (ctx.body as { updatePhoneNumber?: unknown } | undefined)
+            ?.updatePhoneNumber !== true
+        ) {
+          const phoneNumber = extractPhoneNumberFromRequestBody(ctx.body);
+          if (phoneNumber) {
+            const existingUser = await ctx.context.adapter.findOne<{
+              id: string;
+            }>({
+              model: "user",
+              where: [
+                {
+                  field: "phoneNumber",
+                  value: phoneNumber,
+                },
+              ],
+            });
+
+            if (!existingUser) {
+              throw new APIError("BAD_REQUEST", {
+                message: genericCredentialErrorMessage,
+              });
+            }
+          }
         }
       }
 
@@ -1241,6 +1348,16 @@ const authOptions = {
   plugins: [
     nextCookies(),
     ...(captchaPlugin ? [captchaPlugin] : []),
+    haveIBeenPwned({
+      customPasswordCompromisedMessage: compromisedPasswordErrorMessage,
+      paths: [
+        "/sign-up/email",
+        "/change-password",
+        "/reset-password",
+        "/set-password",
+        "/phone-number/reset-password",
+      ],
+    }),
     admin({
       defaultRole: "user",
       adminRoles: ["admin"],
@@ -1261,21 +1378,27 @@ const authOptions = {
           });
         }
         const inviteLink = `${baseUrl}/auth/accept-invitation/${data.id}`;
-        await sendEmail({
-          to: data.email,
-          subject: `You've been invited to join ${data.organization.name}`,
-          text: `${data.inviter.user.name} (${data.inviter.user.email}) has invited you to join ${data.organization.name}.\n\nClick here to accept the invitation: ${inviteLink}\n\nThis invitation will expire at ${data.invitation.expiresAt.toISOString()}.`,
-        });
+        queueAuthEmail(
+          {
+            to: data.email,
+            subject: `You've been invited to join ${data.organization.name}`,
+            text: `${data.inviter.user.name} (${data.inviter.user.email}) has invited you to join ${data.organization.name}.\n\nClick here to accept the invitation: ${inviteLink}\n\nThis invitation will expire at ${data.invitation.expiresAt.toISOString()}.`,
+          },
+          "organization invitation",
+        );
       },
     }),
     twoFactor({
       otpOptions: {
-        async sendOTP({ user, otp }) {
-          await sendEmail({
-            to: user.email,
-            subject: "Your two-factor authentication code",
-            text: `Your OTP code is: ${otp}`,
-          });
+        sendOTP({ user, otp }) {
+          queueAuthEmail(
+            {
+              to: user.email,
+              subject: "Your two-factor authentication code",
+              text: `Your OTP code is: ${otp}`,
+            },
+            "two-factor OTP",
+          );
         },
       },
     }),

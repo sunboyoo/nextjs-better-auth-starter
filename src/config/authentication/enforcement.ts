@@ -6,6 +6,7 @@ const PASSKEY_SIGN_IN_PREFIXES = [
   "/passkey/verify-authentication",
 ] as const;
 const ADDITIONAL_SIGN_IN_PATHS = ["/magic-link/verify"] as const;
+const MAX_AUTH_PATH_LENGTH = 512;
 
 function isRegexPattern(value: string | RegExp): value is RegExp {
   return value instanceof RegExp;
@@ -15,7 +16,13 @@ export function matchesAuthPathPattern(
   path: string,
   pattern: string | RegExp,
 ): boolean {
+  if (path.length === 0 || path.length > MAX_AUTH_PATH_LENGTH) {
+    return false;
+  }
+
   if (isRegexPattern(pattern)) {
+    // Ensure regex state is deterministic even if a global pattern is introduced later.
+    pattern.lastIndex = 0;
     return pattern.test(path);
   }
 

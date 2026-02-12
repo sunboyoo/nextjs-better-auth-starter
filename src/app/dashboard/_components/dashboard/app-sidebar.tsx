@@ -28,7 +28,7 @@ import type { DeviceSession } from "@/lib/auth"
 const staticNavSecondary = [
     {
         title: "Settings",
-        url: "/dashboard/settings",
+        url: "/dashboard/user-account",
         icon: IconSettings,
     },
     {
@@ -69,7 +69,7 @@ export function AppSidebar({
         },
         {
             title: "Organizations",
-            url: "/admin/organization",
+            url: "/admin/organizations",
             icon: IconUsers,
         },
     ]

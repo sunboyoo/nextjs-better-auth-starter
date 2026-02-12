@@ -24,6 +24,10 @@ import {
 } from "@/components/forms/phone-number-with-country-input";
 import { authClient } from "@/lib/auth-client";
 import {
+  OTP_SIGN_UP_INTENT_HEADER,
+  OTP_SIGN_UP_INTENT_VALUE,
+} from "@/lib/auth-otp-flow-intent";
+import {
   CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
   getCaptchaHeaders,
 } from "@/lib/captcha";
@@ -129,7 +133,10 @@ export function PhoneSignUpForm({ onSuccess, params }: PhoneSignUpFormProps) {
           },
           {
             query: requestQuery,
-            headers: getCaptchaHeaders(captchaToken),
+            headers: {
+              ...(getCaptchaHeaders(captchaToken) ?? {}),
+              [OTP_SIGN_UP_INTENT_HEADER]: OTP_SIGN_UP_INTENT_VALUE,
+            },
           },
         );
 
@@ -185,7 +192,10 @@ export function PhoneSignUpForm({ onSuccess, params }: PhoneSignUpFormProps) {
           },
           {
             query: requestQuery,
-            headers: getCaptchaHeaders(captchaToken),
+            headers: {
+              ...(getCaptchaHeaders(captchaToken) ?? {}),
+              [OTP_SIGN_UP_INTENT_HEADER]: OTP_SIGN_UP_INTENT_VALUE,
+            },
           },
         );
 

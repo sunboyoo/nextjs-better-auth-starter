@@ -15,6 +15,7 @@ type OrganizationInvitation = {
     role: string;
     status: string;
     expiresAt: string | Date;
+    createdAt: string | Date;
     inviterId: string;
 };
 
@@ -33,6 +34,12 @@ const organizationInvitationApi = auth.api as unknown as {
         headers: Headers;
     }) => Promise<unknown>;
 };
+
+function toTimestamp(value: string | Date | undefined) {
+    if (!value) return 0;
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+}
 
 export async function GET(
     request: NextRequest,
@@ -78,9 +85,9 @@ export async function GET(
             filtered = filtered.filter(inv => inv.status === status);
         }
 
-        // Sort by createdAt descending (newest first)
+        // Sort by invitation creation time, newest first.
         filtered.sort((a, b) =>
-            new Date(b.expiresAt).getTime() - new Date(a.expiresAt).getTime()
+            toTimestamp(b.createdAt) - toTimestamp(a.createdAt)
         );
 
         // Calculate pagination
@@ -107,7 +114,7 @@ export async function GET(
                 role: inv.role,
                 status: inv.status,
                 expiresAt: inv.expiresAt,
-                createdAt: inv.expiresAt, // Using expiresAt as fallback since createdAt may not be in API response
+                createdAt: inv.createdAt,
                 inviterId: inv.inviterId,
                 inviterName: inviter?.name || null,
                 inviterEmail: inviter?.email || null,

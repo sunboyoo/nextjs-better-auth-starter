@@ -1,4 +1,8 @@
 import { auth, configuredSocialProviderIds, type Session } from "@/lib/auth";
+import {
+  PASSWORD_PROVIDER_IDS,
+  isPasswordProviderId,
+} from "@/lib/auth-password-providers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { CircleUser } from "lucide-react";
@@ -16,7 +20,7 @@ import { SectionHeader } from "./_components/section-header";
 import { ActiveSessionCard } from "./_components/active-session-card";
 import { AuthResilienceCard } from "./_components/auth-resilience-card";
 
-const nonSocialProviders = new Set(["credential", "email-password"]);
+const nonSocialProviders = new Set<string>(PASSWORD_PROVIDER_IDS);
 
 type UserAccountProviderRow = {
   id: string;
@@ -92,8 +96,8 @@ export default async function UserAccountPage() {
     }));
 
   // Check if user has a password (has credential provider)
-  const hasPassword = accountRows.some(
-    (accountRow) => accountRow.providerId === "credential",
+  const hasPassword = accountRows.some((accountRow) =>
+    isPasswordProviderId(accountRow.providerId),
   );
   const hasPasskey = passkeyRows.length > 0;
   const hasVerifiedEmailChannel =

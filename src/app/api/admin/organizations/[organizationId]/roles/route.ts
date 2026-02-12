@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organizationRole, organization, member, user } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireAdmin } from "@/lib/api/auth-guard";
 import { nanoid } from "nanoid";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -110,7 +110,12 @@ export async function POST(
         const existing = await db
             .select({ id: organizationRole.id })
             .from(organizationRole)
-            .where(eq(organizationRole.role, role))
+            .where(
+                and(
+                    eq(organizationRole.organizationId, organizationId),
+                    eq(organizationRole.role, role)
+                )
+            )
             .limit(1);
 
         if (existing.length > 0) {

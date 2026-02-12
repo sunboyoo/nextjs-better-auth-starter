@@ -14,9 +14,10 @@ export type AuthenticationMethod =
 
 /**
  * MFA factors (Step3, conditional).
- * smsOtp = SMS code as second factor.
  */
-export type MfaFactor = "totp" | "backupCode" | "emailOtp" | "smsOtp";
+export type MfaFactor = "totp" | "backupCode" | "emailOtp";
+
+export type AuthenticationFlow = "singleScreen" | "identifierFirst";
 
 export type MfaPolicy = "disabled" | "ifUserEnabled" | "requiredForOrg" | "always";
 
@@ -87,6 +88,7 @@ export type ServerEnforcement = {
 export type AuthenticationProfile = {
   id: string;
   label: string;
+  flow: AuthenticationFlow;
   pages: AuthenticationPages;
 
   identify: IdentifyStep;

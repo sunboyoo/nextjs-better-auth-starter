@@ -1,111 +1,32 @@
-# Better Auth Concepts Client 模块审查报告
+# Better Auth Concepts Client 审查报告
 
-## 1. Executive Summary（执行摘要）
+- 本轮复核日期：2026-02-12
+- 官方文档：`docs/better-auth/concepts/client.md`
+- 官方索引：`docs/better-auth/llms.txt`
 
-### 结论
-✅ **整体合规等级：完全合规**
+## 1. 结论
 
-Better Auth Client 模块配置正确，使用 React 客户端库和插件扩展。
+- 合规等级：✅ 合规。
+- 客户端已通过 `createAuthClient` 统一接入多插件，且 admin 客户端隔离明确。
 
-### 功能覆盖
-| 功能 | 状态 | 实现位置 |
-|------|------|----------|
-| `createAuthClient` | ✅完整 | `src/lib/auth-client.ts` |
-| React 客户端 | ✅完整 | `better-auth/react` |
-| `useSession` hook | ✅完整 | 多处组件 |
-| 插件配置 | ✅完整 | admin + organization |
-| `signIn.social` | ✅完整 | 封装函数 |
+## 2. 已实现能力
 
----
+1. `authClient` 集成 organization/twoFactor/multiSession/passkey/emailOTP/phoneNumber/magicLink 等插件。
+2. `authAdminClient` 单独文件维护，仅挂载 `adminClient()`。
+3. 客户端对 429 统一 toast 提示。
 
-## 2. Scope & Version（审查范围与版本）
+## 3. 风险与差距
 
-- **模块名称**: Better Auth Concepts - Client
-- **审查日期**: 2026-02-04
-- **官方文档来源**: [Better Auth Client](https://www.better-auth.com/docs/concepts/client)
+1. 插件众多，建议定期复核不再使用的插件，减少复杂度。
+2. 某些历史路径仍并存（如 version1 页面），建议逐步收敛。
 
----
+## 4. 代码证据
 
-## 3. Feature Coverage Matrix（功能覆盖矩阵）
+- `src/lib/auth-client.ts`
+- `src/lib/auth-admin-client.ts`
+- `src/app/auth/sign-in/**`
 
-| 功能 | 官方文档 | 状态 | 实现位置 |
-|------|----------|------|----------|
-| **createAuthClient** | 必需 | ✅完整 | `src/lib/auth-client.ts:6` |
-| **React 客户端** | 推荐 | ✅完整 | `better-auth/react` |
-| **baseURL 配置** | 可选 | ⚠️未配置 | 使用默认值（同域） |
-| **useSession hook** | 推荐 | ✅完整 | 多处组件 |
-| **signIn.social** | 推荐 | ✅完整 | `signInWithGithub/Google` |
-| **fetchOptions** | 可选 | ⚠️未配置 | - |
-| **disableSignal** | 可选 | ⚠️未使用 | - |
-| **错误处理** | 推荐 | ✅完整 | 组件中处理 |
-| **$ERROR_CODES** | 可选 | ⚠️未使用 | - |
-| **客户端插件** | 推荐 | ✅完整 | adminClient + organizationClient |
+## 5. 建议
 
----
-
-## 4. Compliance Matrix（合规矩阵）
-
-| 检查项 | 合规状态 | 证据 |
-|--------|----------|------|
-| 使用框架专用客户端 | ✅compliant | `better-auth/react` |
-| 正确配置插件 | ✅compliant | `adminClient()`, `organizationClient()` |
-| 使用 hooks | ✅compliant | `useSession` 多处使用 |
-| 社交登录封装 | ✅compliant | 独立函数封装 |
-
----
-
-## 5. 代码证据
-
-### A. 客户端创建
-```typescript
-// src/lib/auth-client.ts:1-16
-import { createAuthClient } from "better-auth/react";
-import { adminClient, organizationClient } from "better-auth/client/plugins";
-
-export const authClient = createAuthClient({
-  plugins: [
-    adminClient(),
-    organizationClient({
-      ac,
-      dynamicAccessControl: { enabled: true },
-    }),
-  ],
-});
-```
-
-### B. useSession 使用
-```typescript
-// src/components/landing/navbar.tsx:20-21
-const { signOut, useSession } = authClient;
-const { data: session } = useSession();
-```
-
-### C. 社交登录封装
-```typescript
-// src/lib/auth-client.ts:18-24
-export const signInWithGithub = async (callbackUrl?: string | null) => {
-  const safeCallbackUrl = getSafeCallbackUrl(callbackUrl ?? null);
-  await authClient.signIn.social({
-    provider: "github",
-    callbackURL: safeCallbackUrl,
-  });
-};
-```
-
----
-
-## 6. Recommendations（建议）
-
-### 💚 Low（低优先级）
-
-#### R-1: 可配置 fetchOptions
-- **用途**: 全局错误处理或请求拦截
-- **文档参考**: `fetchOptions.onError`
-
-#### R-2: 可使用 $ERROR_CODES
-- **用途**: 错误本地化或自定义错误消息
-- **文档参考**: `authClient.$ERROR_CODES`
-
----
-
-*报告生成时间: 2026-02-04*
+1. 建立插件清单与启用条件文档，避免配置漂移。
+2. 在 CI 增加“auth-client 不含 adminClient”静态检查。

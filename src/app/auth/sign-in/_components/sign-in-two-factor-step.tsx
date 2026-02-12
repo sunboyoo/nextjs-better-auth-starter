@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ClientAuthenticationProfile } from "@/config/authentication/client";
+import { TwoFactorBackupCodeForm } from "@/components/forms/two-factor-backup-code-form";
 import { TwoFactorEmailOtpForm } from "@/components/forms/two-factor-email-otp-form";
 import { TwoFactorTotpForm } from "@/components/forms/two-factor-totp-form";
 import { Button } from "@/components/ui/button";
@@ -27,21 +28,24 @@ export function SignInTwoFactorStep({ profile }: SignInTwoFactorStepProps) {
 
   const supportsTotp = profile.mfa.factors.includes("totp");
   const supportsEmailOtp = profile.mfa.factors.includes("emailOtp");
-  const unsupportedFactors = profile.mfa.factors.filter(
-    (factor) => factor !== "totp" && factor !== "emailOtp",
-  );
+  const supportsBackupCode = profile.mfa.factors.includes("backupCode");
   const availableTabs = [
     supportsTotp ? "totp" : null,
     supportsEmailOtp ? "emailOtp" : null,
-  ].filter(Boolean) as Array<"totp" | "emailOtp">;
+    supportsBackupCode ? "backupCode" : null,
+  ].filter(Boolean) as Array<"totp" | "emailOtp" | "backupCode">;
   const factorParam = params.get("factor");
   const initialTab =
-    factorParam === "emailOtp" && supportsEmailOtp
+    factorParam === "backupCode" && supportsBackupCode
+      ? "backupCode"
+      : factorParam === "emailOtp" && supportsEmailOtp
       ? "emailOtp"
       : factorParam === "totp" && supportsTotp
         ? "totp"
         : availableTabs[0] ?? "totp";
-  const [activeTab, setActiveTab] = useState<"totp" | "emailOtp">(initialTab);
+  const [activeTab, setActiveTab] = useState<
+    "totp" | "emailOtp" | "backupCode"
+  >(initialTab);
 
   const onSuccess = () => {
     router.push(callbackUrl);
@@ -71,11 +75,22 @@ export function SignInTwoFactorStep({ profile }: SignInTwoFactorStepProps) {
           ) : null}
 
           {!mfaDisabled && availableTabs.length > 0 ? (
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "totp" | "emailOtp") }>
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) =>
+                setActiveTab(value as "totp" | "emailOtp" | "backupCode")
+              }
+            >
               {availableTabs.length > 1 ? (
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList
+                  className="grid w-full"
+                  style={{
+                    gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))`,
+                  }}
+                >
                   {supportsTotp ? <TabsTrigger value="totp">Authenticator App</TabsTrigger> : null}
                   {supportsEmailOtp ? <TabsTrigger value="emailOtp">Email OTP</TabsTrigger> : null}
+                  {supportsBackupCode ? <TabsTrigger value="backupCode">Backup Code</TabsTrigger> : null}
                 </TabsList>
               ) : null}
 
@@ -90,6 +105,12 @@ export function SignInTwoFactorStep({ profile }: SignInTwoFactorStepProps) {
                   <TwoFactorEmailOtpForm onSuccess={onSuccess} />
                 </TabsContent>
               ) : null}
+
+              {supportsBackupCode ? (
+                <TabsContent value="backupCode" className="mt-4">
+                  <TwoFactorBackupCodeForm onSuccess={onSuccess} />
+                </TabsContent>
+              ) : null}
             </Tabs>
           ) : null}
 
@@ -97,12 +118,6 @@ export function SignInTwoFactorStep({ profile }: SignInTwoFactorStepProps) {
             <div className="rounded-md border p-4 text-sm text-muted-foreground">
               No supported MFA factor UI is configured for this profile. Allowed factors: {profile.mfa.factors.join(", ")}.
             </div>
-          ) : null}
-
-          {unsupportedFactors.length > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              Additional factors configured but not yet surfaced in this UI: {unsupportedFactors.join(", ")}.
-            </p>
           ) : null}
         </CardContent>
       </Card>

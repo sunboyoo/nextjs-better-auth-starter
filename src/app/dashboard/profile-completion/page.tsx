@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getSafeCallbackUrl } from "@/lib/auth-callback";
+import { isPasswordProviderId } from "@/lib/auth-password-providers";
 import { ProfileCompletionWizard } from "./_components/profile-completion-wizard";
 
 interface ProfileCompletionPageProps {
@@ -73,8 +74,8 @@ export default async function ProfileCompletionPage({
     redirect(nextUrl);
   }
 
-  const hasPassword = accounts.some(
-    (accountRow) => accountRow.providerId === "credential",
+  const hasPassword = accounts.some((accountRow) =>
+    isPasswordProviderId(accountRow.providerId),
   );
   const sessionUser = session.user as typeof session.user & {
     username?: string | null;

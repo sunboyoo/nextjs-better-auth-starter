@@ -1,70 +1,97 @@
-import { authAdminClient } from "@/lib/auth-admin-client";
+type AdminRole = "user" | "admin" | Array<"user" | "admin">;
+
+type RequestAdminEndpointOptions = {
+  url: string;
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  body?: unknown;
+  defaultErrorMessage: string;
+};
+
+async function requestAdminEndpoint<T = unknown>({
+  url,
+  method = "POST",
+  body,
+  defaultErrorMessage,
+}: RequestAdminEndpointOptions): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    credentials: "include",
+    headers:
+      body === undefined
+        ? undefined
+        : {
+            "Content-Type": "application/json",
+          },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const data = (await response.json().catch(() => ({}))) as { error?: unknown };
+  if (!response.ok) {
+    const message =
+      typeof data.error === "string" ? data.error : defaultErrorMessage;
+    throw new Error(message);
+  }
+
+  return data as T;
+}
+
+function encodePathSegment(value: string): string {
+  return encodeURIComponent(value);
+}
 
 export async function banUser(
   userId: string,
   banReason: string,
   banExpiresIn?: number,
 ) {
-  const res = await authAdminClient.admin.banUser({
-    userId,
-    banReason,
-    banExpiresIn,
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: {
+      action: "ban",
+      banReason,
+      banExpiresIn,
+    },
+    defaultErrorMessage: "Failed to ban user",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to ban user");
-  }
-
-  return res;
 }
 
 export async function unbanUser(userId: string) {
-  const res = await authAdminClient.admin.unbanUser({
-    userId,
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: {
+      action: "unban",
+    },
+    defaultErrorMessage: "Failed to unban user",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to unban user");
-  }
-
-  return res;
 }
 
 export async function deleteUser(userId: string) {
-  const res = await authAdminClient.admin.removeUser({
-    userId,
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "DELETE",
+    defaultErrorMessage: "Failed to delete user",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to delete user");
-  }
-
-  return res;
 }
 
 export async function revokeUserSessions(userId: string) {
-  const res = await authAdminClient.admin.revokeUserSessions({
-    userId,
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}/sessions`,
+    method: "DELETE",
+    defaultErrorMessage: "Failed to revoke user sessions",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to revoke user sessions");
-  }
-
-  return res;
 }
 
 export async function createUser(data: {
   name: string;
   email: string;
   password: string;
-  role?: "user" | "admin" | ("user" | "admin")[];
-  data?: Record<string, any>;
+  role?: AdminRole;
+  data?: Record<string, unknown>;
   autoVerify?: boolean;
 }) {
   const { autoVerify, ...userData } = data;
-
-  // If autoVerify is true, add emailVerified to data
   const createData = {
     ...userData,
     data: {
@@ -73,49 +100,46 @@ export async function createUser(data: {
     },
   };
 
-  const res = await authAdminClient.admin.createUser(createData);
+  const result = await requestAdminEndpoint({
+    url: "/api/admin/users",
+    method: "POST",
+    body: createData,
+    defaultErrorMessage: "Failed to create user",
+  });
 
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to create user");
-  }
-
-  // If not auto-verified, send verification email
   if (!autoVerify) {
     try {
       await sendUserVerificationEmail(data.email, "/dashboard");
     } catch (error) {
       console.error("Failed to send verification email:", error);
-      // Don't throw here as user was created successfully
     }
   }
 
-  return res;
+  return result;
 }
 
 export async function updateUserRole(userId: string, role: string) {
-  const res = await authAdminClient.admin.setRole({
-    userId,
-    role: role as "user" | "admin" | ("user" | "admin")[],
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: {
+      action: "set-role",
+      role,
+    },
+    defaultErrorMessage: "Failed to update user role",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to update user role");
-  }
-
-  return res;
 }
 
 export async function updateUserName(userId: string, name: string) {
-  const res = await authAdminClient.admin.updateUser({
-    userId,
-    data: { name },
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: {
+      action: "update-user",
+      data: { name },
+    },
+    defaultErrorMessage: "Failed to update user name",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to update user name");
-  }
-
-  return res;
 }
 
 export async function updateUserEmailDirect(
@@ -123,22 +147,20 @@ export async function updateUserEmailDirect(
   email: string,
   options?: { emailVerified?: boolean },
 ) {
-  const data: Record<string, any> = { email };
-
+  const data: Record<string, unknown> = { email };
   if (typeof options?.emailVerified === "boolean") {
     data.emailVerified = options.emailVerified;
   }
 
-  const res = await authAdminClient.admin.updateUser({
-    userId,
-    data,
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: {
+      action: "update-user",
+      data,
+    },
+    defaultErrorMessage: "Failed to update user email",
   });
-
-  if (res?.error) {
-    throw new Error(res.error.message || "Failed to update user email");
-  }
-
-  return res;
 }
 
 export async function updateUserEmailAndMarkUnverified(
@@ -159,26 +181,12 @@ export async function sendUserVerificationEmail(
   email: string,
   callbackURL = "/dashboard",
 ) {
-  const response = await fetch("/api/admin/users/send-verification-email", {
+  return requestAdminEndpoint({
+    url: "/api/admin/users/send-verification-email",
     method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email, callbackURL }),
+    body: { email, callbackURL },
+    defaultErrorMessage: "Failed to send verification email",
   });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const message =
-      typeof data?.error === "string"
-        ? data.error
-        : "Failed to send verification email";
-    throw new Error(message);
-  }
-
-  return data;
 }
 
 export async function triggerUserEmailChangeVerification(
@@ -186,52 +194,21 @@ export async function triggerUserEmailChangeVerification(
   newEmail: string,
   callbackURL = "/dashboard",
 ) {
-  const response = await fetch(
-    `/api/admin/users/${encodeURIComponent(
+  return requestAdminEndpoint<{ emailMismatch?: boolean }>({
+    url: `/api/admin/users/${encodePathSegment(
       userId,
     )}/trigger-email-change-verification`,
-    {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ newEmail, callbackURL }),
-    },
-  );
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const message =
-      typeof data?.error === "string"
-        ? data.error
-        : "Failed to trigger email change verification";
-    throw new Error(message);
-  }
-
-  return data;
+    method: "POST",
+    body: { newEmail, callbackURL },
+    defaultErrorMessage: "Failed to trigger email change verification",
+  });
 }
 
 export async function setUserPassword(userId: string, newPassword: string) {
-  const response = await fetch("/api/admin/users/set-password", {
+  return requestAdminEndpoint({
+    url: "/api/admin/users/set-password",
     method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId, newPassword }),
+    body: { userId, newPassword },
+    defaultErrorMessage: "Failed to set user password",
   });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const message =
-      typeof data?.error === "string"
-        ? data.error
-        : "Failed to set user password";
-    throw new Error(message);
-  }
-
-  return data;
 }

@@ -51,6 +51,11 @@ const SIGN_IN_FORM_METHODS: readonly AuthenticationMethod[] = [
   "smsOtp",
   "magicLink",
 ];
+const IDENTIFIER_TYPE_LABEL: Record<IdentifierTab, string> = {
+  email: "Email",
+  phone: "Phone Number",
+  username: "Username",
+};
 
 function resolveMethodAvailability(
   profile: ClientAuthenticationProfile,
@@ -75,7 +80,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
     [queryString],
   );
   const flowContext = useMemo(() => getSignInFlowContext(params), [params]);
-  const { callbackUrl, identifierType, identifier } = flowContext;
+  const { callbackUrl, identifierType, identifier, rememberMe } = flowContext;
   const hasIdentifier = Boolean(identifierType && identifier);
   const methods = useMemo(
     () =>
@@ -117,6 +122,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
     callbackUrl,
     identifierType: null,
     identifier: null,
+    rememberMe,
   });
 
   useEffect(() => {
@@ -224,7 +230,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {identifierType}
+                    {IDENTIFIER_TYPE_LABEL[identifierType as IdentifierTab]}
                   </span>
                   <span className="text-sm font-medium text-foreground">
                     {identifier}
@@ -283,6 +289,7 @@ export function SignInMethodStep({ profile }: SignInMethodStepProps) {
                 }
                 fixedIdentifier={fixedIdentifier}
                 hideIdentifierTabs={Boolean(identifierType)}
+                defaultRememberMe={rememberMe}
               />
             ) : null}
 

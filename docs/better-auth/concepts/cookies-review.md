@@ -1,94 +1,31 @@
-# Better Auth Concepts Cookies 模块审查报告
+# Better Auth Concepts Cookies 审查报告
 
-## 1. Executive Summary（执行摘要）
+- 本轮复核日期：2026-02-12
+- 官方文档：`docs/better-auth/concepts/cookies.md`
+- 官方索引：`docs/better-auth/llms.txt`
 
-### 结论
-✅ **整体合规等级：完全合规**
+## 1. 结论
 
-Better Auth Cookies 配置正确，使用 `nextCookies` 插件并配置了生产环境安全 cookies。
+- 合规等级：✅ 合规。
+- Cookie 与会话缓存配置完整，生产环境安全 cookie 策略已启用。
 
-### 功能覆盖
-| 功能 | 状态 | 实现位置 |
-|------|------|----------|
-| `nextCookies` 插件 | ✅完整 | `src/lib/auth.ts:128` |
-| `useSecureCookies` | ✅完整 | `src/lib/auth.ts:160` |
-| Cookie 前缀 | ⚠️使用默认 | `better-auth` |
-| 跨子域 Cookies | ⚠️未配置 | - |
+## 2. 已实现能力
 
----
+1. 启用 `nextCookies()` 插件。
+2. `session.cookieCache` 已启用（`strategy: "compact"`，5 分钟）。
+3. `advanced.useSecureCookies` 在生产环境启用。
+4. `trustedOrigins` 支持环境变量注入。
 
-## 2. Scope & Version（审查范围与版本）
+## 3. 风险与差距
 
-- **模块名称**: Better Auth Concepts - Cookies
-- **审查日期**: 2026-02-04
-- **官方文档来源**: [Better Auth Cookies](https://www.better-auth.com/docs/concepts/cookies)
+1. 多域场景（cross-subdomain）当前未启用，如未来需要需专项设计。
+2. cookieCache 命中策略与会话一致性需结合业务压测验证。
 
----
+## 4. 代码证据
 
-## 3. Feature Coverage Matrix（功能覆盖矩阵）
+- `src/lib/auth.ts`
 
-| 功能 | 官方文档 | 状态 | 实现位置 |
-|------|----------|------|----------|
-| **nextCookies 插件(Next.js)** | 推荐 | ✅完整 | `src/lib/auth.ts:128` |
-| **useSecureCookies** | 推荐 | ✅完整 | 生产环境启用 |
-| **cookiePrefix** | 可选 | ⚠️使用默认 | - |
-| **自定义 Cookie 名称** | 可选 | ⚠️未配置 | - |
-| **跨子域 Cookies** | 可选 | ⚠️未配置 | - |
-| **trustedOrigins** | 推荐 | ✅完整 | 环境变量配置 |
+## 5. 建议
 
----
-
-## 4. Compliance Matrix（合规矩阵）
-
-| 检查项 | 合规状态 | 证据 |
-|--------|----------|------|
-| Next.js cookies 集成 | ✅compliant | `nextCookies()` 插件 |
-| 生产环境安全 cookies | ✅compliant | `useSecureCookies: isProduction` |
-| trustedOrigins 配置 | ✅compliant | 环境变量支持 |
-
----
-
-## 5. 代码证据
-
-### A. nextCookies 插件
-```typescript
-// src/lib/auth.ts:127-128
-plugins: [
-  nextCookies(),
-  // ...
-],
-```
-
-### B. useSecureCookies 配置
-```typescript
-// src/lib/auth.ts:159-161
-advanced: {
-  useSecureCookies: isProduction,
-},
-```
-
-### C. trustedOrigins 配置
-```typescript
-// src/lib/auth.ts:13-15
-const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-```
-
----
-
-## 6. Recommendations（建议）
-
-### 💚 Low（低优先级）
-
-#### R-1: 可自定义 Cookie 前缀
-- **场景**: 多租户或品牌定制
-- **配置**: `advanced.cookiePrefix`
-
-#### R-2: 可配置跨子域 Cookies
-- **场景**: 多子域共享会话
-- **配置**: `advanced.crossSubDomainCookies`
-
----
-
-*报告生成时间: 2026-02-04*
+1. 增加生产环境 cookie 安全配置自检脚本。
+2. 记录 cookie 相关变更的回归检查清单。

@@ -45,6 +45,9 @@ export function resolveAuthenticationProfile(
   const byId = findProfileById(value);
   if (byId) return byId;
 
+  console.warn(
+    `[auth-profile] Invalid ${AUTH_PROFILE_ENV_KEY} value "${value}". Falling back to ${DEFAULT_AUTH_PROFILE_KEY}.`,
+  );
   return getAuthenticationProfile(DEFAULT_AUTH_PROFILE_KEY);
 }
 

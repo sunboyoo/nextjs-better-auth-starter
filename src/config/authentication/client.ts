@@ -1,17 +1,17 @@
 import {
   getActiveAuthenticationProfileServer,
 } from "./resolve";
-import type { AuthenticationMethod, AuthenticationProfile, Identifier } from "./types";
+import type { AuthenticationProfile, Identifier } from "./types";
 
 type ClientServerEnforcement = {
   basePath: string;
-  allowedPrimaryMethods: readonly AuthenticationMethod[];
   allowCallbacks?: boolean;
 };
 
 export type ClientAuthenticationProfile = {
   id: string;
   label: string;
+  flow: AuthenticationProfile["flow"];
   pages: AuthenticationProfile["pages"];
   identify: {
     identifiers: readonly Identifier[];
@@ -32,6 +32,7 @@ export function toClientAuthenticationProfile(
   return {
     id: profile.id,
     label: profile.label,
+    flow: profile.flow,
     pages: profile.pages,
     identify: profile.identify,
     authenticate: profile.authenticate,
@@ -40,7 +41,6 @@ export function toClientAuthenticationProfile(
     smsOtpDelivery: profile.smsOtpDelivery,
     server: {
       basePath: profile.server.basePath,
-      allowedPrimaryMethods: profile.server.allowedPrimaryMethods,
       allowCallbacks: profile.server.allowCallbacks,
     },
   };

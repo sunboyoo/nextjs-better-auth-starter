@@ -5,6 +5,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import type { ClientAuthenticationProfile } from "@/config/authentication/client";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -20,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AUTH_FLOW_REMEMBER_ME_PARAM,
   buildAuthPageUrl,
   normalizeIdentifierValue,
   shouldUseDedicatedBiometricPage,
@@ -68,6 +70,9 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
     defaultPhoneCountry.iso2,
   );
   const [phoneLocalNumber, setPhoneLocalNumber] = useState("");
+  const [rememberMe, setRememberMe] = useState(
+    params.get(AUTH_FLOW_REMEMBER_ME_PARAM) === "true",
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fieldCopy = useMemo(
@@ -109,6 +114,7 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
       callbackUrl: callbackURL,
       identifierType,
       identifier: normalizedIdentifier,
+      rememberMe,
     });
 
     router.push(href);
@@ -191,6 +197,17 @@ export function SignInIdentifyStep({ profile, params }: SignInIdentifyStepProps)
           {errorMessage ? (
             <p className="text-sm text-destructive">{errorMessage}</p>
           ) : null}
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="identify-remember"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked === true)}
+            />
+            <label htmlFor="identify-remember" className="text-sm font-normal">
+              Remember me
+            </label>
+          </div>
 
           <Button type="submit">Continue</Button>
 

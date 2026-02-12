@@ -1,94 +1,34 @@
-# Better Auth Concepts API 模块审查报告
+# Better Auth Concepts API 审查报告
 
-## 1. Executive Summary（执行摘要）
+- 本轮复核日期：2026-02-12
+- 官方文档：`docs/better-auth/concepts/api.md`
+- 官方索引：`docs/better-auth/llms.txt`
 
-### 结论
-✅ **整体合规等级：完全合规**
+## 1. 结论
 
-Better Auth API 模块在代码库中正确使用，服务端 API 调用遵循官方最佳实践。
+- 合规等级：✅ 合规。
+- 服务端 API 调用以 `auth.api.*` 为主，用户态与管理态边界总体清晰。
 
-### 功能覆盖
-| 功能 | 状态 | 实现位置 |
-|------|------|----------|
-| `auth.api.getSession` | ✅完整 | 多处使用 |
-| `auth.api.signInEmail` | ✅完整 | `src/app/auth/login/action.ts` |
-| `auth.api.signUpEmail` | ✅完整 | `src/app/auth/register/action.ts` |
-| 传递 headers | ✅完整 | 各 API 调用中正确传递 |
-| 错误处理 | ✅完整 | try-catch 模式 |
+## 2. 已实现能力
 
----
+1. 会话获取统一使用 `auth.api.getSession`。
+2. 用户管理、会话撤销、组织邀请等均有 `auth.api.*` 实现。
+3. 用户账户页服务端通过 `auth.api.listUserAccounts/listPasskeys/listSessions` 取数。
 
-## 2. Scope & Version（审查范围与版本）
+## 3. 风险与差距
 
-- **模块名称**: Better Auth Concepts - API
-- **审查日期**: 2026-02-04
-- **官方文档来源**: [Better Auth API](https://www.better-auth.com/docs/concepts/api)
+1. 部分能力通过 `auth.api as unknown as {...}` 进行方法扩展，存在类型漂移风险。
+2. 全站会话列表使用 SQL 聚合（为跨用户管理场景），与官方单用户 API 路径并行。
 
----
+## 4. 代码证据
 
-## 3. Feature Coverage Matrix（功能覆盖矩阵）
+- `src/lib/api/auth-guard.ts`
+- `src/app/api/admin/users/**`
+- `src/app/api/admin/sessions/**`
+- `src/app/api/admin/organizations/**`
+- `src/app/dashboard/user-account/page.tsx`
 
-| 功能 | 官方文档 | 状态 | 实现位置 |
-|------|----------|------|----------|
-| **服务端 API 调用** | 推荐 | ✅完整 | 多处 |
-| **传递 headers** | 推荐 | ✅完整 | 使用 `await headers()` |
-| **传递 body** | 推荐 | ✅完整 | `auth.api.signInEmail` |
-| **传递 query** | 可选 | ✅完整 | 如 `getInvitation` |
-| **returnHeaders 选项** | 可选 | ⚠️未使用 | - |
-| **asResponse 选项** | 可选 | ⚠️未使用 | - |
-| **APIError 错误处理** | 推荐 | ✅完整 | action 文件中使用 |
+## 5. 建议
 
----
-
-## 4. Compliance Matrix（合规矩阵）
-
-| 检查项 | 合规状态 | 证据 |
-|--------|----------|------|
-| 使用 `auth.api` 对象 | ✅compliant | 多处调用 |
-| 正确传递 headers | ✅compliant | `await headers()` |
-| 正确传递 body | ✅compliant | `{ body: {...} }` |
-| 错误处理 | ✅compliant | try-catch 模式 |
-
----
-
-## 5. 代码证据
-
-### A. getSession 调用
-```typescript
-// src/lib/api/auth-guard.ts:30
-const session = await auth.api.getSession({
-  headers: await headers()
-});
-```
-
-### B. signInEmail 调用
-```typescript
-// src/app/auth/login/action.ts:20
-await auth.api.signInEmail({ body: { email, password } });
-```
-
-### C. signUpEmail 调用
-```typescript
-// src/app/auth/register/action.ts:24
-const { user } = await auth.api.signUpEmail({
-  body: { email, password, name }
-});
-```
-
----
-
-## 6. Recommendations（建议）
-
-### 💚 Low（低优先级）
-
-#### R-1: 可考虑使用 returnHeaders
-- **场景**: 如需获取响应 cookies
-- **文档参考**: `returnHeaders: true`
-
-#### R-2: 可考虑使用 asResponse
-- **场景**: 如需直接返回 Response 对象
-- **文档参考**: `asResponse: true`
-
----
-
-*报告生成时间: 2026-02-04*
+1. 收敛 `as unknown as` 包装，增加统一 API 类型层。
+2. 为关键 `auth.api.*` 路径增加契约测试，降低升级风险。

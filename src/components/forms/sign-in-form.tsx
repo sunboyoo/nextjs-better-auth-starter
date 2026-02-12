@@ -103,6 +103,7 @@ interface SignInFormProps {
   allowedMethods?: readonly AuthenticationMethod[];
   fixedIdentifier?: FixedIdentifier | null;
   hideIdentifierTabs?: boolean;
+  defaultRememberMe?: boolean;
 }
 
 export function SignInForm({
@@ -116,6 +117,7 @@ export function SignInForm({
   allowedMethods = DEFAULT_ALLOWED_METHODS,
   fixedIdentifier = null,
   hideIdentifierTabs = false,
+  defaultRememberMe = false,
 }: SignInFormProps) {
   const router = useRouter();
   const availableIdentifierTabs = useMemo(() => {
@@ -181,9 +183,13 @@ export function SignInForm({
       phoneNumber: "",
       username: "",
       password: "",
-      rememberMe: false,
+      rememberMe: defaultRememberMe,
     },
   });
+
+  useEffect(() => {
+    form.setValue("rememberMe", defaultRememberMe, { shouldDirty: false });
+  }, [defaultRememberMe, form]);
 
   useEffect(() => {
     if (!availableIdentifierTabs.length) {
@@ -762,8 +768,6 @@ export function SignInForm({
                         aria-invalid={fieldState.invalid}
                         autoCapitalize="none"
                         autoComplete="email"
-                        readOnly={fixedIdentifier?.type === "email"}
-                        disabled={fixedIdentifier?.type === "email"}
                       />
                       {fieldState.invalid ? (
                         <FieldError errors={[fieldState.error]} />
@@ -815,7 +819,7 @@ export function SignInForm({
                   }}
                   countryId="sign-in-phone-country-code"
                   phoneId="sign-in-phone-number"
-                  disabled={loading || fixedIdentifier?.type === "phone"}
+                  disabled={loading}
                   countryAriaInvalid={countryFieldState.invalid}
                   phoneAriaInvalid={phoneFieldState.invalid}
                   countryError={
@@ -853,8 +857,6 @@ export function SignInForm({
                         aria-invalid={fieldState.invalid}
                         autoCapitalize="none"
                         autoComplete="username"
-                        readOnly={fixedIdentifier?.type === "username"}
-                        disabled={fixedIdentifier?.type === "username"}
                       />
                       {fieldState.invalid ? (
                         <FieldError errors={[fieldState.error]} />

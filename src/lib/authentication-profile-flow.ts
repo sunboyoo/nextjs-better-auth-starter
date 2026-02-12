@@ -8,22 +8,17 @@ import { getSafeCallbackUrl } from "@/lib/auth-callback";
 export const AUTH_FLOW_CALLBACK_PARAM = "callbackUrl";
 export const AUTH_FLOW_IDENTIFIER_PARAM = "identifier";
 export const AUTH_FLOW_IDENTIFIER_TYPE_PARAM = "identifierType";
+export const AUTH_FLOW_REMEMBER_ME_PARAM = "rememberMe";
 
 type SearchParamsLike = {
   get: (name: string) => string | null;
 };
 
-const METHODS_REQUIRING_SECOND_STEP: readonly AuthenticationMethod[] = [
-  "passkey",
-  "emailOtp",
-  "smsOtp",
-  "magicLink",
-];
-
 export type SignInFlowContext = {
   callbackUrl: string;
   identifierType: Identifier | null;
   identifier: string | null;
+  rememberMe: boolean;
 };
 
 export function parseIdentifierType(value: string | null | undefined): Identifier | null {
@@ -51,6 +46,7 @@ export function getSignInFlowContext(
   params: SearchParamsLike,
 ): SignInFlowContext {
   const callbackUrl = getSafeCallbackUrl(params.get(AUTH_FLOW_CALLBACK_PARAM));
+  const rememberMe = params.get(AUTH_FLOW_REMEMBER_ME_PARAM) === "true";
   const identifierType = parseIdentifierType(
     params.get(AUTH_FLOW_IDENTIFIER_TYPE_PARAM),
   );
@@ -60,6 +56,7 @@ export function getSignInFlowContext(
       callbackUrl,
       identifierType: null,
       identifier: null,
+      rememberMe,
     };
   }
 
@@ -73,6 +70,7 @@ export function getSignInFlowContext(
     callbackUrl,
     identifierType,
     identifier: normalizedIdentifier || null,
+    rememberMe,
   };
 }
 
@@ -83,6 +81,9 @@ export function buildAuthPageUrl(
   const searchParams = new URLSearchParams();
 
   searchParams.set(AUTH_FLOW_CALLBACK_PARAM, context.callbackUrl);
+  if (context.rememberMe) {
+    searchParams.set(AUTH_FLOW_REMEMBER_ME_PARAM, "true");
+  }
 
   if (context.identifierType && context.identifier) {
     searchParams.set(AUTH_FLOW_IDENTIFIER_TYPE_PARAM, context.identifierType);
@@ -108,19 +109,9 @@ export function profileSupportsMethod(
 }
 
 export function shouldUseIdentifierFirst(
-  profile: Pick<AuthenticationProfile, "authenticate" | "biometric">,
+  profile: Pick<AuthenticationProfile, "flow">,
 ): boolean {
-  if (profile.biometric?.enabled) {
-    return true;
-  }
-
-  if (profile.authenticate.autoAttemptPasskey?.enabled) {
-    return true;
-  }
-
-  return profile.authenticate.methods.some((method) =>
-    METHODS_REQUIRING_SECOND_STEP.includes(method),
-  );
+  return profile.flow === "identifierFirst";
 }
 
 export function shouldUseDedicatedBiometricPage(

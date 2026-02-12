@@ -18,6 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import {
+  OTP_SIGN_UP_INTENT_HEADER,
+  OTP_SIGN_UP_INTENT_VALUE,
+} from "@/lib/auth-otp-flow-intent";
+import {
   CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
   getCaptchaHeaders,
 } from "@/lib/captcha";
@@ -92,7 +96,10 @@ export function SignUpForm({ onSuccess, params }: SignUpFormProps) {
           },
           {
             query: requestQuery,
-            headers: getCaptchaHeaders(captchaToken),
+            headers: {
+              ...(getCaptchaHeaders(captchaToken) ?? {}),
+              [OTP_SIGN_UP_INTENT_HEADER]: OTP_SIGN_UP_INTENT_VALUE,
+            },
           },
         );
 
@@ -146,7 +153,10 @@ export function SignUpForm({ onSuccess, params }: SignUpFormProps) {
           },
           {
             query: requestQuery,
-            headers: getCaptchaHeaders(captchaToken),
+            headers: {
+              ...(getCaptchaHeaders(captchaToken) ?? {}),
+              [OTP_SIGN_UP_INTENT_HEADER]: OTP_SIGN_UP_INTENT_VALUE,
+            },
             onSuccess() {
               toast.success("Account created. You're signed in.");
               onSuccess?.();
