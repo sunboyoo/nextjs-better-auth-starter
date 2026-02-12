@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { apps, resources, actions, organizationAppRoles } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 // GET /api/admin/apps/[appId] - Get app details with stats
@@ -12,7 +13,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;
@@ -51,7 +52,7 @@ export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;
@@ -93,6 +94,17 @@ export async function PUT(
             .where(eq(apps.id, appId))
             .returning();
 
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.update",
+            targetType: "app",
+            targetId: appId,
+            metadata: {
+                fields: Object.keys(updateData),
+            },
+            headers: authResult.headers,
+        });
+
         return NextResponse.json({ app: updated[0] });
     } catch (error) {
         return handleApiError(error, "update app");
@@ -104,7 +116,7 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;
@@ -123,6 +135,14 @@ export async function DELETE(
 
         // Delete app (cascade will handle related records)
         await db.delete(apps).where(eq(apps.id, appId));
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.delete",
+            targetType: "app",
+            targetId: appId,
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

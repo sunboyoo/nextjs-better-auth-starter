@@ -39,10 +39,22 @@ export function OrganizationAddDialog({
         setError(null);
 
         try {
+            const finalSlug = slug || generateSlug(name);
+            const slugCheckResponse = await fetch(
+                `/api/admin/organizations/check-slug?slug=${encodeURIComponent(finalSlug)}`,
+            );
+            const slugCheckPayload = await slugCheckResponse.json();
+            if (!slugCheckResponse.ok) {
+                throw new Error(slugCheckPayload.error || "Failed to validate slug");
+            }
+            if (slugCheckPayload.available !== true) {
+                throw new Error("Organization with this slug already exists");
+            }
+
             const response = await fetch("/api/admin/organizations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, slug: slug || generateSlug(name), logo: logo || null }),
+                body: JSON.stringify({ name, slug: finalSlug, logo: logo || null }),
             });
 
             const data = await response.json();

@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { member } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; invitationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.invitations.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, invitationId } = await params;
@@ -35,17 +35,19 @@ export async function DELETE(
         }
 
         // Use Better Auth's standard cancelInvitation API
-        const authApi = auth.api as unknown as {
-            cancelInvitation: (input: {
-                body: { invitationId: string };
-                headers: Headers;
-            }) => Promise<unknown>;
-        };
-        await authApi.cancelInvitation({
+        await extendedAuthApi.cancelInvitation({
             body: {
                 invitationId,
             },
-            headers: await headers(),
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.invitations.cancel",
+            targetType: "organization-invitation",
+            targetId: invitationId,
+            metadata: { organizationId },
+            headers: authResult.headers,
         });
 
         return NextResponse.json({ success: true });

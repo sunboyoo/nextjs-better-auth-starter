@@ -1,39 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { organizationRole } from "@/db/schema";
-import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi, type PermissionStatements } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
+
+type OrganizationRoleApi = {
+    id?: string;
+    role?: string;
+    permission?: unknown;
+    createdAt?: string | Date;
+    updatedAt?: string | Date | null;
+    organizationId?: string;
+};
+
+function serializePermission(permission: unknown): string {
+    if (typeof permission === "string") return permission;
+    try {
+        return JSON.stringify(permission ?? {});
+    } catch {
+        return "{}";
+    }
+}
+
+function parsePermissionInput(permission: string | null | undefined): PermissionStatements | undefined {
+    if (!permission) return undefined;
+    try {
+        const parsed = JSON.parse(permission) as PermissionStatements;
+        if (parsed && typeof parsed === "object") {
+            return parsed;
+        }
+    } catch {
+        return undefined;
+    }
+    return undefined;
+}
 
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; roleId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.roles.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, roleId } = await params;
 
     try {
-        // Verify role belongs to organization before deleting
-        const result = await db
-            .delete(organizationRole)
-            .where(
-                and(
-                    eq(organizationRole.id, roleId),
-                    eq(organizationRole.organizationId, organizationId)
-                )
-            )
-            .returning({ id: organizationRole.id });
-
-        if (result.length === 0) {
-            return NextResponse.json(
-                { error: "Role not found in this organization" },
-                { status: 404 }
-            );
-        }
+        await extendedAuthApi.deleteOrgRole({
+            body: {
+                organizationId,
+                roleId,
+            },
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.roles.delete",
+            targetType: "organization-role",
+            targetId: roleId,
+            metadata: { organizationId },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -45,7 +72,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; roleId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.roles.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, roleId } = await params;
@@ -61,35 +88,50 @@ export async function PATCH(
             return NextResponse.json({ error: result.error.issues }, { status: 400 });
         }
         const { role, permission } = result.data;
-
-        const updateData: Partial<typeof organizationRole.$inferInsert> = {};
+        const updateData: {
+            role?: string;
+            permission?: PermissionStatements;
+        } = {};
         if (role) updateData.role = role;
-        if (permission) updateData.permission = permission;
+        if (permission !== undefined) {
+            updateData.permission = parsePermissionInput(permission) ?? {};
+        }
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        // Verify role belongs to organization and update
-        const updatedRole = await db
-            .update(organizationRole)
-            .set(withUpdatedAt(updateData))
-            .where(
-                and(
-                    eq(organizationRole.id, roleId),
-                    eq(organizationRole.organizationId, organizationId)
-                )
-            )
-            .returning();
+        const updatedRoleRaw = await extendedAuthApi.updateOrgRole({
+            body: {
+                organizationId,
+                roleId,
+                data: updateData,
+            },
+            headers: authResult.headers,
+        });
+        const updatedRole = ((updatedRoleRaw as { role?: unknown } | null)?.role ??
+            updatedRoleRaw) as OrganizationRoleApi;
+        const rolePayload = {
+            id: updatedRole.id ?? roleId,
+            organizationId: updatedRole.organizationId ?? organizationId,
+            role: updatedRole.role ?? role ?? "",
+            permission: serializePermission(updatedRole.permission),
+            createdAt: updatedRole.createdAt ?? null,
+            updatedAt: updatedRole.updatedAt ?? null,
+        };
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.roles.update",
+            targetType: "organization-role",
+            targetId: roleId,
+            metadata: {
+                organizationId,
+                fields: Object.keys(updateData),
+            },
+            headers: authResult.headers,
+        });
 
-        if (updatedRole.length === 0) {
-            return NextResponse.json(
-                { error: "Role not found in this organization" },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({ role: updatedRole[0] });
+        return NextResponse.json({ role: rolePayload });
     } catch (error) {
         return handleApiError(error, "update role");
     }

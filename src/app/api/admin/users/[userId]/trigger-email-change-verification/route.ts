@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createEmailVerificationToken } from "better-auth/api";
 import { auth } from "@/lib/auth";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 const schema = z.object({
   newEmail: z.string().email(),
@@ -14,7 +15,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ userId: string }> },
 ) {
-  const authResult = await requireAdmin();
+  const authResult = await requireAdminAction("users.update");
   if (!authResult.success) return authResult.response;
 
   try {
@@ -99,6 +100,18 @@ export async function POST(
           request,
         ),
       );
+      await writeAdminAuditLog({
+        actorUserId: authResult.user.id,
+        action: "admin.users.trigger-email-change-confirmation",
+        targetType: "user",
+        targetId: userId,
+        metadata: {
+          fromEmail: currentEmail,
+          toEmail: normalizedEmail,
+          emailMismatch,
+        },
+        headers: authResult.headers,
+      });
 
       return NextResponse.json({ status: true, emailMismatch });
     }
@@ -132,6 +145,18 @@ export async function POST(
         request,
       ),
     );
+    await writeAdminAuditLog({
+      actorUserId: authResult.user.id,
+      action: "admin.users.trigger-email-change-verification",
+      targetType: "user",
+      targetId: userId,
+      metadata: {
+        fromEmail: currentEmail,
+        toEmail: normalizedEmail,
+        emailMismatch,
+      },
+      headers: authResult.headers,
+    });
 
     return NextResponse.json({ status: true, emailMismatch });
   } catch (error) {

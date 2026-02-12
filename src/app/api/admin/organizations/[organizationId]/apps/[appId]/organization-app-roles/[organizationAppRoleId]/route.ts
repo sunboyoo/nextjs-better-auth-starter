@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { organizationAppRoles, organizationAppRoleAction, actions, resources, apps } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
@@ -13,7 +14,7 @@ interface RouteParams {
 
 // GET /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Get single role
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, organizationAppRoleId } = await params;
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Update role
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, organizationAppRoleId } = await params;
@@ -106,6 +107,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "Role not found" }, { status: 404 });
         }
 
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.app-roles.update",
+            targetType: "rbac",
+            targetId: organizationAppRoleId,
+            metadata: {
+                organizationId,
+                appId,
+                fields: Object.keys(updateData),
+            },
+            headers: authResult.headers,
+        });
+
         return NextResponse.json({ role: updatedRole[0] });
     } catch (error) {
         return handleApiError(error, "update organization app role");
@@ -114,7 +128,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Delete role
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, organizationAppRoleId } = await params;
@@ -133,6 +147,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
         if (deleted.length === 0) {
             return NextResponse.json({ error: "Role not found" }, { status: 404 });
         }
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.app-roles.delete",
+            targetType: "rbac",
+            targetId: organizationAppRoleId,
+            metadata: {
+                organizationId,
+                appId,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -37,8 +37,9 @@ function setCache(key: string, data: unknown): void {
 // GET /api/rbac/permissions - Get all permissions for a member in an app
 // Query params: memberId, appKey (or appId)
 export async function GET(request: NextRequest) {
+    const requestHeaders = await headers();
     const session = await auth.api.getSession({
-        headers: await headers(),
+        headers: requestHeaders,
     });
 
     if (!session) {
@@ -65,19 +66,69 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    // Authorization check: only admin or the member themselves can query permissions
-    // Note: memberId is the member table ID, not user ID, so we need to verify ownership
-    if (userRole !== "admin") {
-        // Check if the current user owns this member record
-        const memberRecord = await db
-            .select({ userId: member.userId })
-            .from(member)
-            .where(eq(member.id, memberId))
-            .limit(1);
+    const memberRecord = await db
+        .select({
+            userId: member.userId,
+            role: member.role,
+            organizationId: member.organizationId,
+        })
+        .from(member)
+        .where(eq(member.id, memberId))
+        .limit(1);
 
-        if (memberRecord.length === 0 || memberRecord[0].userId !== session.user.id) {
-            return NextResponse.json({ error: "Forbidden: Cannot query other members' permissions" }, { status: 403 });
-        }
+    if (memberRecord.length === 0) {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+    const targetMember = memberRecord[0];
+
+    // Authorization check: only admin or the member themselves can query permissions
+    if (userRole !== "admin" && targetMember.userId !== session.user.id) {
+        return NextResponse.json({ error: "Forbidden: Cannot query other members' permissions" }, { status: 403 });
+    }
+
+    // Hierarchy layer 1: platform admin has full access.
+    if (userRole === "admin") {
+        return NextResponse.json({
+            memberId,
+            appId: appId || null,
+            roles: [{ roleKey: "platform-admin", roleName: "Platform Admin" }],
+            permissions: [
+                {
+                    roleKey: "platform-admin",
+                    roleName: "Platform Admin",
+                    resourceKey: "*",
+                    resourceName: "all-resources",
+                    actionKey: "*",
+                    actionName: "all-actions",
+                },
+            ],
+            reason: "PLATFORM_ADMIN",
+        });
+    }
+
+    // Hierarchy layer 2: organization owner/admin inherits full access.
+    if (targetMember.role === "owner" || targetMember.role === "admin") {
+        return NextResponse.json({
+            memberId,
+            appId: appId || null,
+            roles: [
+                {
+                    roleKey: targetMember.role,
+                    roleName: targetMember.role,
+                },
+            ],
+            permissions: [
+                {
+                    roleKey: targetMember.role,
+                    roleName: targetMember.role,
+                    resourceKey: "*",
+                    resourceName: "all-resources",
+                    actionKey: "*",
+                    actionName: "all-actions",
+                },
+            ],
+            reason: "ORGANIZATION_ROLE_INHERIT",
+        });
     }
 
     try {

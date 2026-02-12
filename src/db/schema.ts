@@ -4,6 +4,7 @@ import {
   pgEnum,
   text,
   timestamp,
+  bigint,
   boolean,
   integer,
   jsonb,
@@ -144,6 +145,17 @@ export const verification = table(
     index("verification_identifier_value_idx").on(table.identifier, table.value),
     index("verification_expiresAt_idx").on(table.expiresAt),
   ],
+);
+
+export const rateLimit = table(
+  "rate_limit",
+  {
+    id: text("id").primaryKey(),
+    key: text("key").notNull().unique(),
+    count: integer("count").notNull(),
+    lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+  },
+  (table) => [index("rateLimit_key_idx").on(table.key)],
 );
 
 export const passkey = table(
@@ -427,6 +439,10 @@ export const organizationRole = table(
   (table) => [
     index("organizationRole_organizationId_idx").on(table.organizationId),
     index("organizationRole_role_idx").on(table.role),
+    uniqueIndex("organizationRole_org_role_uidx").on(
+      table.organizationId,
+      table.role,
+    ),
   ],
 );
 
@@ -473,6 +489,53 @@ export const invitation = table(
   (table) => [
     index("invitation_organizationId_idx").on(table.organizationId),
     index("invitation_email_idx").on(table.email),
+  ],
+);
+
+export const adminAuditLog = table(
+  "admin_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: text("actor_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("adminAuditLog_actorUserId_idx").on(table.actorUserId),
+    index("adminAuditLog_action_idx").on(table.action),
+    index("adminAuditLog_targetType_idx").on(table.targetType),
+    index("adminAuditLog_createdAt_idx").on(table.createdAt),
+  ],
+);
+
+export const userSecurityAuditLog = table(
+  "user_security_audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    actorUserId: text("actor_user_id").notNull(),
+    action: text("action").notNull(),
+    targetUserId: text("target_user_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("userSecurityAuditLog_actorUserId_idx").on(table.actorUserId),
+    index("userSecurityAuditLog_action_idx").on(table.action),
+    index("userSecurityAuditLog_targetUserId_idx").on(table.targetUserId),
+    index("userSecurityAuditLog_createdAt_idx").on(table.createdAt),
   ],
 );
 
@@ -528,6 +591,7 @@ export const userRelations = relations(user, ({ many }) => ({
   ssoProviders: many(ssoProvider),
   members: many(member),
   invitations: many(invitation),
+  adminAuditLogs: many(adminAuditLog),
   profileCompletions: many(profileCompletion),
 }));
 
@@ -607,6 +671,13 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
   }),
   user: one(user, {
     fields: [invitation.inviterId],
+    references: [user.id],
+  }),
+}));
+
+export const adminAuditLogRelations = relations(adminAuditLog, ({ one }) => ({
+  actor: one(user, {
+    fields: [adminAuditLog.actorUserId],
     references: [user.id],
   }),
 }));

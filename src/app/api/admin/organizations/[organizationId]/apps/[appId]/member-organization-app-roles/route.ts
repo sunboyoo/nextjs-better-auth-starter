@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { memberOrganizationAppRoles, organizationAppRoles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 
 // GET - Get all member role assignments for this app (batch)
@@ -10,7 +10,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId } = await params;

@@ -7,7 +7,8 @@
 ## 1. 结论
 
 - 合规等级：⚠️ 部分合规。
-- `dynamicAccessControl.enabled` 已开启，但角色管理主链路主要走自定义 API + DB CRUD。
+- `dynamicAccessControl.enabled` 已开启，且 `(organizationId, role)` 唯一约束已在库层补齐。
+- 主要差距仍是角色管理主链路主要走自定义 API + DB CRUD，而非完全收敛到官方语义层。
 
 ## 2. 已实现能力
 
@@ -15,12 +16,12 @@
 2. 组织角色数据表 `organization_role` 已定义。
 3. 管理后台可对组织角色做增删改查。
 4. 新建角色重名检查已修正为 `(organizationId, role)` 作用域。
+5. `organization_role` 已增加 `(organizationId, role)` 唯一索引兜底。
 
 ## 3. 主要差距与风险
 
 1. 角色 CRUD 主要在 `src/app/api/admin/organizations/[organizationId]/roles/**` 直接操作 DB。
-2. `organization_role` 表当前缺少 `(organizationId, role)` 唯一约束，仍可能存在并发写入重复数据风险。
-3. 与官方动态权限 API 行为可能存在长期语义偏差。
+2. 与官方动态权限 API 行为可能存在长期语义偏差。
 
 ## 4. 代码证据
 
@@ -32,6 +33,5 @@
 
 ## 5. 建议
 
-1. 在 `src/db/schema.ts` 为 `organization_role` 增加 `(organizationId, role)` 唯一约束，补齐数据库层兜底。
-2. 为角色管理补充契约测试，确保权限语义稳定。
-3. 评估将部分角色操作收敛到官方 API 语义层。
+1. 为角色管理补充契约测试，确保权限语义稳定。
+2. 评估将部分角色操作收敛到官方 API 语义层。

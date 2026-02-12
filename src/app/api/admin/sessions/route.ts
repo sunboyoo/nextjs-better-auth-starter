@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { getSessions } from "@/utils/sessions";
 import { handleApiError } from "@/lib/api/error-handler";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination } from "@/lib/api/pagination";
 
 export async function GET(request: NextRequest) {
     try {
-        const authResult = await requireAdmin();
+        const authResult = await requireAdminAction("sessions.list");
         if (!authResult.success) return authResult.response;
 
         const searchParams = request.nextUrl.searchParams;
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
             email,
             userId,
             activeOnly,
+            requestHeaders: await headers(),
         });
 
         return NextResponse.json({

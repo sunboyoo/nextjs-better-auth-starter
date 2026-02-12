@@ -21,6 +21,7 @@ import {
 import { ac } from "@/lib/built-in-organization-role-permissions";
 import { ORGANIZATION_INVITATION_EXPIRES_IN_DAYS } from "@/lib/constants";
 import { sendEmail } from "@/lib/email";
+import { writeUserSecurityAuditLog } from "@/lib/api/user-security-audit";
 import { electron } from "@/lib/better-auth-electron/server";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
@@ -57,10 +58,45 @@ import {
 import { Stripe } from "stripe";
 
 const isProduction = process.env.NODE_ENV === "production";
+const isNextProductionBuild =
+  process.env.NEXT_PHASE === "phase-production-build";
+const shouldEmitOperationalWarnings = !isNextProductionBuild;
+const shouldLogConfigSummary =
+  process.env.BETTER_AUTH_LOG_CONFIG_SUMMARY === "true";
 const baseUrl =
   process.env.BETTER_AUTH_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
   "http://localhost:3000";
+
+const authConfigLogState = (
+  globalThis as typeof globalThis & {
+    __betterAuthConfigLogState?: Set<string>;
+  }
+).__betterAuthConfigLogState ?? new Set<string>();
+
+(
+  globalThis as typeof globalThis & {
+    __betterAuthConfigLogState?: Set<string>;
+  }
+).__betterAuthConfigLogState = authConfigLogState;
+
+const logConfigOnce = (
+  key: string,
+  level: "info" | "warn" | "error",
+  message: string,
+  payload?: Record<string, unknown>,
+) => {
+  if (authConfigLogState.has(key)) {
+    return;
+  }
+  authConfigLogState.add(key);
+
+  if (payload) {
+    console[level](message, payload);
+    return;
+  }
+  console[level](message);
+};
 
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
   .map((origin) => origin.trim())
@@ -83,12 +119,21 @@ const rateLimitWindow = Number.isNaN(rateLimitWindowRaw)
 const rateLimitMax = Number.isNaN(rateLimitMaxRaw)
   ? 100
   : Math.max(1, rateLimitMaxRaw);
-const rateLimitStorage =
+const requestedRateLimitStorage =
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "memory" ||
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
     ? process.env.BETTER_AUTH_RATE_LIMIT_STORAGE
     : undefined;
+const rateLimitIpv6SubnetRaw = Number.parseInt(
+  process.env.BETTER_AUTH_RATE_LIMIT_IPV6_SUBNET ?? "",
+  10,
+);
+const rateLimitIpv6Subnet = ([32, 48, 64, 128] as const).includes(
+  rateLimitIpv6SubnetRaw as 32 | 48 | 64 | 128,
+)
+  ? (rateLimitIpv6SubnetRaw as 32 | 48 | 64 | 128)
+  : undefined;
 const magicLinkExpiresInRaw = Number.parseInt(
   process.env.BETTER_AUTH_MAGIC_LINK_EXPIRES_IN ?? "",
   10,
@@ -254,6 +299,80 @@ const oneTapServerClientId =
   process.env.BETTER_AUTH_ONE_TAP_CLIENT_ID ||
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
   process.env.GOOGLE_CLIENT_ID;
+
+type SocialProviderEnvConfig = {
+  providerId:
+    | "github"
+    | "google"
+    | "facebook"
+    | "discord"
+    | "microsoft"
+    | "twitch"
+    | "twitter"
+    | "paypal"
+    | "vercel";
+  clientIdEnv: readonly string[];
+  clientSecretEnv: readonly string[];
+};
+
+const getFirstNonEmptyEnv = (keys: readonly string[]): string | null => {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const SOCIAL_PROVIDER_ENV_MATRIX: readonly SocialProviderEnvConfig[] = [
+  {
+    providerId: "github",
+    clientIdEnv: ["GITHUB_CLIENT_ID"],
+    clientSecretEnv: ["GITHUB_CLIENT_SECRET"],
+  },
+  {
+    providerId: "google",
+    clientIdEnv: ["GOOGLE_CLIENT_ID", "NEXT_PUBLIC_GOOGLE_CLIENT_ID"],
+    clientSecretEnv: ["GOOGLE_CLIENT_SECRET"],
+  },
+  {
+    providerId: "facebook",
+    clientIdEnv: ["FACEBOOK_CLIENT_ID"],
+    clientSecretEnv: ["FACEBOOK_CLIENT_SECRET"],
+  },
+  {
+    providerId: "discord",
+    clientIdEnv: ["DISCORD_CLIENT_ID"],
+    clientSecretEnv: ["DISCORD_CLIENT_SECRET"],
+  },
+  {
+    providerId: "microsoft",
+    clientIdEnv: ["MICROSOFT_CLIENT_ID"],
+    clientSecretEnv: ["MICROSOFT_CLIENT_SECRET"],
+  },
+  {
+    providerId: "twitch",
+    clientIdEnv: ["TWITCH_CLIENT_ID"],
+    clientSecretEnv: ["TWITCH_CLIENT_SECRET"],
+  },
+  {
+    providerId: "twitter",
+    clientIdEnv: ["TWITTER_CLIENT_ID"],
+    clientSecretEnv: ["TWITTER_CLIENT_SECRET"],
+  },
+  {
+    providerId: "paypal",
+    clientIdEnv: ["PAYPAL_CLIENT_ID"],
+    clientSecretEnv: ["PAYPAL_CLIENT_SECRET"],
+  },
+  {
+    providerId: "vercel",
+    clientIdEnv: ["VERCEL_CLIENT_ID"],
+    clientSecretEnv: ["VERCEL_CLIENT_SECRET"],
+  },
+];
+
 type CaptchaProvider =
   | "cloudflare-turnstile"
   | "google-recaptcha"
@@ -731,6 +850,164 @@ const queueAuthEmail = (
   });
 };
 
+const USER_SECURITY_AUDIT_ACTION_BY_PATH = {
+  "/change-email": "user.email.change.requested",
+  "/change-password": "user.password.changed",
+  "/set-password": "user.password.set",
+  "/reset-password": "user.password.reset",
+  "/delete-user": "user.account.delete.requested",
+  "/revoke-session": "user.session.revoke",
+  "/revoke-sessions": "user.sessions.revoke-other",
+  "/unlink-account": "user.account.unlink",
+} as const;
+
+type UserSecurityAuditPath = keyof typeof USER_SECURITY_AUDIT_ACTION_BY_PATH;
+
+type AuthHookContextLike = {
+  path: string;
+  body?: unknown;
+  headers?: Headers;
+  context?: {
+    session?: {
+      session?: {
+        userId?: string | null;
+      };
+    };
+    newSession?: {
+      session?: {
+        userId?: string | null;
+      };
+    };
+    returned?: unknown;
+  };
+};
+
+const USER_SECURITY_AUDIT_PATHS = new Set<UserSecurityAuditPath>(
+  Object.keys(USER_SECURITY_AUDIT_ACTION_BY_PATH) as UserSecurityAuditPath[],
+);
+
+function hashAuditValue(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function resolveSecurityAuditActorUserId(
+  ctx: AuthHookContextLike,
+): string | null {
+  const sessionUserId = ctx.context?.session?.session?.userId;
+  if (typeof sessionUserId === "string" && sessionUserId.length > 0) {
+    return sessionUserId;
+  }
+
+  const newSessionUserId = ctx.context?.newSession?.session?.userId;
+  if (typeof newSessionUserId === "string" && newSessionUserId.length > 0) {
+    return newSessionUserId;
+  }
+
+  return null;
+}
+
+function resolveSecurityAuditMetadata(path: UserSecurityAuditPath, body: unknown) {
+  const bodyRecord = (body ?? {}) as Record<string, unknown>;
+
+  switch (path) {
+    case "/change-email": {
+      const newEmail =
+        typeof bodyRecord.newEmail === "string" ? bodyRecord.newEmail.trim() : "";
+      return {
+        path,
+        hasCallbackUrl:
+          typeof bodyRecord.callbackURL === "string" &&
+          bodyRecord.callbackURL.length > 0,
+        newEmailHash: newEmail ? hashAuditValue(newEmail.toLowerCase()) : undefined,
+      };
+    }
+    case "/change-password":
+      return {
+        path,
+        revokeOtherSessions: bodyRecord.revokeOtherSessions === true,
+      };
+    case "/set-password":
+      return { path };
+    case "/reset-password":
+      return {
+        path,
+        hasToken: typeof bodyRecord.token === "string" && bodyRecord.token.length > 0,
+      };
+    case "/delete-user":
+      return {
+        path,
+        hasPassword:
+          typeof bodyRecord.password === "string" && bodyRecord.password.length > 0,
+        hasToken: typeof bodyRecord.token === "string" && bodyRecord.token.length > 0,
+        hasCallbackUrl:
+          typeof bodyRecord.callbackURL === "string" &&
+          bodyRecord.callbackURL.length > 0,
+      };
+    case "/revoke-session": {
+      const token =
+        typeof bodyRecord.token === "string" ? bodyRecord.token.trim() : "";
+      return {
+        path,
+        tokenHash: token ? hashAuditValue(token) : undefined,
+      };
+    }
+    case "/revoke-sessions":
+      return { path };
+    case "/unlink-account":
+      return {
+        path,
+        providerId:
+          typeof bodyRecord.providerId === "string" ? bodyRecord.providerId : undefined,
+      };
+    default:
+      return { path };
+  }
+}
+
+async function maybeWriteUserSecurityAuditEvent(
+  ctx: AuthHookContextLike,
+) {
+  if (!USER_SECURITY_AUDIT_PATHS.has(ctx.path as UserSecurityAuditPath)) {
+    return;
+  }
+
+  const path = ctx.path as UserSecurityAuditPath;
+  const actorUserId = resolveSecurityAuditActorUserId(ctx);
+  if (!actorUserId) {
+    return;
+  }
+
+  const action = USER_SECURITY_AUDIT_ACTION_BY_PATH[path];
+  const returnedValue = ctx.context?.returned;
+  const errorLike = returnedValue as
+    | APIError
+    | { status?: string; message?: string; body?: { message?: string } };
+  const statusCode =
+    returnedValue instanceof Response
+      ? returnedValue.status
+      : typeof errorLike?.status === "number"
+        ? errorLike.status
+        : undefined;
+  const outcome =
+    returnedValue instanceof APIError
+      ? "error"
+      : statusCode && statusCode >= 400
+        ? "error"
+        : "success";
+
+  await writeUserSecurityAuditLog({
+    actorUserId,
+    targetUserId: actorUserId,
+    action,
+    headers: ctx.headers ?? undefined,
+    metadata: {
+      ...resolveSecurityAuditMetadata(path, ctx.body),
+      outcome,
+      statusCode,
+    },
+  });
+}
+
 const enableStripe =
   process.env.BETTER_AUTH_ENABLE_STRIPE !== "false" &&
   Boolean(process.env.STRIPE_KEY) &&
@@ -743,6 +1020,8 @@ type SecondaryStorage = {
   set: (key: string, value: string, ttl?: number) => Promise<void>;
   delete: (key: string) => Promise<void>;
 };
+
+type SecondaryStorageMode = "memory" | "upstash-redis";
 
 const memorySecondaryStorage: SecondaryStorage = (() => {
   const store = new Map<string, { value: string; expiresAt?: number }>();
@@ -767,10 +1046,89 @@ const memorySecondaryStorage: SecondaryStorage = (() => {
   };
 })();
 
-const secondaryStorage =
-  process.env.BETTER_AUTH_SECONDARY_STORAGE === "memory"
-    ? memorySecondaryStorage
+const secondaryStorageModeRaw =
+  process.env.BETTER_AUTH_SECONDARY_STORAGE?.trim().toLowerCase() ?? "";
+const secondaryStorageMode: SecondaryStorageMode | undefined =
+  secondaryStorageModeRaw === "memory" || secondaryStorageModeRaw === "upstash-redis"
+    ? secondaryStorageModeRaw
     : undefined;
+const upstashRedisRestUrl = process.env.UPSTASH_REDIS_REST_URL?.trim() || "";
+const upstashRedisRestToken =
+  process.env.UPSTASH_REDIS_REST_TOKEN?.trim() || "";
+
+function createUpstashRedisSecondaryStorage(
+  url: string,
+  token: string,
+): SecondaryStorage {
+  const normalizedBaseUrl = url.replace(/\/+$/, "");
+
+  const request = async (commandSegments: string[]): Promise<unknown> => {
+    const encodedPath = commandSegments
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    const response = await fetch(`${normalizedBaseUrl}/${encodedPath}`, {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { result?: unknown; error?: string }
+      | null;
+    if (!response.ok) {
+      throw new Error(
+        `[better-auth] secondary storage request failed with status ${response.status}.`,
+      );
+    }
+    if (payload?.error) {
+      throw new Error(
+        `[better-auth] secondary storage request failed: ${payload.error}`,
+      );
+    }
+    return payload?.result ?? null;
+  };
+
+  return {
+    async get(key) {
+      const result = await request(["get", key]);
+      if (result === null || result === undefined) return null;
+      return typeof result === "string" ? result : String(result);
+    },
+    async set(key, value, ttl) {
+      if (ttl && ttl > 0) {
+        await request(["set", key, value, "EX", `${Math.floor(ttl)}`]);
+        return;
+      }
+      await request(["set", key, value]);
+    },
+    async delete(key) {
+      await request(["del", key]);
+    },
+  };
+}
+
+const upstashRedisSecondaryStorage =
+  secondaryStorageMode === "upstash-redis" &&
+  upstashRedisRestUrl &&
+  upstashRedisRestToken
+    ? createUpstashRedisSecondaryStorage(
+        upstashRedisRestUrl,
+        upstashRedisRestToken,
+      )
+    : undefined;
+
+const secondaryStorage =
+  secondaryStorageMode === "memory"
+    ? memorySecondaryStorage
+    : secondaryStorageMode === "upstash-redis"
+      ? upstashRedisSecondaryStorage
+      : undefined;
+const resolvedRateLimitStorage =
+  requestedRateLimitStorage === "secondary-storage" && !secondaryStorage
+    ? undefined
+    : requestedRateLimitStorage;
 
 const socialProviders = {
   ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
@@ -858,6 +1216,122 @@ const socialProviders = {
 };
 
 export const configuredSocialProviderIds = Object.keys(socialProviders);
+const socialProviderEnvStatuses = SOCIAL_PROVIDER_ENV_MATRIX.map((config) => {
+  const clientId = getFirstNonEmptyEnv(config.clientIdEnv);
+  const clientSecret = getFirstNonEmptyEnv(config.clientSecretEnv);
+  const hasClientId = Boolean(clientId);
+  const hasClientSecret = Boolean(clientSecret);
+  return {
+    providerId: config.providerId,
+    hasClientId,
+    hasClientSecret,
+    enabled: hasClientId && hasClientSecret,
+  };
+});
+const misconfiguredSocialProviders = socialProviderEnvStatuses.filter(
+  (status) => status.hasClientId !== status.hasClientSecret,
+);
+
+if (shouldEmitOperationalWarnings && misconfiguredSocialProviders.length > 0) {
+  logConfigOnce(
+    "oauth-social-provider-env-mismatch",
+    "warn",
+    "[better-auth][oauth] Social provider env mismatch detected. A provider requires BOTH clientId and clientSecret.",
+    {
+      providers: misconfiguredSocialProviders,
+      note: "Google One Tap can still work with clientId only, but Google social sign-in requires GOOGLE_CLIENT_SECRET.",
+    },
+  );
+}
+
+if (
+  shouldEmitOperationalWarnings &&
+  secondaryStorageModeRaw.length > 0 &&
+  !secondaryStorageMode
+) {
+  logConfigOnce(
+    "secondary-storage-mode-invalid",
+    "warn",
+    "[better-auth][storage] BETTER_AUTH_SECONDARY_STORAGE is invalid. Supported values: memory, upstash-redis.",
+    {
+      configuredValue: secondaryStorageModeRaw,
+    },
+  );
+}
+
+if (
+  shouldEmitOperationalWarnings &&
+  secondaryStorageMode === "upstash-redis" &&
+  (!upstashRedisRestUrl || !upstashRedisRestToken)
+) {
+  logConfigOnce(
+    "secondary-storage-upstash-missing-env",
+    "warn",
+    "[better-auth][storage] BETTER_AUTH_SECONDARY_STORAGE=upstash-redis requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
+  );
+}
+
+if (
+  shouldEmitOperationalWarnings &&
+  isProduction &&
+  !baseUrl.startsWith("https://")
+) {
+  logConfigOnce(
+    "base-url-non-https-production",
+    "warn",
+    "[better-auth][config] Production baseUrl should use HTTPS.",
+    { baseUrl },
+  );
+}
+
+if (
+  shouldEmitOperationalWarnings &&
+  isProduction &&
+  rateLimitEnabled &&
+  (resolvedRateLimitStorage === undefined || resolvedRateLimitStorage === "memory")
+) {
+  logConfigOnce(
+    "rate-limit-memory-production",
+    "warn",
+    "[better-auth][rate-limit] Production is using in-memory rate limit storage. Use `database` or `secondary-storage` for distributed deployments.",
+    {
+      configuredStorage: requestedRateLimitStorage ?? "memory(default)",
+    },
+  );
+}
+
+if (
+  shouldEmitOperationalWarnings &&
+  requestedRateLimitStorage === "secondary-storage" &&
+  !secondaryStorage
+) {
+  logConfigOnce(
+    "rate-limit-secondary-storage-missing",
+    "warn",
+    "[better-auth][rate-limit] BETTER_AUTH_RATE_LIMIT_STORAGE is `secondary-storage` but no secondaryStorage backend is configured. Falling back to in-memory storage.",
+  );
+}
+
+if (shouldLogConfigSummary) {
+  logConfigOnce(
+    "auth-runtime-config-summary",
+    "info",
+    "[better-auth] runtime config summary",
+    {
+      baseUrl,
+      isProduction,
+      socialProviders: configuredSocialProviderIds,
+      rateLimit: {
+        enabled: rateLimitEnabled,
+        window: rateLimitWindow,
+        max: rateLimitMax,
+        storage: resolvedRateLimitStorage ?? "memory",
+        ipv6Subnet: rateLimitIpv6Subnet ?? 64,
+      },
+      secondaryStorage: secondaryStorageMode ?? "none",
+    },
+  );
+}
 
 const authOptions = {
   database: drizzleAdapter(db, {
@@ -1063,6 +1537,9 @@ const authOptions = {
       throw new APIError("BAD_REQUEST", {
         message: getSyntheticEmailBlockMessageForPath(ctx.path),
       });
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      await maybeWriteUserSecurityAuditEvent(ctx as AuthHookContextLike);
     }),
   },
   databaseHooks: {
@@ -1685,10 +2162,14 @@ const authOptions = {
     enabled: rateLimitEnabled,
     window: rateLimitWindow,
     max: rateLimitMax,
-    ...(rateLimitStorage ? { storage: rateLimitStorage } : {}),
+    ...(resolvedRateLimitStorage ? { storage: resolvedRateLimitStorage } : {}),
   },
   advanced: {
     useSecureCookies: isProduction,
+    ipAddress: {
+      ipAddressHeaders: ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"],
+      ...(rateLimitIpv6Subnet ? { ipv6Subnet: rateLimitIpv6Subnet } : {}),
+    },
   },
 } satisfies BetterAuthOptions;
 

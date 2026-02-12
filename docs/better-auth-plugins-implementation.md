@@ -1,6 +1,6 @@
-# Better Auth 插件分析与推荐（代码审计版）
+# Better Auth 插件实现现状（代码审计版）
 
-- 审计日期: 2026-02-11
+- 审计日期: 2026-02-12
 - 审计范围: `src/lib/auth.ts`、`src/lib/auth-client.ts`、`src/lib/auth-admin-client.ts`、`src/app/api/mcp/route.ts`
 - 目标: 给出基于当前代码的真实插件状态（已接入/条件启用/未接入），并修正历史误判
 
@@ -16,7 +16,7 @@
 
 ## 快速结论
 1. 项目已接入的官方插件覆盖面很高：认证、组织、多会话、2FA、Passkey、OAuth Provider、JWT、OpenAPI、设备授权、支付等均已接入。
-2. 之前文档里“手机号登录未实现”“Email OTP 仅部分实现”“Anonymous 已实现”“Have I Been Pwned 已实现”“OIDC/OAuth Provider 未实现”“MCP 未实现”等结论与当前代码不一致，已修正。
+2. 之前文档里“手机号登录未实现”“Email OTP 仅部分实现”“Anonymous 已实现”“OIDC/OAuth Provider 未实现”“MCP 未实现”等结论与当前代码不一致，已修正。
 3. 一些高级能力为“代码已接入 + 条件启用”，例如 `captcha`、`stripe`、`sso`、`scim`。
 
 ## 认证类插件（Authentication）
@@ -76,7 +76,7 @@
 1. `Phone Number` 从“未实现”修正为“已实现”。
 2. `Email OTP` 从“部分实现”修正为“已实现（含登录）”。
 3. `Anonymous` 从“已实现”修正为“未实现”。
-4. `Have I Been Pwned` 从“已实现”修正为“未实现”，`lastLoginMethod` 不等价于 HIBP。
+4. `Have I Been Pwned` 已确认为“已实现”，且与 `lastLoginMethod` 插件职责明确区分（两者不等价）。
 5. `OAuth Provider` 从“未实现”修正为“已实现”。
 6. `MCP` 从“未实现”修正为“已实现（基于 OAuth Provider + mcpHandler 路由）”。
 

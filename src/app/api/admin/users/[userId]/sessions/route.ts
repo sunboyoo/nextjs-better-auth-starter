@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { handleApiError } from "@/lib/api/error-handler";
-import { requireAdmin } from "@/lib/api/auth-guard";
-
-const userSessionsAdminApi = auth.api as unknown as {
-    revokeUserSessions: (input: {
-        body: { userId: string };
-        headers: Headers;
-    }) => Promise<unknown>;
-};
+import { requireAdminAction } from "@/lib/api/auth-guard";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
-        const authResult = await requireAdmin();
+        const authResult = await requireAdminAction("sessions.revoke");
         if (!authResult.success) return authResult.response;
 
         const { userId } = await params;
@@ -30,11 +23,18 @@ export async function DELETE(
 
         // Use the official Better Auth admin API to revoke all user sessions
         // This endpoint requires session cookies
-        await userSessionsAdminApi.revokeUserSessions({
+        await extendedAuthApi.revokeUserSessions({
             body: {
                 userId,
             },
-            headers: await headers(),
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.sessions.revoke-user-sessions",
+            targetType: "user",
+            targetId: userId,
+            headers: authResult.headers,
         });
 
         return NextResponse.json({

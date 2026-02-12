@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { memberOrganizationAppRoles, organizationAppRoles, member, user } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 // GET - Get member's assigned roles for this app
@@ -11,7 +12,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, memberId } = await params;
@@ -65,7 +66,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, memberId } = await params;
@@ -148,6 +149,21 @@ export async function POST(
             }
         }
 
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.members.app-roles.assign",
+            targetType: "rbac",
+            targetId: memberId,
+            metadata: {
+                organizationId,
+                appId,
+                memberId,
+                roleIds: idsToAssign,
+                assignedCount: insertedCount.count,
+            },
+            headers: authResult.headers,
+        });
+
         return NextResponse.json({
             success: true,
             assignedCount: insertedCount.count,
@@ -162,7 +178,7 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, memberId } = await params;
@@ -187,6 +203,20 @@ export async function DELETE(
                     eq(memberOrganizationAppRoles.appId, appId)
                 )
             );
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.members.app-roles.remove",
+            targetType: "rbac",
+            targetId: memberId,
+            metadata: {
+                organizationId,
+                appId,
+                memberId,
+                roleId,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

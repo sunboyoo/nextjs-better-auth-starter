@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { resources, apps, actions } from "@/db/schema";
 import { eq, and, ilike, desc, sql, count } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 // GET /api/admin/apps/[appId]/resources - List resources by appId
@@ -12,7 +13,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;
@@ -86,7 +87,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;
@@ -154,6 +155,19 @@ export async function POST(
                 description: description || null,
             })
             .returning();
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.resources.create",
+            targetType: "resource",
+            targetId: newResource[0]?.id ?? null,
+            metadata: {
+                appId,
+                key,
+                name,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ resource: newResource[0] }, { status: 201 });
     } catch (error) {

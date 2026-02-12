@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { getUsers } from "@/utils/users";
 import { handleApiError } from "@/lib/api/error-handler";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination } from "@/lib/api/pagination";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -15,16 +15,9 @@ const createUserSchema = z.object({
   data: z.record(z.string(), z.unknown()).optional(),
 });
 
-const adminUsersApi = auth.api as unknown as {
-  createUser: (input: {
-    body: z.infer<typeof createUserSchema>;
-    headers: Headers;
-  }) => Promise<unknown>;
-};
-
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("users.list");
     if (!authResult.success) return authResult.response;
 
     const searchParams = request.nextUrl.searchParams;
@@ -64,7 +57,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authResult = await requireAdmin();
+  const authResult = await requireAdminAction("users.create");
   if (!authResult.success) return authResult.response;
 
   try {
@@ -74,9 +67,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
     }
 
-    const result = await adminUsersApi.createUser({
+    const result = await extendedAuthApi.createUser({
       body: parsed.data,
-      headers: await headers(),
+      headers: authResult.headers,
+    });
+
+    const createdUserId =
+      (result as { user?: { id?: string } } | null)?.user?.id ?? null;
+    await writeAdminAuditLog({
+      actorUserId: authResult.user.id,
+      action: "admin.users.create",
+      targetType: "user",
+      targetId: createdUserId,
+      metadata: {
+        email: parsed.data.email,
+        role: parsed.data.role ?? "user",
+      },
+      headers: authResult.headers,
     });
 
     return NextResponse.json(result);

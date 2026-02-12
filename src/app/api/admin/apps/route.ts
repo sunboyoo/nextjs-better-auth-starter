@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions } from "@/db/schema";
 import { eq, ilike, desc, sql, count } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 // GET /api/admin/apps - List all apps with pagination and search
 export async function GET(request: NextRequest) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const searchParams = request.nextUrl.searchParams;
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/apps - Create a new app
 export async function POST(request: NextRequest) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     try {
@@ -146,6 +147,18 @@ export async function POST(request: NextRequest) {
                 logo: logo || null,
             })
             .returning();
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.create",
+            targetType: "app",
+            targetId: newApp[0]?.id ?? null,
+            metadata: {
+                key,
+                name,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ app: newApp[0] }, { status: 201 });
     } catch (error) {

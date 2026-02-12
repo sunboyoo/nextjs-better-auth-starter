@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { actions, resources, apps } from "@/db/schema";
 import { eq, and, ilike, desc, sql, inArray } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 
@@ -11,7 +11,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { appId } = await params;

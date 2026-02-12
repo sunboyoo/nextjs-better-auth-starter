@@ -3,8 +3,9 @@ import { db } from "@/db";
 import { actions, resources } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 // GET /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Get action details
@@ -12,7 +13,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -50,7 +51,7 @@ export async function PUT(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -87,6 +88,17 @@ export async function PUT(
             .where(eq(actions.id, actionId))
             .returning();
 
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.actions.update",
+            targetType: "action",
+            targetId: actionId,
+            metadata: {
+                fields: Object.keys(updateData),
+            },
+            headers: authResult.headers,
+        });
+
         return NextResponse.json({ action: updated[0] });
     } catch (error) {
         return handleApiError(error, "update action");
@@ -98,7 +110,7 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -115,6 +127,14 @@ export async function DELETE(
         }
 
         await db.delete(actions).where(eq(actions.id, actionId));
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.apps.actions.delete",
+            targetType: "action",
+            targetId: actionId,
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

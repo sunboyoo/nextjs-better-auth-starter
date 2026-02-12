@@ -1,39 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { member, organization } from "@/db/schema";
-import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.members.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, memberId } = await params;
 
     try {
-        // Verify member belongs to this organization before deleting
-        const result = await db
-            .delete(member)
-            .where(
-                and(
-                    eq(member.id, memberId),
-                    eq(member.organizationId, organizationId)
-                )
-            )
-            .returning({ id: member.id });
-
-        if (result.length === 0) {
-            return NextResponse.json(
-                { error: "Member not found in this organization" },
-                { status: 404 }
-            );
-        }
+        await extendedAuthApi.removeMember({
+            body: {
+                organizationId,
+                memberIdOrEmail: memberId,
+            },
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.members.remove",
+            targetType: "organization-member",
+            targetId: memberId,
+            metadata: { organizationId },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -45,7 +41,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.members.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, memberId } = await params;
@@ -65,24 +61,22 @@ export async function PATCH(
             return NextResponse.json({ error: "Role is required" }, { status: 400 });
         }
 
-        // Verify member belongs to this organization and update
-        const updateResult = await db
-            .update(member)
-            .set(withUpdatedAt({ role: newRole }))
-            .where(
-                and(
-                    eq(member.id, memberId),
-                    eq(member.organizationId, organizationId)
-                )
-            )
-            .returning({ id: member.id });
-
-        if (updateResult.length === 0) {
-            return NextResponse.json(
-                { error: "Member not found in this organization" },
-                { status: 404 }
-            );
-        }
+        await extendedAuthApi.updateMemberRole({
+            body: {
+                organizationId,
+                memberId,
+                role: newRole,
+            },
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.members.update-role",
+            targetType: "organization-member",
+            targetId: memberId,
+            metadata: { organizationId, role: newRole },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

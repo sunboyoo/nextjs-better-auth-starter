@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { user, organization, member } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 type OrganizationInvitation = {
     id: string;
@@ -17,22 +17,6 @@ type OrganizationInvitation = {
     expiresAt: string | Date;
     createdAt: string | Date;
     inviterId: string;
-};
-
-const organizationInvitationApi = auth.api as unknown as {
-    listInvitations: (input: {
-        query: { organizationId: string };
-        headers: Headers;
-    }) => Promise<OrganizationInvitation[] | null | undefined>;
-    createInvitation: (input: {
-        body: {
-            email: string;
-            role: "member" | "owner" | "admin";
-            organizationId: string;
-            resend: boolean;
-        };
-        headers: Headers;
-    }) => Promise<unknown>;
 };
 
 function toTimestamp(value: string | Date | undefined) {
@@ -45,7 +29,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.invitations.list");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
@@ -67,13 +51,15 @@ export async function GET(
         }
 
         // Use Better Auth's official listInvitations API
-        const allInvitations = await organizationInvitationApi.listInvitations({
+        const allInvitationsRaw = await extendedAuthApi.listInvitations({
             query: { organizationId },
-            headers: await headers(),
+            headers: authResult.headers,
         });
+        const allInvitations =
+            (allInvitationsRaw as OrganizationInvitation[] | null | undefined) ?? [];
 
         // Apply search and status filters in application layer
-        let filtered = allInvitations || [];
+        let filtered = allInvitations;
 
         if (search) {
             filtered = filtered.filter(inv =>
@@ -136,7 +122,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.invitations.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
@@ -185,14 +171,29 @@ export async function POST(
         }
 
         // Use Better Auth's standard createInvitation API
-        const invitationResult = await organizationInvitationApi.createInvitation({
+        const invitationResult = await extendedAuthApi.createInvitation({
             body: {
                 email,
                 role: role as "member" | "owner" | "admin",
                 organizationId,
                 resend,
             },
-            headers: await headers(),
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: resend
+                ? "admin.organization.invitations.resend"
+                : "admin.organization.invitations.create",
+            targetType: "organization-invitation",
+            targetId: null,
+            metadata: {
+                organizationId,
+                email,
+                role,
+                resend,
+            },
+            headers: authResult.headers,
         });
 
         return NextResponse.json({ invitation: invitationResult }, { status: 201 });

@@ -10,6 +10,7 @@ import {
   Key,
   Pencil,
   Mail,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,6 +30,7 @@ import { UserRoleDialog } from "./user-role-dialog";
 import { UserPasswordDialog } from "./user-password-dialog";
 import { UserNameDialog } from "./user-name-dialog";
 import { UserEmailDialog } from "./user-email-dialog";
+import { impersonateUser } from "@/utils/auth";
 
 interface UserActionsProps {
   user: UserWithDetails;
@@ -45,6 +47,7 @@ export function UserActions({ user, onActionComplete }: UserActionsProps) {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleDialogClose = (
@@ -66,6 +69,30 @@ export function UserActions({ user, onActionComplete }: UserActionsProps) {
           <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
             Actions
           </DropdownMenuLabel>
+          <DropdownMenuItem
+            className="text-xs"
+            disabled={isImpersonating}
+            onClick={async () => {
+              setDropdownOpen(false);
+              setIsImpersonating(true);
+              try {
+                await impersonateUser(user.id);
+                window.location.href = "/dashboard/user-profile";
+              } catch (error) {
+                alert(
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to impersonate user",
+                );
+              } finally {
+                setIsImpersonating(false);
+                onActionComplete();
+              }
+            }}
+          >
+            <User className="mr-2 h-4 w-4" />
+            <span>{isImpersonating ? "Starting..." : "Impersonate user"}</span>
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="text-xs"
             onClick={() => {

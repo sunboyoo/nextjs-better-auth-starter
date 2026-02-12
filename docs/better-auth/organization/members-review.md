@@ -7,7 +7,7 @@
 ## 1. 结论
 
 - 合规等级：✅ 合规（混合实现）。
-- 用户侧通过官方 organization client 管理成员，管理侧通过 `/api/admin/organizations/*/members` 做平台运维能力。
+- 用户侧通过官方 organization client 管理成员，管理侧通过 `/api/admin/organizations/*/members` 封装官方成员 API 并补充平台运维能力。
 
 ## 2. 已实现能力
 
@@ -18,13 +18,14 @@
 ## 3. 主要差距与风险
 
 1. 用户侧与管理侧走不同实现路径，需长期保持行为一致。
-2. 管理侧直接 DB 操作成员关系，需严格回归权限边界。
+2. 管理侧成员列表会额外补齐用户资料字段（名称/头像/平台角色），需持续保证字段映射一致性。
 
 ## 4. 代码证据
 
 - `src/data/organization/member-remove-mutation.ts`
 - `src/app/api/admin/organizations/[organizationId]/members/route.ts`
 - `src/app/api/admin/organizations/[organizationId]/members/[memberId]/route.ts`
+- `src/lib/auth-api.ts`
 - `src/db/schema.ts`
 
 ## 5. 建议

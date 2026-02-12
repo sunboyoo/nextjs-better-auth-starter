@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organizationAppRoles, organizationAppRoleAction, actions, resources, apps, organization } from "@/db/schema";
 import { eq, and, ilike, desc, sql, count } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
@@ -13,7 +14,7 @@ interface RouteParams {
 
 // GET /api/admin/organizations/[organizationId]/apps/[appId]/roles - List roles
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId } = await params;
@@ -124,7 +125,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // POST /api/admin/organizations/[organizationId]/apps/[appId]/roles - Create a new role
 export async function POST(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId } = await params;
@@ -207,6 +208,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
             await db.insert(organizationAppRoleAction).values(roleActionValues);
         }
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.app-roles.create",
+            targetType: "rbac",
+            targetId: newRole[0]?.id ?? null,
+            metadata: {
+                organizationId,
+                appId,
+                key,
+                name,
+                actionIds,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ role: newRole[0] }, { status: 201 });
     } catch (error) {

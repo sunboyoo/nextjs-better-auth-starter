@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { handleApiError } from "@/lib/api/error-handler";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction, type AdminAction } from "@/lib/api/auth-guard";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 
 const patchBodySchema = z.discriminatedUnion("action", [
   z.object({
@@ -22,38 +22,15 @@ const patchBodySchema = z.discriminatedUnion("action", [
     action: z.literal("update-user"),
     data: z.record(z.string(), z.unknown()),
   }),
+  z.object({
+    action: z.literal("impersonate"),
+  }),
 ]);
-
-const adminUsersApi = auth.api as unknown as {
-  banUser: (input: {
-    body: { userId: string; banReason?: string; banExpiresIn?: number };
-    headers: Headers;
-  }) => Promise<unknown>;
-  unbanUser: (input: {
-    body: { userId: string };
-    headers: Headers;
-  }) => Promise<unknown>;
-  setRole: (input: {
-    body: { userId: string; role: string | string[] };
-    headers: Headers;
-  }) => Promise<unknown>;
-  adminUpdateUser: (input: {
-    body: { userId: string; data: Record<string, unknown> };
-    headers: Headers;
-  }) => Promise<unknown>;
-  removeUser: (input: {
-    body: { userId: string };
-    headers: Headers;
-  }) => Promise<unknown>;
-};
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ userId: string }> },
 ) {
-  const authResult = await requireAdmin();
-  if (!authResult.success) return authResult.response;
-
   try {
     const { userId: rawUserId } = await context.params;
     const userId = rawUserId?.trim();
@@ -67,11 +44,20 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
     }
 
-    const requestHeaders = await headers();
     const action = parsed.data.action;
+    const actionGuardMap: Record<typeof action, AdminAction> = {
+      ban: "users.ban",
+      unban: "users.ban",
+      "set-role": "users.set-role",
+      "update-user": "users.update",
+      impersonate: "users.impersonate",
+    };
+    const authResult = await requireAdminAction(actionGuardMap[action]);
+    if (!authResult.success) return authResult.response;
+    const requestHeaders = authResult.headers;
 
     if (action === "ban") {
-      const result = await adminUsersApi.banUser({
+      const result = await extendedAuthApi.banUser({
         body: {
           userId,
           banReason: parsed.data.banReason,
@@ -79,32 +65,83 @@ export async function PATCH(
         },
         headers: requestHeaders,
       });
-      return NextResponse.json(result);
-    }
-
-    if (action === "unban") {
-      const result = await adminUsersApi.unbanUser({
-        body: { userId },
-        headers: requestHeaders,
-      });
-      return NextResponse.json(result);
-    }
-
-    if (action === "set-role") {
-      const result = await adminUsersApi.setRole({
-        body: {
-          userId,
-          role: parsed.data.role,
+      await writeAdminAuditLog({
+        actorUserId: authResult.user.id,
+        action: "admin.users.ban",
+        targetType: "user",
+        targetId: userId,
+        metadata: {
+          banReason: parsed.data.banReason ?? null,
+          banExpiresIn: parsed.data.banExpiresIn ?? null,
         },
         headers: requestHeaders,
       });
       return NextResponse.json(result);
     }
 
-    const result = await adminUsersApi.adminUpdateUser({
+    if (action === "unban") {
+      const result = await extendedAuthApi.unbanUser({
+        body: { userId },
+        headers: requestHeaders,
+      });
+      await writeAdminAuditLog({
+        actorUserId: authResult.user.id,
+        action: "admin.users.unban",
+        targetType: "user",
+        targetId: userId,
+        headers: requestHeaders,
+      });
+      return NextResponse.json(result);
+    }
+
+    if (action === "set-role") {
+      const result = await extendedAuthApi.setRole({
+        body: {
+          userId,
+          role: parsed.data.role,
+        },
+        headers: requestHeaders,
+      });
+      await writeAdminAuditLog({
+        actorUserId: authResult.user.id,
+        action: "admin.users.set-role",
+        targetType: "user",
+        targetId: userId,
+        metadata: { role: parsed.data.role },
+        headers: requestHeaders,
+      });
+      return NextResponse.json(result);
+    }
+
+    if (action === "impersonate") {
+      const result = await extendedAuthApi.impersonateUser({
+        body: { userId },
+        headers: requestHeaders,
+      });
+      await writeAdminAuditLog({
+        actorUserId: authResult.user.id,
+        action: "admin.users.impersonate",
+        targetType: "user",
+        targetId: userId,
+        headers: requestHeaders,
+      });
+      return NextResponse.json(result);
+    }
+
+    const result = await extendedAuthApi.adminUpdateUser({
       body: {
         userId,
         data: parsed.data.data,
+      },
+      headers: requestHeaders,
+    });
+    await writeAdminAuditLog({
+      actorUserId: authResult.user.id,
+      action: "admin.users.update",
+      targetType: "user",
+      targetId: userId,
+      metadata: {
+        fields: Object.keys(parsed.data.data),
       },
       headers: requestHeaders,
     });
@@ -118,7 +155,7 @@ export async function DELETE(
   _request: NextRequest,
   context: { params: Promise<{ userId: string }> },
 ) {
-  const authResult = await requireAdmin();
+  const authResult = await requireAdminAction("users.delete");
   if (!authResult.success) return authResult.response;
 
   try {
@@ -128,9 +165,16 @@ export async function DELETE(
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    const result = await adminUsersApi.removeUser({
+    const result = await extendedAuthApi.removeUser({
       body: { userId },
-      headers: await headers(),
+      headers: authResult.headers,
+    });
+    await writeAdminAuditLog({
+      actorUserId: authResult.user.id,
+      action: "admin.users.delete",
+      targetType: "user",
+      targetId: userId,
+      headers: authResult.headers,
     });
     return NextResponse.json(result);
   } catch (error) {

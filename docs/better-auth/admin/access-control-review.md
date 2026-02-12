@@ -6,32 +6,31 @@
 
 ## 1. 结论
 
-- 合规等级：⚠️ 部分合规。
-- 当前已实现平台级管理员门禁（`role === "admin"`）与服务端统一守卫。
-- 仍缺少细粒度权限策略（例如“可封禁不可删用户”）与 `userHasPermission/hasPermission` 风格权限校验。
+- 合规等级：✅ 主要合规。
+- 已实现平台级管理员门禁、动作级授权矩阵、以及关键管理动作审计链路。
+- 剩余风险主要在“官方组织权限 + 应用自定义 RBAC”双轨并存的长期治理复杂度。
 
 ## 2. 已实现能力
 
 1. 所有 `/api/admin/**` 路由都通过 `requireAdmin()` 守卫。
-2. `requireAdmin()` 基于 `auth.api.getSession()` 取会话并校验用户角色。
+2. `requireAdminAction()` 基于动作矩阵执行角色校验，并对关键动作叠加 `userHasPermission` 校验。
 3. `authAdminClient` 与普通 `authClient` 隔离，避免用户侧误用 admin 插件。
+4. 管理端高风险写操作已接入 `writeAdminAuditLog` 统一审计（用户、会话、组织、角色、邀请、应用/RBAC）。
 
 ## 3. 主要差距与风险
 
-1. 权限模型是“单角色硬判断”，缺少动作级授权矩阵。
-2. 缺少 admin 操作审计链路（谁在何时执行了哪类高风险操作）。
-3. 组织/应用扩展 RBAC 与 admin 角色体系并行，存在长期一致性维护成本。
+1. 组织/应用扩展 RBAC 与 admin 角色体系并行，存在长期一致性维护成本。
 
 ## 4. 代码证据
 
 - `src/lib/api/auth-guard.ts`
 - `src/app/api/admin/**`
+- `src/lib/api/admin-audit.ts`
 - `src/lib/auth.ts`（`admin({ defaultRole, adminRoles })`）
 - `src/lib/auth-client.ts`
 - `src/lib/auth-admin-client.ts`
 
 ## 5. 建议
 
-1. 引入动作级授权层（至少覆盖删除用户、改密码、批量踢会话等高风险动作）。
-2. 在 admin API 路由层增加统一审计日志中间层。
-3. 将关键管理能力的授权决策抽象为可复用 helper，避免页面/路由分散判断。
+1. 为 `requireAdminAction` 增加契约测试，覆盖关键动作的 allow/deny 组合。
+2. 将组织官方权限与应用自定义 RBAC 的边界文档化，降低双轨模型维护成本。

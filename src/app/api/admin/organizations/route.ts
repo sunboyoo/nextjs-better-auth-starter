@@ -1,16 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organization, member, organizationRole } from "@/db/schema";
-import { eq, ilike, sql, desc } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
-import { nanoid } from "nanoid";
+import { eq, ilike, sql, inArray } from "drizzle-orm";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
+
+type OrganizationSummary = {
+    id: string;
+    name: string;
+    slug: string;
+    logo: string | null;
+    createdAt: Date | string;
+    metadata?: string | null;
+};
+
+function toSafeSlug(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+}
 
 export async function GET(request: NextRequest) {
-    // Verify admin access
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organizations.list");
     if (!authResult.success) return authResult.response;
 
     const searchParams = request.nextUrl.searchParams;
@@ -18,39 +35,72 @@ export async function GET(request: NextRequest) {
     const pagination = parsePagination(request);
 
     try {
-        // Build query conditions
-        const whereConditions = search
-            ? ilike(organization.name, `%${search}%`)
-            : undefined;
+        const organizationsRaw = await extendedAuthApi.listOrganizations({
+            headers: authResult.headers,
+        });
+        const normalizedOrganizations = (Array.isArray(organizationsRaw)
+            ? organizationsRaw
+            : []
+        ) as OrganizationSummary[];
+        const lowerSearch = search.trim().toLowerCase();
+        const filteredOrganizations = lowerSearch
+            ? normalizedOrganizations.filter((org) => {
+                  const name = (org.name ?? "").toLowerCase();
+                  const slug = (org.slug ?? "").toLowerCase();
+                  return name.includes(lowerSearch) || slug.includes(lowerSearch);
+              })
+            : normalizedOrganizations;
 
-        // Get organizations with member count
-        const organizations = await db
-            .select({
-                id: organization.id,
-                name: organization.name,
-                slug: organization.slug,
-                logo: organization.logo,
-                createdAt: organization.createdAt,
-                metadata: organization.metadata,
-                memberCount: sql<number>`count(distinct ${member.id})`.as("member_count"),
-                roleCount: sql<number>`count(distinct ${organizationRole.id}) + 3`.as("role_count"),
-            })
-            .from(organization)
-            .leftJoin(member, eq(organization.id, member.organizationId))
-            .leftJoin(organizationRole, eq(organization.id, organizationRole.organizationId))
-            .where(whereConditions)
-            .groupBy(organization.id)
-            .orderBy(desc(organization.createdAt))
-            .limit(pagination.limit)
-            .offset(pagination.offset);
+        filteredOrganizations.sort(
+            (a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
 
-        // Get total count
-        const countResult = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(organization)
-            .where(whereConditions);
+        const total = filteredOrganizations.length;
+        const paginatedOrganizations = filteredOrganizations.slice(
+            pagination.offset,
+            pagination.offset + pagination.limit,
+        );
+        const organizationIds = paginatedOrganizations.map((org) => org.id);
+        let memberCountMap = new Map<string, number>();
+        let customRoleCountMap = new Map<string, number>();
 
-        const total = Number(countResult[0]?.count || 0);
+        if (organizationIds.length > 0) {
+            const memberCounts = await db
+                .select({
+                    organizationId: member.organizationId,
+                    count: sql<number>`count(*)`,
+                })
+                .from(member)
+                .where(inArray(member.organizationId, organizationIds))
+                .groupBy(member.organizationId);
+            memberCountMap = new Map(
+                memberCounts.map((row) => [row.organizationId, Number(row.count)]),
+            );
+
+            const roleCounts = await db
+                .select({
+                    organizationId: organizationRole.organizationId,
+                    count: sql<number>`count(*)`,
+                })
+                .from(organizationRole)
+                .where(inArray(organizationRole.organizationId, organizationIds))
+                .groupBy(organizationRole.organizationId);
+            customRoleCountMap = new Map(
+                roleCounts.map((row) => [row.organizationId, Number(row.count)]),
+            );
+        }
+
+        const organizations = paginatedOrganizations.map((org) => ({
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+            logo: org.logo ?? null,
+            createdAt: org.createdAt,
+            metadata: org.metadata ?? null,
+            memberCount: memberCountMap.get(org.id) ?? 0,
+            roleCount: (customRoleCountMap.get(org.id) ?? 0) + 3,
+        }));
 
         return NextResponse.json({
             organizations,
@@ -62,7 +112,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organizations.create");
     if (!authResult.success) return authResult.response;
 
     try {
@@ -71,6 +121,7 @@ export async function POST(request: NextRequest) {
             name: z.string().trim().min(1).max(100),
             slug: z.string().trim().min(1).max(100).optional().nullable(),
             logo: z.string().trim().max(500).optional().nullable(),
+            metadata: z.string().trim().max(5000).optional().nullable(),
         });
         const result = schema.safeParse(body);
         if (!result.success) {
@@ -79,7 +130,7 @@ export async function POST(request: NextRequest) {
         const { name, slug, logo } = result.data;
 
         // Generate slug if not provided
-        const orgSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const orgSlug = toSafeSlug(slug || name);
 
         // Check if slug already exists
         const existing = await db
@@ -92,19 +143,33 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Organization with this slug already exists" }, { status: 400 });
         }
 
-        // Create organization
-        const newOrg = await db
-            .insert(organization)
-            .values({
-                id: nanoid(),
+        const createdOrganization = await extendedAuthApi.createOrganization({
+            body: {
                 name,
                 slug: orgSlug,
                 logo,
-                createdAt: new Date(),
-            })
-            .returning();
+                metadata: result.data.metadata ?? null,
+            },
+            headers: authResult.headers,
+        });
+        const organizationPayload =
+            (createdOrganization as { organization?: unknown } | null)
+                ?.organization ?? createdOrganization;
+        const createdOrganizationId =
+            (organizationPayload as { id?: string } | null)?.id ?? null;
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organizations.create",
+            targetType: "organization",
+            targetId: createdOrganizationId,
+            metadata: {
+                name,
+                slug: orgSlug,
+            },
+            headers: authResult.headers,
+        });
 
-        return NextResponse.json({ organization: newOrg[0] }, { status: 201 });
+        return NextResponse.json({ organization: organizationPayload }, { status: 201 });
     } catch (error) {
         return handleApiError(error, "create organization");
     }

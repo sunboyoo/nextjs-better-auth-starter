@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organizationAppRoles, organizationAppRoleAction, actions, resources, apps } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
@@ -12,7 +13,7 @@ interface RouteParams {
 
 // GET /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]/actions - Get role's assigned actions
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, organizationAppRoleId } = await params;
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]/actions - Replace all role actions
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("apps.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId, appId, organizationAppRoleId } = await params;
@@ -110,6 +111,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
             await db.insert(organizationAppRoleAction).values(roleActionValues);
         }
+
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.app-roles.actions.replace",
+            targetType: "rbac",
+            targetId: organizationAppRoleId,
+            metadata: {
+                organizationId,
+                appId,
+                actionCount: actionIds.length,
+                actionIds,
+            },
+            headers: authResult.headers,
+        });
 
         // Fetch updated actions
         const updatedActions = await db

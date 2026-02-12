@@ -2,10 +2,7 @@
 
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-
-const impersonationApi = auth.api as unknown as {
-	stopImpersonating: (input: { headers: Headers }) => Promise<unknown>;
-};
+import { extendedAuthApi } from "@/lib/auth-api";
 
 type StopImpersonationResult =
 	| { success: true }
@@ -28,7 +25,7 @@ export async function stopImpersonationAction(): Promise<StopImpersonationResult
 			};
 		}
 
-		await impersonationApi.stopImpersonating({
+		await extendedAuthApi.stopImpersonating({
 			headers: requestHeaders,
 		});
 

@@ -1,77 +1,150 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
-import { organizationRole, organization, member, user } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
-import { nanoid } from "nanoid";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi, type PermissionStatements } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
+
+type OrganizationRoleApi = {
+    id?: string;
+    organizationId?: string;
+    role?: string;
+    permission?: unknown;
+    createdAt?: string | Date;
+    updatedAt?: string | Date | null;
+};
+
+type OrganizationMemberApi = {
+    id?: string;
+    role?: string;
+    user?: {
+        name?: string | null;
+        image?: string | null;
+        email?: string | null;
+    };
+};
+
+function toTimestamp(value: string | Date | null | undefined): number {
+    if (!value) return 0;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function serializePermission(permission: unknown): string {
+    if (typeof permission === "string") return permission;
+    try {
+        return JSON.stringify(permission ?? {});
+    } catch {
+        return "{}";
+    }
+}
+
+function parsePermissionInput(permission: string | null | undefined): PermissionStatements | undefined {
+    if (!permission) return undefined;
+    try {
+        const parsed = JSON.parse(permission) as PermissionStatements;
+        if (parsed && typeof parsed === "object") {
+            return parsed;
+        }
+    } catch {
+        return undefined;
+    }
+    return undefined;
+}
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.roles.list");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
     const pagination = parsePagination(request);
 
     try {
-        const org = await db
-            .select()
-            .from(organization)
-            .where(eq(organization.id, organizationId))
-            .limit(1);
+        const orgRaw = (await extendedAuthApi.getFullOrganization({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as { id?: string; name?: string; slug?: string; logo?: string | null } | null;
 
-        if (org.length === 0) {
+        if (!orgRaw?.id) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
-        // Get active members with user details by role
-        const activeMembers = await db
-            .select({
-                role: member.role,
-                memberId: member.id,
-                user: {
-                    name: user.name,
-                    image: user.image,
-                    email: user.email,
-                },
-            })
-            .from(member)
-            .innerJoin(user, eq(member.userId, user.id))
-            .where(eq(member.organizationId, organizationId));
+        const membersRaw = (await extendedAuthApi.listMembers({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as unknown;
+        const activeMembers = (Array.isArray(membersRaw)
+            ? membersRaw
+            : []) as OrganizationMemberApi[];
 
         const activeRoleMembers = activeMembers.reduce((acc, curr) => {
+            if (!curr.role || !curr.id) {
+                return acc;
+            }
             if (!acc[curr.role]) {
                 acc[curr.role] = [];
             }
             acc[curr.role].push({
-                memberId: curr.memberId,
-                user: curr.user,
+                memberId: curr.id,
+                user: {
+                    name: curr.user?.name ?? "Unknown",
+                    image: curr.user?.image ?? null,
+                    email: curr.user?.email ?? "",
+                },
             });
             return acc;
         }, {} as Record<string, { memberId: string; user: { name: string; image: string | null; email: string } }[]>);
 
-        const roles = await db
-            .select()
-            .from(organizationRole)
-            .where(eq(organizationRole.organizationId, organizationId))
-            .orderBy(desc(organizationRole.createdAt))
-            .limit(pagination.limit)
-            .offset(pagination.offset);
+        const rolesRaw = (await extendedAuthApi.listOrgRoles({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as unknown;
+        const normalizedRoles = (Array.isArray(rolesRaw)
+            ? rolesRaw
+            : ([] as unknown[]))
+            .map((role) => {
+                const row = role as OrganizationRoleApi;
+                if (!row.id || !row.role) return null;
+                return {
+                    id: row.id,
+                    organizationId: row.organizationId ?? organizationId,
+                    role: row.role,
+                    permission: serializePermission(row.permission),
+                    createdAt: row.createdAt ?? null,
+                    updatedAt: row.updatedAt ?? null,
+                };
+            })
+            .filter(
+                (
+                    role,
+                ): role is {
+                    id: string;
+                    organizationId: string;
+                    role: string;
+                    permission: string;
+                    createdAt: string | Date | null;
+                    updatedAt: string | Date | null;
+                } => role !== null,
+            )
+            .sort((a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt));
 
-        const allRoles = await db
-            .select({ id: organizationRole.id })
-            .from(organizationRole)
-            .where(eq(organizationRole.organizationId, organizationId));
-
-        const total = allRoles.length;
+        const total = normalizedRoles.length;
+        const roles = normalizedRoles.slice(
+            pagination.offset,
+            pagination.offset + pagination.limit,
+        );
 
         return NextResponse.json({
-            organization: org[0],
+            organization: {
+                id: orgRaw.id,
+                name: orgRaw.name ?? "",
+                slug: orgRaw.slug ?? "",
+                logo: orgRaw.logo ?? null,
+            },
             roles,
             activeRoleMembers,
             ...createPaginationMeta(total, pagination),
@@ -85,7 +158,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.roles.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
@@ -106,34 +179,37 @@ export async function POST(
             return NextResponse.json({ error: "Role name is required" }, { status: 400 });
         }
 
-        // Check if role already exists
-        const existing = await db
-            .select({ id: organizationRole.id })
-            .from(organizationRole)
-            .where(
-                and(
-                    eq(organizationRole.organizationId, organizationId),
-                    eq(organizationRole.role, role)
-                )
-            )
-            .limit(1);
-
-        if (existing.length > 0) {
-            return NextResponse.json({ error: "Role already exists" }, { status: 400 });
-        }
-
-        const newRole = await db
-            .insert(organizationRole)
-            .values({
-                id: nanoid(),
-                organizationId: organizationId,
+        const newRole = await extendedAuthApi.createOrgRole({
+            body: {
+                organizationId,
                 role,
-                permission: permission || "{}",
-                createdAt: new Date(),
-            })
-            .returning();
+                permission: parsePermissionInput(permission),
+            },
+            headers: authResult.headers,
+        });
+        const createdRole = ((newRole as { role?: unknown } | null)?.role ??
+            newRole) as OrganizationRoleApi;
+        const rolePayload = {
+            id: createdRole.id ?? null,
+            organizationId: createdRole.organizationId ?? organizationId,
+            role: createdRole.role ?? role,
+            permission: serializePermission(createdRole.permission),
+            createdAt: createdRole.createdAt ?? null,
+            updatedAt: createdRole.updatedAt ?? null,
+        };
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.roles.create",
+            targetType: "organization-role",
+            targetId: createdRole.id ?? null,
+            metadata: {
+                organizationId,
+                role,
+            },
+            headers: authResult.headers,
+        });
 
-        return NextResponse.json({ role: newRole[0] }, { status: 201 });
+        return NextResponse.json({ role: rolePayload }, { status: 201 });
     } catch (error) {
         return handleApiError(error, "create role");
     }

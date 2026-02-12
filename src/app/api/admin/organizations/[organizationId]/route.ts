@@ -1,64 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { organization, member, organizationRole } from "@/db/schema";
-import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
+
+type FullOrganizationResponse = {
+    id?: string;
+    name?: string;
+    slug?: string;
+    logo?: string | null;
+    createdAt?: string | Date;
+    updatedAt?: string | Date;
+    metadata?: string | null;
+    members?: unknown[];
+};
+
+function toSafeSlug(value: string): string {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+}
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    // Verify admin access
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organizations.read");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
 
     try {
-        // Get organization
-        const [org] = await db
-            .select({
-                id: organization.id,
-                name: organization.name,
-                slug: organization.slug,
-                logo: organization.logo,
-                createdAt: organization.createdAt,
-                updatedAt: organization.updatedAt,
-                metadata: organization.metadata,
-            })
-            .from(organization)
-            .where(eq(organization.id, organizationId))
-            .limit(1);
+        const organizationRaw = (await extendedAuthApi.getFullOrganization({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as FullOrganizationResponse | null;
 
-        if (!org) {
+        if (!organizationRaw?.id) {
             return NextResponse.json(
                 { error: "Organization not found" },
                 { status: 404 }
             );
         }
 
-        // Get member count separately
-        const memberCountResult = await db
-            .select({ count: sql<number>`COUNT(*)` })
-            .from(member)
-            .where(eq(member.organizationId, organizationId));
-        const memberCount = Number(memberCountResult[0]?.count ?? 0);
-
-        // Get custom role count separately (built-in roles: owner, admin, member = 3)
-        const BUILT_IN_ROLES_COUNT = 3;
-        const roleCountResult = await db
+        const memberCount = Array.isArray(organizationRaw.members)
+            ? organizationRaw.members.length
+            : 0;
+        const customRoleCountResult = await db
             .select({ count: sql<number>`COUNT(*)` })
             .from(organizationRole)
             .where(eq(organizationRole.organizationId, organizationId));
-        const customRoleCount = Number(roleCountResult[0]?.count ?? 0);
-        const roleCount = BUILT_IN_ROLES_COUNT + customRoleCount;
+        const roleCount = Number(customRoleCountResult[0]?.count ?? 0) + 3;
 
         return NextResponse.json({
             organization: {
-                ...org,
+                id: organizationRaw.id,
+                name: organizationRaw.name ?? "",
+                slug: organizationRaw.slug ?? "",
+                logo: organizationRaw.logo ?? null,
+                createdAt: organizationRaw.createdAt ?? null,
+                updatedAt: organizationRaw.updatedAt ?? null,
+                metadata: organizationRaw.metadata ?? null,
                 memberCount,
                 roleCount,
             },
@@ -72,8 +80,7 @@ export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    // Verify admin access
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organizations.update");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
@@ -105,11 +112,16 @@ export async function PATCH(
         const { name, slug, logo, metadata } = result.data;
 
         // Build update object with only provided fields
-        const updateData: Record<string, unknown> = {};
+        const updateData: {
+            name?: string;
+            slug?: string;
+            logo?: string | null;
+            metadata?: string | null;
+        } = {};
         if (name !== undefined) updateData.name = name;
-        if (slug !== undefined) updateData.slug = slug;
+        if (slug !== undefined) updateData.slug = toSafeSlug(slug);
         if (logo !== undefined) updateData.logo = logo;
-        if (metadata !== undefined) updateData.metadata = metadata;
+        if (metadata !== undefined) updateData.metadata = metadata ?? null;
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json(
@@ -118,21 +130,42 @@ export async function PATCH(
             );
         }
 
-        // Update organization
-        const [updatedOrg] = await db
-            .update(organization)
-            .set(withUpdatedAt(updateData))
-            .where(eq(organization.id, organizationId))
-            .returning();
-
-        if (!updatedOrg) {
-            return NextResponse.json(
-                { error: "Organization not found" },
-                { status: 404 }
-            );
+        if (updateData.slug) {
+            const existing = await db
+                .select({ id: organization.id })
+                .from(organization)
+                .where(eq(organization.slug, updateData.slug))
+                .limit(1);
+            if (existing.length > 0 && existing[0].id !== organizationId) {
+                return NextResponse.json(
+                    { error: "Organization with this slug already exists" },
+                    { status: 400 },
+                );
+            }
         }
 
-        return NextResponse.json({ organization: updatedOrg });
+        const updatedOrg = await extendedAuthApi.updateOrganization({
+            body: {
+                organizationId,
+                data: updateData,
+            },
+            headers: authResult.headers,
+        });
+        const organizationPayload =
+            (updatedOrg as { organization?: unknown } | null)?.organization ??
+            updatedOrg;
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organizations.update",
+            targetType: "organization",
+            targetId: organizationId,
+            metadata: {
+                fields: Object.keys(updateData),
+            },
+            headers: authResult.headers,
+        });
+
+        return NextResponse.json({ organization: organizationPayload });
     } catch (error) {
         return handleApiError(error, "update organization");
     }
@@ -142,14 +175,23 @@ export async function DELETE(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organizations.delete");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
 
     try {
-        // Delete organization (members and roles will be cascade deleted due to FK constraints)
-        await db.delete(organization).where(eq(organization.id, organizationId));
+        await extendedAuthApi.deleteOrganization({
+            body: { organizationId },
+            headers: authResult.headers,
+        });
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organizations.delete",
+            targetType: "organization",
+            targetId: organizationId,
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

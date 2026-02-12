@@ -133,6 +133,15 @@ export const authClient = createAuthClient({
   fetchOptions: {
     onError(e) {
       if (e.error.status === 429) {
+        const response = (e as { response?: Response }).response;
+        const retryAfter =
+          response?.headers.get("X-Retry-After") ??
+          response?.headers.get("x-retry-after");
+        console.warn("[better-auth][rate-limit] client request throttled", {
+          retryAfter: retryAfter ?? null,
+          path:
+            typeof window !== "undefined" ? window.location.pathname : null,
+        });
         toast.error("Too many requests. Please try again later.");
       }
     },

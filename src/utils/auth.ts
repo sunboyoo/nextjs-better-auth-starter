@@ -212,3 +212,12 @@ export async function setUserPassword(userId: string, newPassword: string) {
     defaultErrorMessage: "Failed to set user password",
   });
 }
+
+export async function impersonateUser(userId: string) {
+  return requestAdminEndpoint({
+    url: `/api/admin/users/${encodePathSegment(userId)}`,
+    method: "PATCH",
+    body: { action: "impersonate" },
+    defaultErrorMessage: "Failed to impersonate user",
+  });
+}

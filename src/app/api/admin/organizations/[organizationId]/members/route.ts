@@ -1,62 +1,136 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { member, user, organization } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
-import { requireAdmin } from "@/lib/api/auth-guard";
-import { nanoid } from "nanoid";
+import { user } from "@/db/schema";
+import { inArray } from "drizzle-orm";
+import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
+import { extendedAuthApi } from "@/lib/auth-api";
+import { writeAdminAuditLog } from "@/lib/api/admin-audit";
+
+type OrganizationMemberApi = {
+    id?: string;
+    role?: string;
+    createdAt?: string | Date;
+    userId?: string;
+    user?: {
+        id?: string;
+        name?: string | null;
+        email?: string | null;
+        image?: string | null;
+        role?: string | null;
+        createdAt?: string | Date;
+    };
+};
+
+function toTimestamp(value: string | Date | undefined): number {
+    if (!value) return 0;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+}
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.members.list");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
     const pagination = parsePagination(request);
 
     try {
-        const org = await db
-            .select()
-            .from(organization)
-            .where(eq(organization.id, organizationId))
-            .limit(1);
+        const orgRaw = (await extendedAuthApi.getFullOrganization({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as { id?: string; name?: string; slug?: string; logo?: string | null } | null;
 
-        if (org.length === 0) {
+        if (!orgRaw?.id) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
-        const members = await db
-            .select({
-                id: member.id,
-                role: member.role,
-                createdAt: member.createdAt,
-                userId: member.userId,
-                userName: user.name,
-                userEmail: user.email,
-                userImage: user.image,
-                userRole: user.role,
-                userCreatedAt: user.createdAt,
+        const membersRaw = (await extendedAuthApi.listMembers({
+            query: { organizationId },
+            headers: authResult.headers,
+        })) as unknown;
+        const membersList = (Array.isArray(membersRaw)
+            ? membersRaw
+            : []) as OrganizationMemberApi[];
+        const userIds = Array.from(
+            new Set(
+                membersList
+                    .map((memberEntry) => memberEntry.user?.id || memberEntry.userId)
+                    .filter((id): id is string => typeof id === "string" && id.length > 0),
+            ),
+        );
+        const userRecords =
+            userIds.length > 0
+                ? await db
+                      .select({
+                          id: user.id,
+                          name: user.name,
+                          email: user.email,
+                          image: user.image,
+                          role: user.role,
+                          createdAt: user.createdAt,
+                      })
+                      .from(user)
+                      .where(inArray(user.id, userIds))
+                : [];
+        const userMap = new Map(userRecords.map((entry) => [entry.id, entry]));
+
+        const normalizedMembers = membersList
+            .map((memberEntry) => {
+                const resolvedUserId = memberEntry.user?.id || memberEntry.userId;
+                if (!resolvedUserId || !memberEntry.id) return null;
+                const fallbackUser = userMap.get(resolvedUserId);
+
+                return {
+                    id: memberEntry.id,
+                    role: memberEntry.role ?? "member",
+                    createdAt: memberEntry.createdAt ?? new Date(0).toISOString(),
+                    userId: resolvedUserId,
+                    userName: memberEntry.user?.name ?? fallbackUser?.name ?? null,
+                    userEmail: memberEntry.user?.email ?? fallbackUser?.email ?? null,
+                    userImage: memberEntry.user?.image ?? fallbackUser?.image ?? null,
+                    userRole: memberEntry.user?.role ?? fallbackUser?.role ?? null,
+                    userCreatedAt:
+                        memberEntry.user?.createdAt ?? fallbackUser?.createdAt ?? null,
+                };
             })
-            .from(member)
-            .leftJoin(user, eq(member.userId, user.id))
-            .where(eq(member.organizationId, organizationId))
-            .orderBy(desc(member.createdAt))
-            .limit(pagination.limit)
-            .offset(pagination.offset);
+            .filter(
+                (
+                    entry,
+                ): entry is {
+                    id: string;
+                    role: string;
+                    createdAt: string | Date;
+                    userId: string;
+                    userName: string | null;
+                    userEmail: string | null;
+                    userImage: string | null;
+                    userRole: string | null;
+                    userCreatedAt: string | Date | null;
+                } => entry !== null,
+            )
+            .sort(
+                (a, b) => toTimestamp(b.createdAt) - toTimestamp(a.createdAt),
+            );
 
-        const allMembers = await db
-            .select({ id: member.id })
-            .from(member)
-            .where(eq(member.organizationId, organizationId));
-
-        const total = allMembers.length;
+        const total = normalizedMembers.length;
+        const members = normalizedMembers.slice(
+            pagination.offset,
+            pagination.offset + pagination.limit,
+        );
 
         return NextResponse.json({
-            organization: org[0],
+            organization: {
+                id: orgRaw.id,
+                name: orgRaw.name ?? "",
+                slug: orgRaw.slug ?? "",
+                logo: orgRaw.logo ?? null,
+            },
             members,
             ...createPaginationMeta(total, pagination),
         });
@@ -69,7 +143,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ organizationId: string }> }
 ) {
-    const authResult = await requireAdmin();
+    const authResult = await requireAdminAction("organization.members.manage");
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
@@ -90,44 +164,31 @@ export async function POST(
             return NextResponse.json({ error: "User ID is required" }, { status: 400 });
         }
 
-        // Check if user exists
-        const existingUser = await db
-            .select({ id: user.id })
-            .from(user)
-            .where(eq(user.id, userId))
-            .limit(1);
-
-        if (existingUser.length === 0) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
-        }
-
-        // Check if already a member of THIS organization
-        const existingMember = await db
-            .select({ id: member.id })
-            .from(member)
-            .where(and(
-                eq(member.userId, userId),
-                eq(member.organizationId, organizationId)
-            ))
-            .limit(1);
-
-        if (existingMember.length > 0) {
-            return NextResponse.json({ error: "User is already a member of this organization" }, { status: 400 });
-        }
-
-        // Add member
-        const newMember = await db
-            .insert(member)
-            .values({
-                id: nanoid(),
-                organizationId: organizationId,
+        const newMember = await extendedAuthApi.addMember({
+            body: {
+                organizationId,
                 userId,
                 role: memberRole || "member",
-                createdAt: new Date(),
-            })
-            .returning();
+            },
+            headers: authResult.headers,
+        });
+        const memberPayload =
+            (newMember as { member?: unknown } | null)?.member ?? newMember;
+        await writeAdminAuditLog({
+            actorUserId: authResult.user.id,
+            action: "admin.organization.members.add",
+            targetType: "organization-member",
+            targetId:
+                (memberPayload as { id?: string } | null)?.id ?? null,
+            metadata: {
+                organizationId,
+                userId,
+                role: memberRole || "member",
+            },
+            headers: authResult.headers,
+        });
 
-        return NextResponse.json({ member: newMember[0] }, { status: 201 });
+        return NextResponse.json({ member: memberPayload }, { status: 201 });
     } catch (error) {
         return handleApiError(error, "add member");
     }
