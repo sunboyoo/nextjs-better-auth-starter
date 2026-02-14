@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import type { SessionWithUser } from "@/utils/sessions-client";
@@ -18,24 +18,22 @@ export function SessionRevokeDialog({
     onClose,
     onSuccess,
 }: SessionRevokeDialogProps) {
-    const [isLoading, setIsLoading] = useState(false);
-
-    const handleRevoke = async () => {
-        try {
-            setIsLoading(true);
+    const revokeSessionMutation = useMutation({
+        mutationFn: async (token: string) => {
             const response = await fetch(
-                `/api/admin/sessions/${encodeURIComponent(session.token)}`,
-                {
-                    method: "DELETE",
-                    credentials: "include",
-                }
+                `/api/admin/sessions/${encodeURIComponent(token)}`,
+                { method: "DELETE", credentials: "include" }
             );
-
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || "Failed to revoke session");
             }
+        },
+    });
 
+    const handleRevoke = async () => {
+        try {
+            await revokeSessionMutation.mutateAsync(session.token);
             toast.success("Session revoked successfully");
             onSuccess?.();
             onClose();
@@ -43,8 +41,6 @@ export function SessionRevokeDialog({
             if (error instanceof Error) {
                 toast.error(error.message);
             }
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -55,7 +51,7 @@ export function SessionRevokeDialog({
             onConfirm={handleRevoke}
             title="Revoke Session"
             description={`This will terminate the session for ${session.user.name || session.user.email}. They will be logged out from this device and need to sign in again.`}
-            confirmText={isLoading ? "Revoking..." : "Revoke Session"}
+            confirmText={revokeSessionMutation.isPending ? "Revoking..." : "Revoke Session"}
             confirmVariant="destructive"
         />
     );

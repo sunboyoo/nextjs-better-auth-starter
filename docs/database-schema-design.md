@@ -64,6 +64,11 @@ graph TB
     USER --> TEAMMEMBER
     USER --> ADMINAUDIT
     USER --> PROFILE
+    USER --> SUB
+
+    ORG -.->|逻辑引用| SSO
+    ORG -.->|逻辑引用| SCIM
+    ORG -.->|逻辑引用| SUB
 
     OAUTHCLIENT --> OAUTHREFRESH
     OAUTHCLIENT --> OAUTHACCESS
@@ -97,7 +102,7 @@ better-auth 框架的基础表，管理用户身份、会话和多因素认证�
 
 | 表名 | 用途 | 关键字段 |
 |---|---|---|
-| `user` | 用户主表 | id, name, email, username, phoneNumber, role, banned, twoFactorEnabled, stripeCustomerId |
+| `user` | 用户主表 | id, name, email, username, displayUsername, phoneNumber, phoneNumberVerified, emailVerified, emailSource, emailDeliverable, role, banned, banReason, banExpires, twoFactorEnabled, stripeCustomerId |
 | `session` | 用户会话 | token(unique), userId→user, activeOrganizationId, activeTeamId, impersonatedBy |
 | `account` | 登录方式（密码/OAuth） | providerId+accountId(unique), userId→user, accessToken, password |
 | `verification` | 验证码/链接 | identifier, value, expiresAt |
@@ -172,6 +177,8 @@ erDiagram
 - `activeOrganizationId` — 当前活跃组织
 - `activeTeamId` — 当前活跃团队
 
+> **设计说明**：这两个字段为普通 `text` 类型，**无 FK 约束**。这是 Better Auth Organization 插件的标准做法 — 框架内部管理引用完整性，避免 FK 级联对 session 生命周期的干扰。
+
 切换组织/团队时只需更新 session，无需重新登录。
 
 ---
@@ -222,16 +229,18 @@ Organization
 
 两张表均记录 `ipAddress`、`userAgent` 和 `metadata`（JSONB），支持安全溯源。
 
+> **设计差异**：`admin_audit_log.actorUserId` 有 FK 引用 → `user.id`（CASCADE），而 `user_security_audit_log.actorUserId` 为普通 `text` 无 FK。后者不设 FK 是为了在用户被删除后仍保留安全审计记录。
+
 ---
 
 ## 模块六：业务扩展
 
 | 表名 | 用途 |
 |---|---|
-| `subscription` | Stripe 订阅管理 |
-| `sso_provider` | SSO（OIDC/SAML）提供商 |
-| `scim_provider` | SCIM 目录同步 |
-| `profile_completion` | 新用户引导流程（三步：身份→安全→恢复） |
+| `subscription` | Stripe 订阅管理。`referenceId` 为多态引用，可指向 user 或 organization（由 Better Auth Stripe 插件管理） |
+| `sso_provider` | SSO（OIDC/SAML）提供商。`organizationId` 为逻辑引用（无 FK 约束），关联到组织 |
+| `scim_provider` | SCIM 目录同步。`organizationId` 为逻辑引用（无 FK 约束），关联到组织 |
+| `profile_completion` | 新用户引导流程（三步：身份→安全→恢复），`userId` FK → user(CASCADE) |
 
 ---
 
@@ -275,24 +284,35 @@ Organization
 
 ### 结论
 
-- **总体结论：基本对齐 Better Auth + Admin + Organization 最佳实践。**
+- **总体结论：完全对齐 Better Auth + Admin + Organization 最佳实践。**
 - Admin 必需字段与 Organization 核心表结构已覆盖，且当前配置已启用 organization teams（`src/lib/auth.ts` 中 `organization({ teams: { enabled: true } })`）。
 - 上一轮的关键差异（`invitation.teamId` 外键、`team_member(teamId,userId)` 联合唯一）已修复。
 
 ### 与官方 schema 的对齐情况
 
-1. **Admin 插件字段对齐**
+1. **核心表对齐**（Better Auth 基础要求）
+   - `user`：core fields (id, name, email, emailVerified, image, createdAt, updatedAt) 全部存在。
+   - `session`：core fields (id, expiresAt, token, ipAddress, userAgent, userId→user) 全部存在。
+   - `account`：core fields (id, accountId, providerId, userId→user, password, tokens) 全部存在。
+   - `verification`：core fields (id, identifier, value, expiresAt) 全部存在。
+
+2. **Admin 插件字段对齐**
    - `user.role`、`user.banned`、`user.banReason`、`user.banExpires` 已存在。
    - `session.impersonatedBy` 已存在。
-   - 与 `docs/better-auth/admin/schema.md` 要求一致。
+   - 与 Better Auth Admin Plugin schema 要求一致。
 
-2. **Organization 插件核心结构对齐**
+3. **Organization 插件核心结构对齐**
    - `organization`、`member`、`invitation`、`team`、`team_member` 已定义。
-   - `session.activeOrganizationId`、`session.activeTeamId` 已定义。
-   - 与 `docs/better-auth/organization/schema.md` 主体要求一致。
+   - `session.activeOrganizationId`、`session.activeTeamId` 已定义（无 FK，符合 Better Auth 设计）。
+   - 与 Better Auth Organization Plugin schema 主体要求一致。
 
-3. **动态角色与 Teams**
+4. **2FA / Passkey / Username 插件对齐**
+   - `user.twoFactorEnabled`、`two_factor` 表（secret, backupCodes, userId）已存在。
+   - `passkey` 表（publicKey, credentialID, counter, deviceType, backedUp, transports, aaguid）已存在。
+   - `user.username`、`user.displayUsername` 已存在。
+   - 均与 Better Auth 官方 schema 定义一致。
+
+5. **动态角色与 Teams**
    - `organization_role` 已实现，`permission` 为 `text` 字段，符合官方文档中 string 类型描述。
    - 团队相关字段（`invitation.teamId`）及关系已落库。
-
 

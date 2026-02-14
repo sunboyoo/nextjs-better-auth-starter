@@ -68,7 +68,20 @@
 2. 管理员对邀请操作仍受组织成员身份约束（符合插件语义）。
 3. 邀请列表支持服务端过滤与分页。
 
-## 6. 与官方语义一致性
+## 6. 权限控制 (Access Control)
+
+组织权限由 `src/lib/built-in-organization-role-permissions.ts` 定义，通过 `createAccessControl` 构建：
+
+| 内置角色 | 来源 | 权限范围 |
+|---|---|---|
+| `owner` | `ownerAc` (Better Auth 默认) | 组织全部操作（含删除、转让所有权） |
+| `admin` | `adminAc` (Better Auth 默认) | 除删除组织和变更 owner 外的全部操作 |
+| `member` | `memberAc` (Better Auth 默认) | 只读组织数据 |
+
+- `dynamicAccessControl.enabled = true` 允许在运行时通过 `organization_role` 表创建自定义角色。
+- 客户端同步配置：`organizationClient({ ac, dynamicAccessControl: { enabled: true }, teams: { enabled: true } })`。
+
+## 7. 与官方语义一致性
 
 当前实现是"官方 API 优先 + 本地读模型补充"的模式：
 1. 变更类操作尽量走 Better Auth 官方 Organization API。
@@ -76,7 +89,7 @@
 3. 已去除"全局角色名冲突"风险，改为组织内作用域唯一。
 4. Team 成员管理使用自建 API 路由（因 `authClient.organization` 不直接暴露 `addTeamMember`/`removeTeamMember` 客户端方法）。
 
-## 7. ⚠️ AI 易混淆知识点
+## 8. ⚠️ AI 易混淆知识点
 
 > [!CAUTION]
 > **Organization 自动创建同名 Team 的行为**

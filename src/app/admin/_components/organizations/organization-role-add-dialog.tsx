@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, Check } from "lucide-react";
+import { Shield } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -39,14 +40,25 @@ export function OrganizationRoleAddDialog({
 }: OrganizationRoleAddDialogProps) {
     const [name, setName] = useState("");
     const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-
+    const createRoleMutation = useMutation({
+        mutationFn: async (payload: { role: string; permission: string }) => {
+            const response = await fetch(`/api/admin/organizations/${organizationId}/roles`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || "Failed to create role");
+            }
+            return response.json();
+        },
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
         setError(null);
 
         // Filter out empty permission arrays
@@ -58,29 +70,16 @@ export function OrganizationRoleAddDialog({
         });
 
         try {
-            const response = await fetch(`/api/admin/organizations/${organizationId}/roles`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    role: name,
-                    permission: JSON.stringify(filteredPermissions)
-                }),
+            await createRoleMutation.mutateAsync({
+                role: name,
+                permission: JSON.stringify(filteredPermissions),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to create role");
-            }
-
             setName("");
             setSelectedPermissions({});
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to create role");
         }
     };
 
@@ -125,8 +124,8 @@ export function OrganizationRoleAddDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !name}>
-                            {isLoading ? "Creating..." : "Create organization role"}
+                        <Button type="submit" disabled={createRoleMutation.isPending || !name}>
+                            {createRoleMutation.isPending ? "Creating..." : "Create organization role"}
                         </Button>
                     </DialogFooter>
                 </form>

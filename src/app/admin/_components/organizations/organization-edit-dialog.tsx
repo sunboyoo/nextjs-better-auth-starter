@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Building2 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -37,7 +38,6 @@ export function OrganizationEditDialog({
     const [slug, setSlug] = useState("");
     const [logo, setLogo] = useState("");
     const [logoInvalid, setLogoInvalid] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -49,17 +49,11 @@ export function OrganizationEditDialog({
         }
     }, [organization]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!organization) return;
-
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const finalSlug = slug || generateSlug(name);
+    const updateOrgMutation = useMutation({
+        mutationFn: async (payload: { orgId: string; name: string; slug: string; logo: string | null; excludeOrganizationId: string }) => {
+            // Step 1: Check slug availability
             const slugCheckResponse = await fetch(
-                `/api/admin/organizations/check-slug?slug=${encodeURIComponent(finalSlug)}&excludeOrganizationId=${encodeURIComponent(organization.id)}`,
+                `/api/admin/organizations/check-slug?slug=${encodeURIComponent(payload.slug)}&excludeOrganizationId=${encodeURIComponent(payload.excludeOrganizationId)}`,
             );
             const slugCheckPayload = await slugCheckResponse.json();
             if (!slugCheckResponse.ok) {
@@ -69,28 +63,37 @@ export function OrganizationEditDialog({
                 throw new Error("Organization with this slug already exists");
             }
 
-            const response = await fetch(`/api/admin/organizations/${organization.id}`, {
+            // Step 2: Update organization
+            const response = await fetch(`/api/admin/organizations/${payload.orgId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name,
-                    slug: finalSlug,
-                    logo: logo || null
-                }),
+                body: JSON.stringify({ name: payload.name, slug: payload.slug, logo: payload.logo }),
             });
-
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || "Failed to update organization");
             }
+            return response.json();
+        },
+    });
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!organization) return;
+        setError(null);
+
+        try {
+            await updateOrgMutation.mutateAsync({
+                orgId: organization.id,
+                name,
+                slug: slug || generateSlug(name),
+                logo: logo || null,
+                excludeOrganizationId: organization.id,
+            });
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update organization");
         }
     };
 
@@ -189,8 +192,8 @@ export function OrganizationEditDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !name}>
-                            {isLoading ? "Saving..." : "Save changes"}
+                        <Button type="submit" disabled={updateOrgMutation.isPending || !name}>
+                            {updateOrgMutation.isPending ? "Saving..." : "Save changes"}
                         </Button>
                     </DialogFooter>
                 </form>

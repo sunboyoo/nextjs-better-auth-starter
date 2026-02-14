@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Send, UserPlus, Loader2, Search, Mail } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -47,68 +49,57 @@ export function OrganizationMemberInvitationSendDialog({
     // Common state
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("member");
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [dynamicRoles, setDynamicRoles] = useState<DynamicRole[]>([]);
-    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
     // Existing user mode state
     const [searchQuery, setSearchQuery] = useState("");
-    const [users, setUsers] = useState<User[]>([]);
-    const [existingMemberIds, setExistingMemberIds] = useState<Set<string>>(new Set());
-    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-    // Fetch roles and users when dialog opens
-    useEffect(() => {
-        if (isOpen && organizationId) {
-            const fetchRoles = async () => {
-                setIsLoadingRoles(true);
-                try {
-                    const response = await fetch(`/api/admin/organizations/${organizationId}/roles`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setDynamicRoles(data.roles || []);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch roles:", err);
-                } finally {
-                    setIsLoadingRoles(false);
-                }
-            };
+    const rolesUrl = `/api/admin/organizations/${organizationId}/roles`;
+    const usersUrl = `/api/admin/users?limit=${SELECTOR_PAGE_LIMIT}`;
+    const membersUrl = `/api/admin/organizations/${organizationId}/members?limit=${SELECTOR_PAGE_LIMIT}`;
 
-            const fetchUsersAndMembers = async () => {
-                if (mode !== "existing") return;
-                setIsLoadingUsers(true);
-                try {
-                    const [usersRes, membersRes] = await Promise.all([
-                        fetch(`/api/admin/users?limit=${SELECTOR_PAGE_LIMIT}`),
-                        fetch(`/api/admin/organizations/${organizationId}/members?limit=${SELECTOR_PAGE_LIMIT}`)
-                    ]);
+    const rolesQuery = useQuery({
+        queryKey: adminKeys.organizationRoles(rolesUrl),
+        queryFn: async () => {
+            const response = await fetch(rolesUrl);
+            if (!response.ok) throw new Error("Failed to fetch roles");
+            const data = await response.json();
+            return (data.roles || []) as DynamicRole[];
+        },
+        enabled: isOpen && !!organizationId,
+    });
 
-                    if (usersRes.ok) {
-                        const usersData = await usersRes.json();
-                        setUsers(usersData.users || []);
-                    }
+    const usersQuery = useQuery({
+        queryKey: adminKeys.users(usersUrl),
+        queryFn: async () => {
+            const response = await fetch(usersUrl);
+            if (!response.ok) throw new Error("Failed to fetch users");
+            const data = await response.json();
+            return (data.users || []) as User[];
+        },
+        enabled: isOpen && !!organizationId && mode === "existing",
+    });
 
-                    if (membersRes.ok) {
-                        const membersData = await membersRes.json();
-                        const memberUserIds = new Set<string>(
-                            (membersData.members || []).map((m: { userId: string }) => m.userId)
-                        );
-                        setExistingMemberIds(memberUserIds);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch users:", err);
-                } finally {
-                    setIsLoadingUsers(false);
-                }
-            };
+    const membersQuery = useQuery({
+        queryKey: adminKeys.organizationMembers(membersUrl),
+        queryFn: async () => {
+            const response = await fetch(membersUrl);
+            if (!response.ok) throw new Error("Failed to fetch members");
+            const data = await response.json();
+            return (data.members || []) as { userId: string }[];
+        },
+        enabled: isOpen && !!organizationId && mode === "existing",
+    });
 
-            fetchRoles();
-            fetchUsersAndMembers();
-        }
-    }, [isOpen, organizationId, mode]);
+    const dynamicRoles = rolesQuery.data ?? [];
+    const isLoadingRoles = rolesQuery.isLoading;
+    const users = usersQuery.data ?? [];
+    const existingMemberIds = useMemo(
+        () => new Set((membersQuery.data ?? []).map((m) => m.userId)),
+        [membersQuery.data],
+    );
+    const isLoadingUsers = usersQuery.isLoading || membersQuery.isLoading;
 
     // Filter users for existing mode
     const filteredUsers = useMemo(() => {
@@ -123,41 +114,37 @@ export function OrganizationMemberInvitationSendDialog({
         );
     }, [users, existingMemberIds, searchQuery]);
 
+    const sendInvitationMutation = useMutation({
+        mutationFn: async (payload: { email: string; role: string }) => {
+            const response = await fetch(`/api/admin/organizations/${organizationId}/invitations`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error?.[0]?.message || data.error || "Failed to send invitation");
+            }
+            return data;
+        },
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
         setError(null);
 
         const targetEmail = mode === "existing" ? selectedUser?.email : email;
         if (!targetEmail) {
             setError("Please provide an email address");
-            setIsLoading(false);
             return;
         }
 
         try {
-            const response = await fetch(`/api/admin/organizations/${organizationId}/invitations`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: targetEmail, role }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error?.[0]?.message || data.error || "Failed to send invitation");
-            }
-
+            await sendInvitationMutation.mutateAsync({ email: targetEmail, role });
             handleClose();
             onSuccess();
         } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError("An unexpected error occurred");
-            }
-        } finally {
-            setIsLoading(false);
+            setError(err instanceof Error ? err.message : "An unexpected error occurred");
         }
     };
 
@@ -332,9 +319,9 @@ export function OrganizationMemberInvitationSendDialog({
                         </Button>
                         <Button
                             type="submit"
-                            disabled={isLoading || (isExistingMode ? !selectedUser : !email)}
+                            disabled={sendInvitationMutation.isPending || (isExistingMode ? !selectedUser : !email)}
                         >
-                            {isLoading ? (
+                            {sendInvitationMutation.isPending ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Sending...

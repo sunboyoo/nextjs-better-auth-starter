@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Building2, Plus } from "lucide-react";
+import { Building2 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -30,18 +31,13 @@ export function OrganizationAddDialog({
     const [slug, setSlug] = useState("");
     const [logo, setLogo] = useState("");
     const [logoInvalid, setLogoInvalid] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
-
-        try {
-            const finalSlug = slug || generateSlug(name);
+    const createOrgMutation = useMutation({
+        mutationFn: async (payload: { name: string; slug: string; logo?: string }) => {
+            // Step 1: Check slug availability
             const slugCheckResponse = await fetch(
-                `/api/admin/organizations/check-slug?slug=${encodeURIComponent(finalSlug)}`,
+                `/api/admin/organizations/check-slug?slug=${encodeURIComponent(payload.slug)}`,
             );
             const slugCheckPayload = await slugCheckResponse.json();
             if (!slugCheckResponse.ok) {
@@ -51,37 +47,44 @@ export function OrganizationAddDialog({
                 throw new Error("Organization with this slug already exists");
             }
 
-            const requestBody: { name: string; slug: string; logo?: string } = {
-                name,
-                slug: finalSlug,
-            };
-            const normalizedLogo = logo.trim();
-            if (normalizedLogo.length > 0) {
-                requestBody.logo = normalizedLogo;
-            }
-
+            // Step 2: Create organization
             const response = await fetch("/api/admin/organizations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestBody),
+                body: JSON.stringify(payload),
             });
-
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || "Failed to create organization");
             }
+            return response.json();
+        },
+    });
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        const finalSlug = slug || generateSlug(name);
+        const requestBody: { name: string; slug: string; logo?: string } = {
+            name,
+            slug: finalSlug,
+        };
+        const normalizedLogo = logo.trim();
+        if (normalizedLogo.length > 0) {
+            requestBody.logo = normalizedLogo;
+        }
+
+        try {
+            await createOrgMutation.mutateAsync(requestBody);
             setName("");
             setSlug("");
             setLogo("");
             setLogoInvalid(false);
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to create organization");
         }
     };
 
@@ -187,8 +190,8 @@ export function OrganizationAddDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !name}>
-                            {isLoading ? "Creating..." : "Create"}
+                        <Button type="submit" disabled={createOrgMutation.isPending || !name}>
+                            {createOrgMutation.isPending ? "Creating..." : "Create"}
                         </Button>
                     </DialogFooter>
                 </form>

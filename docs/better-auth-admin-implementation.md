@@ -28,7 +28,8 @@
 | `admin()` 服务端插件 | ✅ 已实现 | `src/lib/auth.ts` 中配置 `admin({ defaultRole: "user", adminRoles: ["admin"] })`。 |
 | `adminClient()` 客户端插件 | ✅ 已实现（隔离） | 仅在 `src/lib/auth-admin-client.ts` 初始化。 |
 | 普通客户端隔离 | ✅ 符合 | `src/lib/auth-client.ts` 未引入 `adminClient()`。 |
-| 管理接口授权 | ✅ 已实现 | `/api/admin/*` 使用 `requireAdminAction(...)`，支持动作级角色/权限矩阵。 |
+| `extendedAuthApi` 类型包装 | ✅ 已实现 | `src/lib/auth-api.ts` 统一收口 `auth.api` 的 Admin + Organization Plugin 方法类型定义，替代分散的 `as unknown as` 断言。 |
+| 管理接口授权 | ✅ 已实现 | `/api/admin/*` 使用 `requireAdminAction(...)`，支持 `ADMIN_ACTION_ROLE_MATRIX`（角色级）+ `ADMIN_ACTION_PERMISSION_MATRIX`（权限级）双重检查。 |
 | Admin 页面入口守卫 | ✅ 已实现 | `src/app/admin/layout.tsx` 使用 `auth.api.getSession` + 角色判定。 |
 
 ## 3. 用户与会话管理能力

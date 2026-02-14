@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Shield, Check } from "lucide-react";
+import { Shield } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -45,7 +46,6 @@ export function OrganizationRoleEditDialog({
 }: OrganizationRoleEditDialogProps) {
     const [name, setName] = useState("");
     const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -61,13 +61,24 @@ export function OrganizationRoleEditDialog({
         }
     }, [role]);
 
-
+    const updateRoleMutation = useMutation({
+        mutationFn: async (payload: { roleId: string; role: string; permission: string }) => {
+            const response = await fetch(`/api/admin/organizations/${organizationId}/roles/${payload.roleId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: payload.role, permission: payload.permission }),
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || "Failed to update role");
+            }
+            return response.json();
+        },
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!role) return;
-
-        setIsLoading(true);
         setError(null);
 
         // Filter out empty permission arrays
@@ -79,27 +90,15 @@ export function OrganizationRoleEditDialog({
         });
 
         try {
-            const response = await fetch(`/api/admin/organizations/${organizationId}/roles/${role.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    role: name,
-                    permission: JSON.stringify(filteredPermissions)
-                }),
+            await updateRoleMutation.mutateAsync({
+                roleId: role.id,
+                role: name,
+                permission: JSON.stringify(filteredPermissions),
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to update role");
-            }
-
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update role");
         }
     };
 
@@ -144,8 +143,8 @@ export function OrganizationRoleEditDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !name}>
-                            {isLoading ? "Updating..." : "Update"}
+                        <Button type="submit" disabled={updateRoleMutation.isPending || !name}>
+                            {updateRoleMutation.isPending ? "Updating..." : "Update"}
                         </Button>
                     </DialogFooter>
                 </form>

@@ -64,13 +64,31 @@
 | Captcha | ⭐⭐⭐⭐ | ⚙️ | `src/lib/auth.ts` | 已接入但依赖 `BETTER_AUTH_CAPTCHA_ENABLED` 和密钥配置。 |
 | Last Login Method | ⭐⭐⭐ | ✅ | `src/lib/auth.ts`、`src/lib/auth-client.ts` | 仅用于登录方式追踪，不等于 Have I Been Pwned。 |
 | Have I Been Pwned | ⭐⭐⭐ | ✅ | `src/lib/auth.ts` | 已接入密码泄露检查插件，覆盖注册/改密/重置/设置密码路径。 |
-| nextCookies / customSession / electron | ⭐⭐ | ✅ | `src/lib/auth.ts`、`src/lib/auth-client.ts` | 已接入 Next.js cookie 集成、自定义 session 与 Electron 代理集成。 |
+| nextCookies | ⭐⭐ | ✅ | `src/lib/auth.ts` | Next.js App Router cookie 集成（框架适配器）。 |
+| Custom Session | ⭐⭐⭐ | ✅ | `src/lib/auth.ts`、`src/lib/auth-client.ts` | 扩展 session 返回 `emailSource`、`emailDeliverable` 字段；配置 `shouldMutateListDeviceSessionsEndpoint: true`。 |
+| Electron | ⭐⭐ | ✅ | `src/lib/better-auth-electron/server.ts`、`src/lib/auth-client.ts` | **自建插件**（非官方 `better-auth/plugins`），位于 `src/lib/better-auth-electron/`，提供 Electron 代理认证支持。 |
 
 ## 支付（Payments）
 
 | 插件/能力 | 推荐 | 当前状态 | 代码证据 | 说明 |
 |---|---:|---|---|---|
 | Stripe | ⭐⭐⭐⭐ | ⚙️ | `src/lib/auth.ts`、`src/lib/auth-client.ts` | 代码已接入；需 `STRIPE_KEY`、`STRIPE_WEBHOOK_SECRET` 且未显式关闭才启用。 |
+
+## 社交登录 Provider（非插件，环境变量条件启用）
+
+| Provider | 状态 | 启用条件 |
+|---|---|---|
+| GitHub | ⚙️ | `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` 均设置 |
+| Google | ⚙️ | `GOOGLE_CLIENT_ID`（或 `NEXT_PUBLIC_GOOGLE_CLIENT_ID`）+ `GOOGLE_CLIENT_SECRET` |
+| Facebook | ⚙️ | `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` |
+| Discord | ⚙️ | `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET` |
+| Microsoft | ⚙️ | `MICROSOFT_CLIENT_ID` + `MICROSOFT_CLIENT_SECRET`，可选 `MICROSOFT_TENANT_ID` |
+| Twitch | ⚙️ | `TWITCH_CLIENT_ID` + `TWITCH_CLIENT_SECRET` |
+| Twitter | ⚙️ | `TWITTER_CLIENT_ID` + `TWITTER_CLIENT_SECRET` |
+| PayPal | ⚙️ | `PAYPAL_CLIENT_ID` + `PAYPAL_CLIENT_SECRET` |
+| Vercel | ⚙️ | `VERCEL_CLIENT_ID` + `VERCEL_CLIENT_SECRET` |
+
+> 社交 Provider 不是 Better Auth 插件，而是 `betterAuth({ socialProviders: {...} })` 的内置能力。每个 Provider 仅在对应 Client ID 和 Client Secret 环境变量都配置后才注入。
 
 ## 与旧版文档相比的关键修正
 1. `Phone Number` 从“未实现”修正为“已实现”。

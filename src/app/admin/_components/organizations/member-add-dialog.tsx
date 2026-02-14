@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { UserPlus, Loader2, Search } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { adminKeys } from "@/data/query-keys/admin";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -44,68 +46,56 @@ export function MemberAddDialog({
 }: MemberAddDialogProps) {
     const [userId, setUserId] = useState("");
     const [role, setRole] = useState("member");
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [dynamicRoles, setDynamicRoles] = useState<DynamicRole[]>([]);
-    const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
     // User search state
     const [searchQuery, setSearchQuery] = useState("");
-    const [users, setUsers] = useState<User[]>([]);
-    const [existingMemberIds, setExistingMemberIds] = useState<Set<string>>(new Set());
-    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
-    // 对话框打开时获取动态角色列表和用户列表
-    useEffect(() => {
-        if (isOpen && organizationId) {
-            // Fetch roles
-            const fetchRoles = async () => {
-                setIsLoadingRoles(true);
-                try {
-                    const response = await fetch(`/api/admin/organizations/${organizationId}/roles`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setDynamicRoles(data.roles || []);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch roles:", err);
-                } finally {
-                    setIsLoadingRoles(false);
-                }
-            };
+    const rolesUrl = `/api/admin/organizations/${organizationId}/roles`;
+    const usersUrl = `/api/admin/users?limit=${SELECTOR_PAGE_LIMIT}`;
+    const membersUrl = `/api/admin/organizations/${organizationId}/members?limit=${SELECTOR_PAGE_LIMIT}`;
 
-            // Fetch users and existing members
-            const fetchUsersAndMembers = async () => {
-                setIsLoadingUsers(true);
-                try {
-                    const [usersRes, membersRes] = await Promise.all([
-                        fetch(`/api/admin/users?limit=${SELECTOR_PAGE_LIMIT}`),
-                        fetch(`/api/admin/organizations/${organizationId}/members?limit=${SELECTOR_PAGE_LIMIT}`)
-                    ]);
+    const rolesQuery = useQuery({
+        queryKey: adminKeys.organizationRoles(rolesUrl),
+        queryFn: async () => {
+            const response = await fetch(rolesUrl);
+            if (!response.ok) throw new Error("Failed to fetch roles");
+            const data = await response.json();
+            return (data.roles || []) as DynamicRole[];
+        },
+        enabled: isOpen && !!organizationId,
+    });
 
-                    if (usersRes.ok) {
-                        const usersData = await usersRes.json();
-                        setUsers(usersData.users || []);
-                    }
+    const usersQuery = useQuery({
+        queryKey: adminKeys.users(usersUrl),
+        queryFn: async () => {
+            const response = await fetch(usersUrl);
+            if (!response.ok) throw new Error("Failed to fetch users");
+            const data = await response.json();
+            return (data.users || []) as User[];
+        },
+        enabled: isOpen && !!organizationId,
+    });
 
-                    if (membersRes.ok) {
-                        const membersData = await membersRes.json();
-                        const memberUserIds = new Set<string>(
-                            (membersData.members || []).map((m: { userId: string }) => m.userId)
-                        );
-                        setExistingMemberIds(memberUserIds);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch users:", err);
-                } finally {
-                    setIsLoadingUsers(false);
-                }
-            };
+    const membersQuery = useQuery({
+        queryKey: adminKeys.organizationMembers(membersUrl),
+        queryFn: async () => {
+            const response = await fetch(membersUrl);
+            if (!response.ok) throw new Error("Failed to fetch members");
+            const data = await response.json();
+            return (data.members || []) as { userId: string }[];
+        },
+        enabled: isOpen && !!organizationId,
+    });
 
-            fetchRoles();
-            fetchUsersAndMembers();
-        }
-    }, [isOpen, organizationId]);
+    const dynamicRoles = rolesQuery.data ?? [];
+    const isLoadingRoles = rolesQuery.isLoading;
+    const users = usersQuery.data ?? [];
+    const existingMemberIds = useMemo(
+        () => new Set((membersQuery.data ?? []).map((m) => m.userId)),
+        [membersQuery.data],
+    );
+    const isLoadingUsers = usersQuery.isLoading || membersQuery.isLoading;
 
     // Filter users based on search query and exclude existing members
     const filteredUsers = useMemo(() => {
@@ -125,33 +115,34 @@ export function MemberAddDialog({
         return users.find(u => u.id === userId);
     }, [users, userId]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
-
-        try {
+    const addMemberMutation = useMutation({
+        mutationFn: async (payload: { userId: string; role: string }) => {
             const response = await fetch(`/api/admin/organizations/${organizationId}/members`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, role }),
+                body: JSON.stringify(payload),
             });
-
-            const data = await response.json();
-
             if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || "Failed to add member");
             }
+            return response.json();
+        },
+    });
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+
+        try {
+            await addMemberMutation.mutateAsync({ userId, role });
             setUserId("");
             setRole("member");
             setSearchQuery("");
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsLoading(false);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to add member");
         }
     };
 
@@ -290,8 +281,8 @@ export function MemberAddDialog({
                         <Button type="button" variant="outline" onClick={handleClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !userId}>
-                            {isLoading ? "Adding..." : "Add member"}
+                        <Button type="submit" disabled={addMemberMutation.isPending || !userId}>
+                            {addMemberMutation.isPending ? "Adding..." : "Add member"}
                         </Button>
                     </DialogFooter>
                 </form>

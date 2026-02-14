@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { memberAppRoles, appRoleAction, appRoles, actions, resources, apps, member } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 
 // Simple in-memory cache for permissions (TTL: 60 seconds)
@@ -37,15 +36,9 @@ function setCache(key: string, data: unknown): void {
 // GET /api/rbac/permissions - Get all permissions for a member in an app
 // Query params: memberId, appKey (or appId)
 export async function GET(request: NextRequest) {
-    const requestHeaders = await headers();
-    const session = await auth.api.getSession({
-        headers: requestHeaders,
-    });
-
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userRole = (session.user as { role?: string | null }).role;
+    const authResult = await requireAuth();
+    if (!authResult.success) return authResult.response;
+    const userRole = authResult.user.role;
 
     const searchParams = request.nextUrl.searchParams;
     const memberId = searchParams.get("memberId");
@@ -82,7 +75,7 @@ export async function GET(request: NextRequest) {
     const targetMember = memberRecord[0];
 
     // Authorization check: only admin or the member themselves can query permissions
-    if (userRole !== "admin" && targetMember.userId !== session.user.id) {
+    if (userRole !== "admin" && targetMember.userId !== authResult.user.id) {
         return NextResponse.json({ error: "Forbidden: Cannot query other members' permissions" }, { status: 403 });
     }
 

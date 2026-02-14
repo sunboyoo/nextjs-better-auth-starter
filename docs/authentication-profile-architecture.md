@@ -1,6 +1,6 @@
 # 认证配置（Authentication Profile）架构说明
 
-- 最后审阅：2026-02-11
+- 最后审阅：2026-02-14
 - 状态：已落地（Active）
 - 范围：登录路由编排、基于 Profile 的 UI 渲染、服务端主认证方式拦截
 
@@ -17,13 +17,15 @@
 4. 对被禁用方式返回通用错误，避免泄露账号或策略细节。
 
 ## 3. Profile 契约（来源：`src/config/authentication/types.ts`）
-1. `flow`：`singleScreen` 或 `identifierFirst`。
-2. `pages`：`identify` / `method` / `twoFactor` / `biometric`（可选）。
-3. `identify`：支持的标识符、默认标识符、反枚举文案、社交入口位置。
-4. `authenticate`：允许的主认证方式、首选方式、方式所需标识符、可选 passkey 自动尝试策略。
-5. `mfa`：MFA 策略、允许因子、触发主方式、可跳过主方式。
-6. `biometric`：是否启用独立 passkey 页面、成功后行为、失败回退策略。
-7. `server`：认证基路径、允许主方式、方式到 endpoint 的路径匹配规则、callback 放行策略。
+1. `id` / `label`：Profile 唯一标识与显示名。
+2. `flow`：`singleScreen` 或 `identifierFirst`。
+3. `pages`：`identify` / `method` / `twoFactor` / `biometric`（可选）。
+4. `identify`：支持的标识符、默认标识符、反枚举文案、社交入口位置。
+5. `authenticate`：允许的主认证方式、首选方式、方式所需标识符、可选 passkey 自动尝试策略。
+6. `mfa`：MFA 策略、允许因子、触发主方式、可跳过主方式。
+7. `biometric`（可选）：是否启用独立 passkey 页面、成功后行为、失败回退策略。
+8. `smsOtpDelivery`（可选）：SMS OTP 投递方式（`webhook` 或 `provider`），仅 phone 相关 profile 需要。
+9. `server`：认证基路径、允许主方式、方式到 endpoint 的路径匹配规则、callback 放行策略。
 
 ## 4. 运行时边界
 1. 服务端解析：`src/config/authentication/resolve.ts`
@@ -32,12 +34,21 @@
 - 无效值回退到 `PROFILE_IDENTIFIER_FIRST_EMAIL` 并记录 warning。
 
 2. 客户端安全投影：`src/config/authentication/client.ts`
-- 使用 `toClientAuthenticationProfile(...)` 去除不可序列化的正则映射。
-- 仅向页面组件暴露必要字段。
+- 使用 `toClientAuthenticationProfile(...)` 将完整 profile 投影为 `ClientAuthenticationProfile`。
+- 去除 `server.methodToPaths`（含正则，不可序列化）和 `server.allowedPrimaryMethods`（仅服务端需要）。
+- 仅保留 `server.basePath` 和 `server.allowCallbacks`，以及全部客户端可用字段。
 
 3. 配置注册表：`src/config/authentication/profiles.ts`
-- 维护所有 profile 变体。
+- 维护所有 profile 变体（当前 12 个）。
 - 集中定义共享 pages、method-path 映射、默认 MFA 策略。
+
+注册表结构（3 类流程 × 4 种 identifier 范围）：
+
+| 流程 | 全标识符 | Email only | Phone only | Username only |
+|---|---|---|---|---|
+| **单屏密码** (`singleScreen`) | `PROFILE_IDENTIFIER_PASSWORD` | `*_EMAIL` | `*_PHONE` | `*_USERNAME` |
+| **标识符优先** (`identifierFirst`) | `PROFILE_IDENTIFIER_FIRST` | `*_EMAIL` | `*_PHONE` | `*_USERNAME` |
+| **标识符优先 + 生物识别** | `PROFILE_IDENTIFIER_FIRST_BIOMETRICS` | `*_EMAIL` | `*_PHONE` | `*_USERNAME` |
 
 ## 5. 规范路由拓扑
 1. 识别步骤：`/auth/sign-in`
@@ -112,7 +123,16 @@
 3. callback 是否可通过由 profile 控制；禁用 callback 会影响社交回调链路。
 4. “passkey 成功后是否跳过 MFA”受 profile 与 Better Auth 运行时共同影响，策略变更后需做环境级 E2E 验证。
 
-## 11. 非目标
+## 11. 当前作用域边界
+
+**Profile 控制的**：登录流程（sign-in）的全部步骤 — 标识符采集、认证方式选择、生物识别、MFA。
+
+**Profile 不控制的**：
+1. **注册流程**（sign-up）— 当前注册组件（`sign-up-form.tsx`、`phone-sign-up-form.tsx`）不导入 `@/config/authentication/`，始终固定显示 email + phone 标签页，不受 `profile.identify.identifiers` 约束。
+2. **账户管理功能** — Dashboard 中的密码修改、会话管理等不受 Profile 影响。
+3. **忘记密码/重置密码流程** — 独立于 Profile。
+
+## 12. 非目标
 1. 不引入 v1/v2 路由并行体系。
 2. 不为该能力新增重型依赖。
 3. 不改造登录流之外的账户管理功能。

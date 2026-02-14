@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { memberAppRoles, appRoleAction, actions, resources, apps, member } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
-import { auth } from "@/lib/auth";
 import { extendedAuthApi } from "@/lib/auth-api";
 
 // Simple in-memory cache for permission checks (TTL: 60 seconds)
@@ -38,15 +37,9 @@ function setCache(key: string, data: boolean): void {
 // GET /api/rbac/permissions/check - Check if member has permission
 // Query params: memberId, appKey, resourceKey, actionKey
 export async function GET(request: NextRequest) {
-    const requestHeaders = await headers();
-    const session = await auth.api.getSession({
-        headers: requestHeaders,
-    });
-
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const userRole = (session.user as { role?: string | null }).role;
+    const authResult = await requireAuth();
+    if (!authResult.success) return authResult.response;
+    const userRole = authResult.user.role;
 
     const searchParams = request.nextUrl.searchParams;
     const memberId = searchParams.get("memberId");
@@ -77,7 +70,7 @@ export async function GET(request: NextRequest) {
     const targetMember = memberRecord[0];
 
     // Authorization check: only platform admin or the member themselves can check permissions
-    if (userRole !== "admin" && targetMember.userId !== session.user.id) {
+    if (userRole !== "admin" && targetMember.userId !== authResult.user.id) {
         return NextResponse.json(
             { error: "Forbidden: Cannot check other members' permissions" },
             { status: 403 }
@@ -125,7 +118,7 @@ export async function GET(request: NextRequest) {
                         [resourceKey]: [actionKey],
                     },
                 },
-                headers: requestHeaders,
+                headers: authResult.headers,
             });
             return NextResponse.json({
                 hasPermission: permissionResult.success === true,

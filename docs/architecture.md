@@ -44,7 +44,7 @@
   - **`/api/auth/[...all]`** — Better Auth 的 Catch-all 路由。使用 `toNextJsHandler(auth)` 将所有认证请求委托给 Better Auth 引擎处理（登录、注册、会话管理、OAuth 回调、2FA 等）。
   - **`/api/admin/*`** — 管理员 API。受 `requireAdmin()` / `requireAdminAction()` 守卫保护。
   - **`/api/user/*`** — 用户 API。受 `requireAuth()` + 组织成员资格验证保护。
-  - **`/api/rbac/*`** — 权限查询 API。
+  - **`/api/rbac/*`** — 权限查询 API。受 `requireAuth()` + 自定义授权检查（仅 admin 或成员本人可查询）。
 - **📊 数据访问方式**:
   - **Request Object**: 解析 HTTP Request Body (`req.json()`) 和 Query Parameters。
   - **Route Params**: 从动态路由路径中提取参数 (如 `[organizationId]`, `[appId]`)。
@@ -109,6 +109,7 @@
 - **禁止直接 DB 访问** (BA-002)：`/dashboard` 页面和 `src/data/user/` 不导入 `@/db`。
 - **禁止 admin API** (BA-003)：不使用 `authClient.admin.*` 或 `authAdminClient`。
 - `/api/user/*` 路由中的 `db` 访问仅针对**业务数据表** (apps, resources, member)，不触碰 auth 核心表。
+- **已知例外**：部分 `/api/user/*` 组织成员路由对 `user` 表执行**只读 JOIN 查询**（仅 `SELECT id, name, email, image`），用于在成员/邀请列表中附带用户显示信息。Better Auth 没有提供"根据 userId 批量获取用户公开信息"的 Standard API，因此该模式属于已知且受控的妥协。
 
 ### Admin (`/admin`) — admin 角色
 
@@ -124,7 +125,7 @@
 | 用户创建/封禁/角色 | Client Component | TanStack Query → `/api/admin/users` | POST → 服务端调用 `extendedAuthApi.createUser()`, `extendedAuthApi.banUser()`, `extendedAuthApi.setRole()` |
 
 **Admin 关键特征**:
-- **不使用 `authClient.*`**：Admin UI 组件不直接调用 Better Auth 客户端 SDK，全部通过 TanStack Query → `/api/admin/*` API 路由。
+- **管理操作不使用 `authClient.*`**：Admin UI 组件的管理操作（管理他人数据）不直接调用 Better Auth 客户端 SDK，全部通过 TanStack Query → `/api/admin/*` API 路由。管理员**自身会话操作**（`authClient.signOut()`、`authClient.revokeOtherSessions()`）属于 Standard API，允许直接调用。
 - **混合数据源**：API 路由中同时使用 `auth.api`(Admin Plugin) + `db`(Drizzle)。例如 `getUsers()` 先用 `auth.api.listUsers()` 获取用户列表，再用 `db` 查询 `account` 和 `session` 表补充 Provider 列表和最后登录时间（Better Auth API 不返回这些字段）。
 - **`extendedAuthApi`** (`src/lib/auth-api.ts`)：对 `auth.api` 的类型增强包装，提供 Admin Plugin 和 Organization Plugin 方法的完整类型定义。
 - **Guard 层更严格**：`requireAdminAction(action)` 执行角色矩阵 + 细粒度权限矩阵双重检查。
@@ -135,7 +136,7 @@
 | :--- | :--- | :--- |
 | **操作范围** | 仅自身数据 | 跨用户全局数据 |
 | **Better Auth API 类型** | Standard API (getSession, listSessions...) | Admin Plugin API (listUsers, banUser, setRole...) |
-| **客户端 SDK 使用** | `authClient.*` (直接调用) | 不使用；全部通过 `/api/admin/*` 中转 |
+| **客户端 SDK 使用** | `authClient.*` (直接调用) | 管理操作不使用，通过 `/api/admin/*` 中转；自身会话操作（signOut 等）允许直接调用 |
 | **组织数据** | `authClient.organization.*` (受成员资格限制) | `extendedAuthApi.listOrganizations()` (全局可见) |
 | **DB 直接访问** | 仅在 `/api/user/*` 中访问业务表 | `/api/admin/*` 中访问业务表 + auth 辅助表 |
 | **Auth 核心表 DB 访问** | 禁止 (BA-002) | 允许 (用于补充 Better Auth API 不返回的字段) |
