@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Building2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
@@ -40,14 +40,17 @@ export function OrganizationEditDialog({
     const [logoInvalid, setLogoInvalid] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    // Sync form state when organization prop changes (React render-time state adjustment)
+    const [prevOrganization, setPrevOrganization] = useState(organization);
+    if (organization !== prevOrganization) {
+        setPrevOrganization(organization);
         if (organization) {
             setName(organization.name);
             setSlug(organization.slug);
             setLogo(organization.logo || "");
             setLogoInvalid(false);
         }
-    }, [organization]);
+    }
 
     const updateOrgMutation = useMutation({
         mutationFn: async (payload: { orgId: string; name: string; slug: string; logo: string | null; excludeOrganizationId: string }) => {

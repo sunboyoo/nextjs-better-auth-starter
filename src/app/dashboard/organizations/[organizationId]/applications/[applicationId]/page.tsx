@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
 import {
-    ArrowLeft,
     AppWindow,
     Layers,
     Zap,
@@ -15,8 +14,6 @@ import {
     Pencil,
     Trash2,
     Loader2,
-    CheckCircle,
-    XCircle,
     Calendar,
     Hash,
     Info,
@@ -26,8 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -174,187 +169,133 @@ export default function ApplicationDetailPage() {
 
     if (error || !app) {
         return (
-            <div className="space-y-4">
-                <Link
-                    href={`/dashboard/organizations/${organizationId}/applications`}
-                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Applications
-                </Link>
-                <div className="rounded-xl border bg-card p-8 text-center">
-                    <AppWindow className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                        Application not found
-                    </p>
-                </div>
+            <div className="rounded-xl border bg-card p-8 text-center">
+                <AppWindow className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                    Application not found
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Back Link */}
-            <Link
-                href={`/dashboard/organizations/${organizationId}/applications`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Applications
-            </Link>
+        <div className="space-y-4">
+            {/* Action Buttons */}
+            {canWrite && (
+                <div className="flex items-center justify-end gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openEdit}
+                    >
+                        <Pencil className="h-4 w-4 mr-1.5" />
+                        Edit
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setIsDeleteOpen(true)}
+                    >
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Delete
+                    </Button>
+                </div>
+            )}
 
-            {/* Header Card */}
-            <Card>
-                <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary border border-border/50">
-                                <AppWindow className="h-7 w-7" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl">
-                                    {app.name}
-                                </CardTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                        {app.key}
-                                    </code>
-                                    <Badge
-                                        variant={
-                                            app.isActive
-                                                ? "default"
-                                                : "secondary"
-                                        }
-                                        className="text-[10px]"
-                                    >
-                                        {app.isActive ? (
-                                            <CheckCircle className="h-3 w-3 mr-1" />
-                                        ) : (
-                                            <XCircle className="h-3 w-3 mr-1" />
-                                        )}
-                                        {app.isActive ? "Active" : "Inactive"}
-                                    </Badge>
-                                </div>
-                            </div>
-                        </div>
-                        {canWrite && (
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={openEdit}
-                                >
-                                    <Pencil className="h-4 w-4 mr-1.5" />
-                                    Edit
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => setIsDeleteOpen(true)}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-1.5" />
-                                    Delete
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-4">
-                    {app.description && (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                            <p>{app.description}</p>
-                        </div>
-                    )}
+            {/* Description */}
+            {app.description && (
+                <div className="flex items-start gap-2 text-sm text-muted-foreground rounded-lg border p-4">
+                    <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p>{app.description}</p>
+                </div>
+            )}
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-3 gap-4">
-                        <Link
-                            href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
-                            className="rounded-lg border p-4 text-center hover:bg-muted/50 transition-colors"
-                        >
-                            <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
-                                <Layers className="h-4 w-4" />
-                                <span className="text-xs font-medium">
-                                    Resources
-                                </span>
-                            </div>
-                            <p className="text-2xl font-bold">
-                                {app.resourceCount}
-                            </p>
-                        </Link>
-                        <div className="rounded-lg border p-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
-                                <Zap className="h-4 w-4" />
-                                <span className="text-xs font-medium">
-                                    Actions
-                                </span>
-                            </div>
-                            <p className="text-2xl font-bold">
-                                {app.actionCount}
-                            </p>
-                        </div>
-                        <div className="rounded-lg border p-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
-                                <Shield className="h-4 w-4" />
-                                <span className="text-xs font-medium">
-                                    Roles
-                                </span>
-                            </div>
-                            <p className="text-2xl font-bold">
-                                {app.roleCount}
-                            </p>
-                        </div>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4">
+                <Link
+                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
+                    className="rounded-lg border p-4 text-center hover:bg-muted/50 transition-colors"
+                >
+                    <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                        <Layers className="h-4 w-4" />
+                        <span className="text-xs font-medium">
+                            Resources
+                        </span>
                     </div>
+                    <p className="text-2xl font-bold">
+                        {app.resourceCount}
+                    </p>
+                </Link>
+                <div className="rounded-lg border p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                        <Zap className="h-4 w-4" />
+                        <span className="text-xs font-medium">
+                            Actions
+                        </span>
+                    </div>
+                    <p className="text-2xl font-bold">
+                        {app.actionCount}
+                    </p>
+                </div>
+                <div className="rounded-lg border p-4 text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                        <Shield className="h-4 w-4" />
+                        <span className="text-xs font-medium">
+                            Roles
+                        </span>
+                    </div>
+                    <p className="text-2xl font-bold">
+                        {app.roleCount}
+                    </p>
+                </div>
+            </div>
 
-                    {/* Details */}
-                    <div className="rounded-lg border p-4 space-y-3">
-                        <h3 className="text-sm font-semibold">Details</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3  text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Hash className="h-3.5 w-3.5" />
-                                <span>ID:</span>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                                    {app.id}
-                                </code>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span>Created:</span>
-                                <span className="text-foreground">
-                                    {format(
-                                        new Date(app.createdAt),
-                                        "MMM d, yyyy HH:mm",
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span>Updated:</span>
-                                <span className="text-foreground">
-                                    {format(
-                                        new Date(app.updatedAt),
-                                        "MMM d, yyyy HH:mm",
-                                    )}
-                                </span>
-                            </div>
-                        </div>
+            {/* Details */}
+            <div className="rounded-lg border p-4 space-y-3">
+                <h3 className="text-sm font-semibold">Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Hash className="h-3.5 w-3.5" />
+                        <span>ID:</span>
+                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                            {app.id}
+                        </code>
                     </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Created:</span>
+                        <span className="text-foreground">
+                            {format(
+                                new Date(app.createdAt),
+                                "MMM d, yyyy HH:mm",
+                            )}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Updated:</span>
+                        <span className="text-foreground">
+                            {format(
+                                new Date(app.updatedAt),
+                                "MMM d, yyyy HH:mm",
+                            )}
+                        </span>
+                    </div>
+                </div>
+            </div>
 
-                    {/* Quick Links */}
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                            <Link
-                                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
-                            >
-                                <Layers className="h-4 w-4 mr-1.5" />
-                                Manage Resources
-                            </Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Quick Links */}
+            <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                    <Link
+                        href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
+                    >
+                        <Layers className="h-4 w-4 mr-1.5" />
+                        Manage Resources
+                    </Link>
+                </Button>
+            </div>
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

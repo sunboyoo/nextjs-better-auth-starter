@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
 import {
-    ArrowLeft,
     Layers,
     Zap,
     Pencil,
@@ -22,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -168,148 +166,111 @@ export default function ResourceDetailPage() {
 
     if (error || !resource) {
         return (
-            <div className="space-y-4">
-                <Link
-                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
-                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Resources
-                </Link>
-                <div className="rounded-xl border bg-card p-8 text-center">
-                    <Layers className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                        Resource not found
-                    </p>
-                </div>
+            <div className="rounded-xl border bg-card p-8 text-center">
+                <Layers className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                    Resource not found
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Back Link */}
-            <Link
-                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Resources
-            </Link>
+        <div className="space-y-4">
+            {/* Action Buttons */}
+            {canWrite && (
+                <div className="flex items-center justify-end gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openEdit}
+                    >
+                        <Pencil className="h-4 w-4 mr-1.5" />
+                        Edit
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setIsDeleteOpen(true)}
+                    >
+                        <Trash2 className="h-4 w-4 mr-1.5" />
+                        Delete
+                    </Button>
+                </div>
+            )}
 
-            {/* Header Card */}
-            <Card>
-                <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-border/50">
-                                <Layers className="h-7 w-7" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl">
-                                    {resource.name}
-                                </CardTitle>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono mt-1 inline-block">
-                                    {resource.key}
-                                </code>
-                            </div>
-                        </div>
-                        {canWrite && (
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={openEdit}
-                                >
-                                    <Pencil className="h-4 w-4 mr-1.5" />
-                                    Edit
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => setIsDeleteOpen(true)}
-                                >
-                                    <Trash2 className="h-4 w-4 mr-1.5" />
-                                    Delete
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-4">
-                    {resource.description && (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                            <p>{resource.description}</p>
-                        </div>
-                    )}
+            {/* Description */}
+            {resource.description && (
+                <div className="flex items-start gap-2 text-sm text-muted-foreground rounded-lg border p-4">
+                    <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p>{resource.description}</p>
+                </div>
+            )}
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-1 gap-4 max-w-xs">
-                        <Link
-                            href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
-                            className="rounded-lg border p-4 text-center hover:bg-muted/50 transition-colors"
-                        >
-                            <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
-                                <Zap className="h-4 w-4" />
-                                <span className="text-xs font-medium">
-                                    Actions
-                                </span>
-                            </div>
-                            <p className="text-2xl font-bold">
-                                {resource.actionCount}
-                            </p>
-                        </Link>
+            {/* Stats */}
+            <div className="grid grid-cols-1 gap-4 max-w-xs">
+                <Link
+                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
+                    className="rounded-lg border p-4 text-center hover:bg-muted/50 transition-colors"
+                >
+                    <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                        <Zap className="h-4 w-4" />
+                        <span className="text-xs font-medium">
+                            Actions
+                        </span>
                     </div>
+                    <p className="text-2xl font-bold">
+                        {resource.actionCount}
+                    </p>
+                </Link>
+            </div>
 
-                    {/* Details */}
-                    <div className="rounded-lg border p-4 space-y-3">
-                        <h3 className="text-sm font-semibold">Details</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Hash className="h-3.5 w-3.5" />
-                                <span>ID:</span>
-                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                                    {resource.id}
-                                </code>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span>Created:</span>
-                                <span className="text-foreground">
-                                    {format(
-                                        new Date(resource.createdAt),
-                                        "MMM d, yyyy HH:mm",
-                                    )}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <span>Updated:</span>
-                                <span className="text-foreground">
-                                    {format(
-                                        new Date(resource.updatedAt),
-                                        "MMM d, yyyy HH:mm",
-                                    )}
-                                </span>
-                            </div>
-                        </div>
+            {/* Details */}
+            <div className="rounded-lg border p-4 space-y-3">
+                <h3 className="text-sm font-semibold">Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Hash className="h-3.5 w-3.5" />
+                        <span>ID:</span>
+                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                            {resource.id}
+                        </code>
                     </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Created:</span>
+                        <span className="text-foreground">
+                            {format(
+                                new Date(resource.createdAt),
+                                "MMM d, yyyy HH:mm",
+                            )}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Updated:</span>
+                        <span className="text-foreground">
+                            {format(
+                                new Date(resource.updatedAt),
+                                "MMM d, yyyy HH:mm",
+                            )}
+                        </span>
+                    </div>
+                </div>
+            </div>
 
-                    {/* Quick Links */}
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" asChild>
-                            <Link
-                                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
-                            >
-                                <Zap className="h-4 w-4 mr-1.5" />
-                                Manage Actions
-                            </Link>
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Quick Links */}
+            <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" asChild>
+                    <Link
+                        href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
+                    >
+                        <Zap className="h-4 w-4 mr-1.5" />
+                        Manage Actions
+                    </Link>
+                </Button>
+            </div>
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

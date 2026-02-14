@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { userKeys } from "@/data/query-keys/user";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-    ArrowLeft,
     Layers,
     Plus,
     Search,
@@ -16,21 +15,13 @@ import {
     Trash2,
     Loader2,
     MoreHorizontal,
+    ArrowUpDown,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -57,6 +48,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface Resource {
     id: string;
@@ -92,6 +90,7 @@ export default function ResourcesPage() {
 
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "newest" | "oldest">("name-asc");
 
     // Create form
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -137,7 +136,24 @@ export default function ResourcesPage() {
     });
 
     const canWrite = data?.canWrite ?? false;
-    const resourcesList = data?.resources ?? [];
+
+    const resourcesList = useMemo(() => {
+        const list = data?.resources ?? [];
+        return [...list].sort((a, b) => {
+            switch (sortBy) {
+                case "name-asc":
+                    return a.name.localeCompare(b.name);
+                case "name-desc":
+                    return b.name.localeCompare(a.name);
+                case "newest":
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case "oldest":
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                default:
+                    return 0;
+            }
+        });
+    }, [data?.resources, sortBy]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -239,37 +255,34 @@ export default function ResourcesPage() {
 
     return (
         <div className="space-y-4">
-            {/* Back Link */}
-            <Link
-                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to {data?.app?.name || "Application"}
-            </Link>
-
-            {/* Header */}
-            <div className="flex items-center gap-2">
-                <Layers className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Resources</h2>
-                {data && (
-                    <Badge variant="secondary" className="text-xs">
-                        {data.total}
-                    </Badge>
-                )}
-            </div>
-
             {/* Filter & Actions */}
-            <div className="flex flex-wrap gap-2 items-end justify-between">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                        type="text"
-                        placeholder="Search resources..."
-                        className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2">
+                <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-end sm:gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search resources..."
+                            className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-full sm:w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <Select
+                        value={sortBy}
+                        onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                    >
+                        <SelectTrigger className="w-full sm:w-[160px]">
+                            <ArrowUpDown className="size-4 opacity-60" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name-asc">Name A–Z</SelectItem>
+                            <SelectItem value="name-desc">Name Z–A</SelectItem>
+                            <SelectItem value="newest">Newest first</SelectItem>
+                            <SelectItem value="oldest">Oldest first</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 {canWrite && (
                     <Dialog
@@ -381,160 +394,81 @@ export default function ResourcesPage() {
                 )}
             </div>
 
-            {/* Table */}
-            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-                <Table className="text-sm">
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Name
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Key
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Description
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Actions
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Created
-                            </TableHead>
-                            {canWrite && (
-                                <TableHead className="px-4 py-3 text-xs font-medium w-[50px]" />
-                            )}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 6 : 5}
-                                    className="h-24 text-center"
-                                >
-                                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Loading...
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : error ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 6 : 5}
-                                    className="h-24 text-center text-destructive"
-                                >
-                                    Failed to load resources
-                                </TableCell>
-                            </TableRow>
-                        ) : resourcesList.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 6 : 5}
-                                    className="text-center py-12 text-muted-foreground"
-                                >
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                            <Layers className="h-6 w-6 text-muted-foreground" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">
-                                                No resources found
-                                            </p>
-                                            <p className="text-xs mt-1">
-                                                {search
-                                                    ? "Try adjusting your search"
-                                                    : canWrite
-                                                        ? "Create your first resource"
-                                                        : "No resources have been created yet"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            resourcesList.map((resource) => (
-                                <TableRow
-                                    key={resource.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() =>
-                                        router.push(
-                                            `/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resource.id}`,
-                                        )
-                                    }
-                                >
-                                    <TableCell className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-border/50">
-                                                <Layers className="h-4 w-4" />
+            {/* Resources Grid */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Loading resources...</span>
+                    </div>
+                </div>
+            ) : error ? (
+                <div className="rounded-xl border bg-card p-12 text-center">
+                    <p className="text-sm text-destructive">Failed to load resources</p>
+                </div>
+            ) : resourcesList.length === 0 ? (
+                <div className="rounded-xl border bg-card p-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                            <Layers className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-sm">No resources found</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {search
+                                    ? "Try adjusting your search"
+                                    : canWrite
+                                        ? "Create your first resource"
+                                        : "No resources have been created yet"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {resourcesList.map((resource) => (
+                            <Card
+                                key={resource.id}
+                                className="group cursor-pointer transition-all hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700"
+                                onClick={() =>
+                                    router.push(
+                                        `/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resource.id}`,
+                                    )
+                                }
+                            >
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-border/50">
+                                                <Layers className="h-5 w-5" />
                                             </div>
-                                            <span className="font-medium text-sm">
-                                                {resource.name}
-                                            </span>
+                                            <div className="min-w-0">
+                                                <h3 className="font-semibold text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                                    {resource.name}
+                                                </h3>
+                                                <code className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
+                                                    {resource.key}
+                                                </code>
+                                            </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3">
-                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                            {resource.key}
-                                        </code>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
-                                        {resource.description || "—"}
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3">
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/30 text-xs font-medium text-muted-foreground">
-                                            <Zap className="h-3.5 w-3.5 opacity-70" />
-                                            {resource.actionCount}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                                        {format(
-                                            new Date(resource.createdAt),
-                                            "MMM d, yyyy",
-                                        )}
-                                    </TableCell>
-                                    {canWrite && (
-                                        <TableCell className="px-4 py-3">
-                                            <div
-                                                onClick={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                            >
+                                        {canWrite && (
+                                            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                        >
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                openEdit(
-                                                                    resource,
-                                                                )
-                                                            }
-                                                        >
+                                                        <DropdownMenuItem onClick={() => openEdit(resource)}>
                                                             <Pencil className="h-4 w-4 mr-2" />
                                                             Edit
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             className="text-destructive"
-                                                            onClick={() =>
-                                                                setDeleteResource(
-                                                                    {
-                                                                        id: resource.id,
-                                                                        name: resource.name,
-                                                                    },
-                                                                )
-                                                            }
+                                                            onClick={() => setDeleteResource({ id: resource.id, name: resource.name })}
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Delete
@@ -542,30 +476,39 @@ export default function ResourcesPage() {
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
-                                        </TableCell>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-0 space-y-3">
+                                    {resource.description && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                            {resource.description}
+                                        </p>
                                     )}
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-
-                {resourcesList.length > 0 && (
-                    <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
-                        <div className="text-sm text-muted-foreground">
-                            Showing{" "}
-                            <span className="font-medium">
-                                {resourcesList.length}
-                            </span>{" "}
-                            of{" "}
-                            <span className="font-medium">
-                                {data?.total || 0}
-                            </span>{" "}
-                            resources
-                        </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                            <Zap className="h-3.5 w-3.5 opacity-70" />
+                                            {resource.actionCount} action{resource.actionCount !== 1 ? "s" : ""}
+                                        </span>
+                                    </div>
+                                    <div className="pt-2 border-t">
+                                        <span className="text-[11px] text-muted-foreground">
+                                            Created {format(new Date(resource.createdAt), "MMM d, yyyy")}
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
-                )}
-            </div>
+
+                    {/* Footer count */}
+                    <div className="text-xs text-muted-foreground text-right">
+                        {resourcesList.length === (data?.total || 0)
+                            ? `${resourcesList.length} resource${resourcesList.length !== 1 ? "s" : ""}`
+                            : `Showing ${resourcesList.length} of ${data?.total || 0} resources`}
+                    </div>
+                </>
+            )}
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

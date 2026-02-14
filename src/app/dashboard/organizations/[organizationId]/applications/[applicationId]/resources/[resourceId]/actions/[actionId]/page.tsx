@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useState } from "react";
 import {
-    ArrowLeft,
     Zap,
     Pencil,
     Trash2,
@@ -16,7 +15,6 @@ import {
     Hash,
     Info,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -171,35 +169,17 @@ export default function ActionDetailPage() {
 
     if (error || !action) {
         return (
-            <div className="space-y-4">
-                <Link
-                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
-                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Actions
-                </Link>
-                <div className="rounded-xl border bg-card p-8 text-center">
-                    <Zap className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                        Action not found
-                    </p>
-                </div>
+            <div className="rounded-xl border bg-card p-8 text-center">
+                <Zap className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                    Action not found
+                </p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Back Link */}
-            <Link
-                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Actions
-            </Link>
-
+        <div className="space-y-4">
             {/* Header Card */}
             <Card>
                 <CardHeader className="pb-4">
@@ -247,34 +227,6 @@ export default function ActionDetailPage() {
                             <p>{action.description}</p>
                         </div>
                     )}
-
-                    {/* Context */}
-                    <div className="rounded-lg border p-4 space-y-3">
-                        <h3 className="text-sm font-semibold">Context</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <span>App:</span>
-                                <Link
-                                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}`}
-                                    className="text-foreground hover:underline"
-                                >
-                                    {data?.appName}
-                                </Link>
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <span>Resource:</span>
-                                <Link
-                                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`}
-                                    className="text-foreground hover:underline"
-                                >
-                                    {data?.resourceName}
-                                </Link>
-                                <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
-                                    {data?.resourceKey}
-                                </code>
-                            </div>
-                        </div>
-                    </div>
 
                     {/* Details */}
                     <div className="rounded-lg border p-4 space-y-3">

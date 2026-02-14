@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { Layers, Plus, Trash2, MoreHorizontal, Loader2, Users } from "lucide-react";
+import { Layers, Plus, Trash2, MoreHorizontal, Loader2, Users, Search, ArrowUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface Team {
     id: string;
@@ -57,6 +64,10 @@ export default function TeamsPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Search & sort state
+    const [search, setSearch] = useState("");
+    const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "newest" | "oldest">("name-asc");
 
     const fetchTeams = useCallback(async () => {
         setIsLoading(true);
@@ -85,6 +96,37 @@ export default function TeamsPage() {
     useEffect(() => {
         fetchTeams();
     }, [fetchTeams]);
+
+    // Client-side search + sort
+    const filteredTeams = useMemo(() => {
+        let result = [...teams];
+
+        // Filter by search term
+        if (search.trim()) {
+            const q = search.toLowerCase().trim();
+            result = result.filter((team) =>
+                team.name.toLowerCase().includes(q),
+            );
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case "name-asc":
+                    return a.name.localeCompare(b.name);
+                case "name-desc":
+                    return b.name.localeCompare(a.name);
+                case "newest":
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case "oldest":
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
+    }, [teams, search, sortBy]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,10 +186,42 @@ export default function TeamsPage() {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-muted-foreground" />
-                    <h2 className="text-sm font-semibold">Teams ({teams.length})</h2>
+            <div className="flex items-center gap-2">
+                <Layers className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Teams</h2>
+                <Badge variant="secondary" className="text-xs">
+                    {teams.length}
+                </Badge>
+            </div>
+
+            {/* Search, Sort & Actions */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2">
+                <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-end sm:gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search teams..."
+                            className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-full sm:w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <Select
+                        value={sortBy}
+                        onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                    >
+                        <SelectTrigger className="w-full sm:w-[160px]">
+                            <ArrowUpDown className="size-4 opacity-60" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name-asc">Name A–Z</SelectItem>
+                            <SelectItem value="name-desc">Name Z–A</SelectItem>
+                            <SelectItem value="newest">Newest first</SelectItem>
+                            <SelectItem value="oldest">Oldest first</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
@@ -196,23 +270,27 @@ export default function TeamsPage() {
             </div>
 
             {/* Teams Grid */}
-            {teams.length === 0 ? (
+            {filteredTeams.length === 0 ? (
                 <div className="rounded-xl border bg-card p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
                             <Layers className="h-7 w-7 text-muted-foreground" />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-sm">No teams yet</h3>
+                            <h3 className="font-semibold text-sm">
+                                {search ? "No teams found" : "No teams yet"}
+                            </h3>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Create teams to organize members within your organization.
+                                {search
+                                    ? "Try adjusting your search term"
+                                    : "Create teams to organize members within your organization."}
                             </p>
                         </div>
                     </div>
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {teams.map((team) => (
+                    {filteredTeams.map((team) => (
                         <Card key={team.id} className="group">
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import {
     Trash2,
     Loader2,
     Lock,
+    Search,
+    ArrowUpDown,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,13 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { OrganizationPermissionTreeDisplay } from "@/components/shared/organization-permission-tree-display";
 import { OrganizationPermissionTreeSelector } from "@/components/shared/organization-permission-tree-selector";
 import { statements } from "@/lib/built-in-organization-role-permissions";
@@ -354,6 +363,58 @@ export default function OrganizationRolesPage() {
 
     const refetch = () => queryClient.invalidateQueries({ queryKey });
 
+    // Search & sort state for custom roles (must be before early returns)
+    const [search, setSearch] = useState("");
+    const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "newest" | "oldest">("name-asc");
+    const [permFilter, setPermFilter] = useState("all");
+
+    const customRoles = data?.customRoles ?? [];
+
+    const filteredCustomRoles = useMemo(() => {
+        let result = [...customRoles];
+
+        // Search by role name
+        if (search.trim()) {
+            const q = search.toLowerCase().trim();
+            result = result.filter((r) => r.role.toLowerCase().includes(q));
+        }
+
+        // Filter by permission resource
+        if (permFilter !== "all") {
+            result = result.filter(
+                (r) =>
+                    r.permissions[permFilter] &&
+                    r.permissions[permFilter].length > 0,
+            );
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case "name-asc":
+                    return a.role.localeCompare(b.role);
+                case "name-desc":
+                    return b.role.localeCompare(a.role);
+                case "newest":
+                    return (
+                        new Date(b.createdAt ?? 0).getTime() -
+                        new Date(a.createdAt ?? 0).getTime()
+                    );
+                case "oldest":
+                    return (
+                        new Date(a.createdAt ?? 0).getTime() -
+                        new Date(b.createdAt ?? 0).getTime()
+                    );
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
+    }, [customRoles, search, sortBy, permFilter]);
+
+    const isFiltered = search.trim() !== "" || permFilter !== "all";
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-16">
@@ -370,7 +431,7 @@ export default function OrganizationRolesPage() {
         );
     }
 
-    const { builtInRoles, customRoles, canWrite } = data;
+    const { builtInRoles, canWrite } = data;
 
     return (
         <div className="space-y-6">
@@ -437,13 +498,64 @@ export default function OrganizationRolesPage() {
 
             {/* Custom Roles Section */}
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="text-sm font-semibold">Custom Roles</h3>
-                        <Badge variant="outline" className="text-[10px]">
-                            {customRoles.length}
-                        </Badge>
+                <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold">Custom Roles</h3>
+                    <Badge variant="outline" className="text-[10px]">
+                        {customRoles.length}
+                    </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Custom roles with tailored permissions for this organization.
+                </p>
+
+                {/* Search, Filter, Sort & Actions */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2">
+                    <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-end sm:gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Search roles..."
+                                className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-full sm:w-[220px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:contents">
+                            <Select
+                                value={permFilter}
+                                onValueChange={setPermFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[160px]">
+                                    <Shield className="size-4 opacity-60" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All resources</SelectItem>
+                                    {Object.entries(RESOURCE_LABELS).map(([key, label]) => (
+                                        <SelectItem key={key} value={key}>
+                                            {label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={sortBy}
+                                onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                            >
+                                <SelectTrigger className="w-full sm:w-[160px]">
+                                    <ArrowUpDown className="size-4 opacity-60" />
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="name-asc">Name A–Z</SelectItem>
+                                    <SelectItem value="name-desc">Name Z–A</SelectItem>
+                                    <SelectItem value="newest">Newest first</SelectItem>
+                                    <SelectItem value="oldest">Oldest first</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                     {canWrite && (
                         <AddRoleDialog
@@ -452,11 +564,8 @@ export default function OrganizationRolesPage() {
                         />
                     )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                    Custom roles with tailored permissions for this organization.
-                </p>
 
-                {customRoles.length === 0 ? (
+                {customRoles.length === 0 && !isFiltered ? (
                     <div className="rounded-xl border bg-card p-8 text-center">
                         <Shield className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                         <p className="text-sm text-muted-foreground">
@@ -469,9 +578,23 @@ export default function OrganizationRolesPage() {
                             </p>
                         )}
                     </div>
+                ) : filteredCustomRoles.length === 0 ? (
+                    <div className="rounded-xl border bg-card p-8 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                <Shield className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-sm">No roles found</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Try adjusting your search or filter
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {customRoles.map((role) => (
+                        {filteredCustomRoles.map((role) => (
                             <Card
                                 key={role.id}
                                 className="cursor-pointer transition-colors hover:bg-muted/50"
@@ -520,6 +643,15 @@ export default function OrganizationRolesPage() {
                                 </CardContent>
                             </Card>
                         ))}
+                    </div>
+                )}
+
+                {/* Footer with count */}
+                {customRoles.length > 0 && (
+                    <div className="text-xs text-muted-foreground text-right">
+                        {filteredCustomRoles.length === customRoles.length
+                            ? `${customRoles.length} custom role${customRoles.length !== 1 ? "s" : ""}`
+                            : `Showing ${filteredCustomRoles.length} of ${customRoles.length} custom roles`}
                     </div>
                 )}
             </div>

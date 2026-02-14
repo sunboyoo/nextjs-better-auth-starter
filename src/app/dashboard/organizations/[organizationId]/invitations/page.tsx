@@ -1,11 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
-import { Mail, MoreHorizontal, XCircle, Loader2 } from "lucide-react";
+import {
+    Mail,
+    MoreHorizontal,
+    XCircle,
+    Loader2,
+    Search,
+    ArrowUpDown,
+    Clock,
+    CheckCircle,
+    Ban,
+    CircleDot,
+} from "lucide-react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +43,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { InviteMemberDialog } from "../../_components/invite-member-dialog";
 
 interface Invitation {
@@ -70,6 +87,11 @@ export default function InvitationsPage() {
     const [cancelConfirm, setCancelConfirm] = useState<{ id: string; email: string } | null>(null);
     const [isCanceling, setIsCanceling] = useState(false);
 
+    // Search, filter & sort state
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [sortBy, setSortBy] = useState<"newest" | "oldest" | "email-asc" | "email-desc">("newest");
+
     const fetchInvitations = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -97,6 +119,42 @@ export default function InvitationsPage() {
     useEffect(() => {
         fetchInvitations();
     }, [fetchInvitations]);
+
+    // Client-side search + filter + sort
+    const filteredInvitations = useMemo(() => {
+        let result = [...invitations];
+
+        // Search by email
+        if (search.trim()) {
+            const q = search.toLowerCase().trim();
+            result = result.filter((inv) =>
+                inv.email.toLowerCase().includes(q),
+            );
+        }
+
+        // Filter by status
+        if (statusFilter !== "all") {
+            result = result.filter((inv) => inv.status === statusFilter);
+        }
+
+        // Sort
+        result.sort((a, b) => {
+            switch (sortBy) {
+                case "newest":
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case "oldest":
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                case "email-asc":
+                    return a.email.localeCompare(b.email);
+                case "email-desc":
+                    return b.email.localeCompare(a.email);
+                default:
+                    return 0;
+            }
+        });
+
+        return result;
+    }, [invitations, search, statusFilter, sortBy]);
 
     const handleCancel = async () => {
         if (!cancelConfirm) return;
@@ -130,61 +188,140 @@ export default function InvitationsPage() {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Mail className="h-5 w-5 text-muted-foreground" />
-                    <h2 className="text-sm font-semibold">Invitations ({invitations.length})</h2>
+            <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Invitations</h2>
+                <Badge variant="secondary" className="text-xs">
+                    {invitations.length}
+                </Badge>
+            </div>
+
+            {/* Search, Filter, Sort & Actions */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2">
+                <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-end sm:gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search by email..."
+                            className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-full sm:w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:contents">
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-full sm:w-[150px]">
+                                {statusFilter === "all" ? (
+                                    <CircleDot className="size-4 opacity-60" />
+                                ) : statusFilter === "pending" ? (
+                                    <Clock className="size-4 text-yellow-600" />
+                                ) : statusFilter === "accepted" ? (
+                                    <CheckCircle className="size-4 text-green-600" />
+                                ) : statusFilter === "rejected" ? (
+                                    <XCircle className="size-4 text-red-600" />
+                                ) : (
+                                    <Ban className="size-4 text-muted-foreground" />
+                                )}
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All status</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="accepted">Accepted</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
+                                <SelectItem value="canceled">Canceled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={sortBy}
+                            onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                        >
+                            <SelectTrigger className="w-full sm:w-[160px]">
+                                <ArrowUpDown className="size-4 opacity-60" />
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="newest">Newest first</SelectItem>
+                                <SelectItem value="oldest">Oldest first</SelectItem>
+                                <SelectItem value="email-asc">Email A–Z</SelectItem>
+                                <SelectItem value="email-desc">Email Z–A</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
                 <InviteMemberDialog organizationId={organizationId} onSuccess={fetchInvitations} />
             </div>
 
             {/* Invitations Table */}
-            <div className="rounded-lg border bg-card">
-                <Table>
-                    <TableHeader>
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                <Table className="text-sm">
+                    <TableHeader className="bg-muted">
                         <TableRow>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Sent</TableHead>
-                            <TableHead>Expires</TableHead>
-                            <TableHead className="w-[60px]" />
+                            <TableHead className="px-4 py-3 text-xs font-medium">Email</TableHead>
+                            <TableHead className="px-4 py-3 text-xs font-medium">Role</TableHead>
+                            <TableHead className="px-4 py-3 text-xs font-medium">Status</TableHead>
+                            <TableHead className="px-4 py-3 text-xs font-medium">Sent</TableHead>
+                            <TableHead className="px-4 py-3 text-xs font-medium">Expires</TableHead>
+                            <TableHead className="px-4 py-3 text-xs font-medium w-[60px]" />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {invitations.length === 0 ? (
+                        {filteredInvitations.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
-                                    No invitations found
+                                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                                            <Mail className="h-6 w-6 text-muted-foreground" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm">
+                                                {search || statusFilter !== "all" ? "No invitations found" : "No invitations yet"}
+                                            </p>
+                                            <p className="text-xs mt-1">
+                                                {search || statusFilter !== "all"
+                                                    ? "Try adjusting your search or filter"
+                                                    : "Send invitations to add members to your organization"}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            invitations.map((invitation) => (
+                            filteredInvitations.map((invitation) => (
                                 <TableRow
                                     key={invitation.id}
                                     className="cursor-pointer hover:bg-muted/50"
                                     onClick={() => router.push(`/dashboard/organizations/${organizationId}/invitations/${invitation.id}`)}
                                 >
-                                    <TableCell className="text-sm font-medium">
-                                        {invitation.email}
+                                    <TableCell className="px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border border-border/50">
+                                                <Mail className="h-4 w-4" />
+                                            </div>
+                                            <span className="font-medium text-sm">{invitation.email}</span>
+                                        </div>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="px-4 py-3">
                                         <Badge variant="outline" className="text-xs capitalize">
                                             {invitation.role}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>{getStatusBadge(invitation.status)}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
+                                    <TableCell className="px-4 py-3">{getStatusBadge(invitation.status)}</TableCell>
+                                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
                                         {format(new Date(invitation.createdAt), "MMM d, yyyy")}
                                     </TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">
+                                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
                                         {format(new Date(invitation.expiresAt), "MMM d, yyyy")}
                                     </TableCell>
-                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                    <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                                         {invitation.status === "pending" && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
@@ -210,6 +347,22 @@ export default function InvitationsPage() {
                         )}
                     </TableBody>
                 </Table>
+
+                {filteredInvitations.length > 0 && (
+                    <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
+                        <div className="text-sm text-muted-foreground">
+                            Showing{" "}
+                            <span className="font-medium">{filteredInvitations.length}</span>
+                            {filteredInvitations.length !== invitations.length && (
+                                <>
+                                    {" "}of{" "}
+                                    <span className="font-medium">{invitations.length}</span>
+                                </>
+                            )}{" "}
+                            invitation{invitations.length !== 1 ? "s" : ""}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Cancel Confirmation */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Shield } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,10 @@ export function OrganizationRoleEditDialog({
     const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({});
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    // Sync form state when role prop changes (React render-time state adjustment)
+    const [prevRole, setPrevRole] = useState(role);
+    if (role !== prevRole) {
+        setPrevRole(role);
         if (role) {
             setName(role.role);
             try {
@@ -59,7 +62,7 @@ export function OrganizationRoleEditDialog({
                 setSelectedPermissions({});
             }
         }
-    }, [role]);
+    }
 
     const updateRoleMutation = useMutation({
         mutationFn: async (payload: { roleId: string; role: string; permission: string }) => {

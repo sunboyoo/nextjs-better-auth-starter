@@ -90,7 +90,7 @@ export function MemberAddDialog({
 
     const dynamicRoles = rolesQuery.data ?? [];
     const isLoadingRoles = rolesQuery.isLoading;
-    const users = usersQuery.data ?? [];
+    const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
     const existingMemberIds = useMemo(
         () => new Set((membersQuery.data ?? []).map((m) => m.userId)),
         [membersQuery.data],

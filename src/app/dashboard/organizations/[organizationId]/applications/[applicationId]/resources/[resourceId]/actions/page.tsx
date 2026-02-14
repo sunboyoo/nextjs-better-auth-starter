@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { userKeys } from "@/data/query-keys/user";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-    ArrowLeft,
     Zap,
     Plus,
     Search,
@@ -15,21 +14,13 @@ import {
     Trash2,
     Loader2,
     MoreHorizontal,
+    ArrowUpDown,
 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -56,6 +47,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 interface ActionItem {
     id: string;
@@ -91,6 +89,7 @@ export default function ActionsPage() {
 
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "newest" | "oldest">("name-asc");
 
     // Create form
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -137,7 +136,24 @@ export default function ActionsPage() {
     });
 
     const canWrite = data?.canWrite ?? false;
-    const actionsList = data?.actions ?? [];
+
+    const actionsList = useMemo(() => {
+        const list = data?.actions ?? [];
+        return [...list].sort((a, b) => {
+            switch (sortBy) {
+                case "name-asc":
+                    return a.name.localeCompare(b.name);
+                case "name-desc":
+                    return b.name.localeCompare(a.name);
+                case "newest":
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                case "oldest":
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                default:
+                    return 0;
+            }
+        });
+    }, [data?.actions, sortBy]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -239,37 +255,34 @@ export default function ActionsPage() {
 
     return (
         <div className="space-y-4">
-            {/* Back Link */}
-            <Link
-                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to {data?.resource?.name || "Resource"}
-            </Link>
-
-            {/* Header */}
-            <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Actions</h2>
-                {data && (
-                    <Badge variant="secondary" className="text-xs">
-                        {data.total}
-                    </Badge>
-                )}
-            </div>
-
             {/* Filter & Actions */}
-            <div className="flex flex-wrap gap-2 items-end justify-between">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input
-                        type="text"
-                        placeholder="Search actions..."
-                        className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-2">
+                <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-end sm:gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search actions..."
+                            className="pl-10 pr-4 py-2 border rounded-md text-sm bg-background w-full sm:w-[260px] focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <Select
+                        value={sortBy}
+                        onValueChange={(v) => setSortBy(v as typeof sortBy)}
+                    >
+                        <SelectTrigger className="w-full sm:w-[160px]">
+                            <ArrowUpDown className="size-4 opacity-60" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="name-asc">Name A–Z</SelectItem>
+                            <SelectItem value="name-desc">Name Z–A</SelectItem>
+                            <SelectItem value="newest">Newest first</SelectItem>
+                            <SelectItem value="oldest">Oldest first</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
                 {canWrite && (
                     <Dialog
@@ -381,151 +394,81 @@ export default function ActionsPage() {
                 )}
             </div>
 
-            {/* Table */}
-            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-                <Table className="text-sm">
-                    <TableHeader className="bg-muted">
-                        <TableRow>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Name
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Key
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Description
-                            </TableHead>
-                            <TableHead className="px-4 py-3 text-xs font-medium">
-                                Created
-                            </TableHead>
-                            {canWrite && (
-                                <TableHead className="px-4 py-3 text-xs font-medium w-[50px]" />
-                            )}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 5 : 4}
-                                    className="h-24 text-center"
-                                >
-                                    <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Loading...
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : error ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 5 : 4}
-                                    className="h-24 text-center text-destructive"
-                                >
-                                    Failed to load actions
-                                </TableCell>
-                            </TableRow>
-                        ) : actionsList.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={canWrite ? 5 : 4}
-                                    className="text-center py-12 text-muted-foreground"
-                                >
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                                            <Zap className="h-6 w-6 text-muted-foreground" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">
-                                                No actions found
-                                            </p>
-                                            <p className="text-xs mt-1">
-                                                {search
-                                                    ? "Try adjusting your search"
-                                                    : canWrite
-                                                        ? "Create your first action"
-                                                        : "No actions have been created yet"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            actionsList.map((action) => (
-                                <TableRow
-                                    key={action.id}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                    onClick={() =>
-                                        router.push(
-                                            `/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${action.id}`,
-                                        )
-                                    }
-                                >
-                                    <TableCell className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-border/50">
-                                                <Zap className="h-4 w-4" />
+            {/* Actions Grid */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Loading actions...</span>
+                    </div>
+                </div>
+            ) : error ? (
+                <div className="rounded-xl border bg-card p-12 text-center">
+                    <p className="text-sm text-destructive">Failed to load actions</p>
+                </div>
+            ) : actionsList.length === 0 ? (
+                <div className="rounded-xl border bg-card p-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                            <Zap className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-sm">No actions found</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                {search
+                                    ? "Try adjusting your search"
+                                    : canWrite
+                                        ? "Create your first action"
+                                        : "No actions have been created yet"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {actionsList.map((action) => (
+                            <Card
+                                key={action.id}
+                                className="group cursor-pointer transition-all hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700"
+                                onClick={() =>
+                                    router.push(
+                                        `/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${action.id}`,
+                                    )
+                                }
+                            >
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-border/50">
+                                                <Zap className="h-5 w-5" />
                                             </div>
-                                            <span className="font-medium text-sm">
-                                                {action.name}
-                                            </span>
+                                            <div className="min-w-0">
+                                                <h3 className="font-semibold text-sm truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                                    {action.name}
+                                                </h3>
+                                                <code className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
+                                                    {action.key}
+                                                </code>
+                                            </div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3">
-                                        <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                            {action.key}
-                                        </code>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
-                                        {action.description || "—"}
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                                        {format(
-                                            new Date(action.createdAt),
-                                            "MMM d, yyyy",
-                                        )}
-                                    </TableCell>
-                                    {canWrite && (
-                                        <TableCell className="px-4 py-3">
-                                            <div
-                                                onClick={(e) =>
-                                                    e.stopPropagation()
-                                                }
-                                            >
+                                        {canWrite && (
+                                            <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                        >
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                openEdit(
-                                                                    action,
-                                                                )
-                                                            }
-                                                        >
+                                                        <DropdownMenuItem onClick={() => openEdit(action)}>
                                                             <Pencil className="h-4 w-4 mr-2" />
                                                             Edit
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem
                                                             className="text-destructive"
-                                                            onClick={() =>
-                                                                setDeleteAction(
-                                                                    {
-                                                                        id: action.id,
-                                                                        name: action.name,
-                                                                    },
-                                                                )
-                                                            }
+                                                            onClick={() => setDeleteAction({ id: action.id, name: action.name })}
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Delete
@@ -533,30 +476,33 @@ export default function ActionsPage() {
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </div>
-                                        </TableCell>
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-0 space-y-3">
+                                    {action.description && (
+                                        <p className="text-xs text-muted-foreground line-clamp-2">
+                                            {action.description}
+                                        </p>
                                     )}
-                                </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-
-                {actionsList.length > 0 && (
-                    <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
-                        <div className="text-sm text-muted-foreground">
-                            Showing{" "}
-                            <span className="font-medium">
-                                {actionsList.length}
-                            </span>{" "}
-                            of{" "}
-                            <span className="font-medium">
-                                {data?.total || 0}
-                            </span>{" "}
-                            actions
-                        </div>
+                                    <div className="pt-2 border-t">
+                                        <span className="text-[11px] text-muted-foreground">
+                                            Created {format(new Date(action.createdAt), "MMM d, yyyy")}
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
-                )}
-            </div>
+
+                    {/* Footer count */}
+                    <div className="text-xs text-muted-foreground text-right">
+                        {actionsList.length === (data?.total || 0)
+                            ? `${actionsList.length} action${actionsList.length !== 1 ? "s" : ""}`
+                            : `Showing ${actionsList.length} of ${data?.total || 0} actions`}
+                    </div>
+                </>
+            )}
 
             {/* Edit Dialog */}
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
