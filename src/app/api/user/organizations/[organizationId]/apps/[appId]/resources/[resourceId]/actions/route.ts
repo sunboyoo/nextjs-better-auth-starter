@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions, member } from "@/db/schema";
-import { eq, and, ilike, desc, sql } from "drizzle-orm";
+import { eq, and, ilike, desc, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             .orderBy(desc(actions.createdAt));
 
         const countResult = await db
-            .select({ count: sql<number>`count(*)` })
+            .select({ count: count() })
             .from(actions)
             .where(conditions);
         const total = Number(countResult[0]?.count || 0);

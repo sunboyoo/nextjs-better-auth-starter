@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions, appRoles } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, sql } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -20,19 +20,7 @@ export async function GET(
 
     try {
         const app = await db
-            .select({
-                id: apps.id,
-                key: apps.key,
-                name: apps.name,
-                description: apps.description,
-                logo: apps.logo,
-                isActive: apps.isActive,
-                createdAt: apps.createdAt,
-                updatedAt: apps.updatedAt,
-                resourceCount: sql<number>`(SELECT COUNT(*) FROM ${resources} WHERE ${resources.appId} = ${apps.id})`,
-                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} INNER JOIN ${resources} ON ${actions.resourceId} = ${resources.id} WHERE ${resources.appId} = ${apps.id})`,
-                roleCount: sql<number>`(SELECT COUNT(*) FROM ${appRoles} WHERE ${appRoles.appId} = ${apps.id})`,
-            })
+            .select()
             .from(apps)
             .where(eq(apps.id, appId))
             .limit(1);
@@ -41,7 +29,30 @@ export async function GET(
             return NextResponse.json({ error: "App not found" }, { status: 404 });
         }
 
-        return NextResponse.json({ app: app[0] });
+        const resourceCountResult = await db
+            .select({ count: count() })
+            .from(resources)
+            .where(eq(resources.appId, appId));
+
+        const actionCountResult = await db
+            .select({ count: count() })
+            .from(actions)
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(eq(resources.appId, appId));
+
+        const roleCountResult = await db
+            .select({ count: count() })
+            .from(appRoles)
+            .where(eq(appRoles.appId, appId));
+
+        return NextResponse.json({
+            app: {
+                ...app[0],
+                resourceCount: Number(resourceCountResult[0]?.count ?? 0),
+                actionCount: Number(actionCountResult[0]?.count ?? 0),
+                roleCount: Number(roleCountResult[0]?.count ?? 0),
+            },
+        });
     } catch (error) {
         return handleApiError(error, "fetch app");
     }

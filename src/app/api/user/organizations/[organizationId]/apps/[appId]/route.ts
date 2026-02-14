@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions, appRoles, member } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
@@ -40,31 +40,45 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        const app = await db
-            .select({
-                id: apps.id,
-                organizationId: apps.organizationId,
-                key: apps.key,
-                name: apps.name,
-                description: apps.description,
-                logo: apps.logo,
-                isActive: apps.isActive,
-                createdAt: apps.createdAt,
-                updatedAt: apps.updatedAt,
-                resourceCount: sql<number>`(SELECT COUNT(*) FROM ${resources} WHERE ${resources.appId} = ${apps.id})`,
-                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} INNER JOIN ${resources} ON ${actions.resourceId} = ${resources.id} WHERE ${resources.appId} = ${apps.id})`,
-                roleCount: sql<number>`(SELECT COUNT(*) FROM ${appRoles} WHERE ${appRoles.appId} = ${apps.id})`,
-            })
+        // Fetch app
+        const appResult = await db
+            .select()
             .from(apps)
             .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
             .limit(1);
 
-        if (app.length === 0) {
+        if (appResult.length === 0) {
             return NextResponse.json({ error: "App not found" }, { status: 404 });
         }
 
+        const app = appResult[0];
+
+        // Count resources
+        const resourceCountResult = await db
+            .select({ count: count() })
+            .from(resources)
+            .where(eq(resources.appId, appId));
+
+        // Count actions (through resources)
+        const actionCountResult = await db
+            .select({ count: count() })
+            .from(actions)
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(eq(resources.appId, appId));
+
+        // Count roles
+        const roleCountResult = await db
+            .select({ count: count() })
+            .from(appRoles)
+            .where(eq(appRoles.appId, appId));
+
         return NextResponse.json({
-            app: app[0],
+            app: {
+                ...app,
+                resourceCount: Number(resourceCountResult[0]?.count ?? 0),
+                actionCount: Number(actionCountResult[0]?.count ?? 0),
+                roleCount: Number(roleCountResult[0]?.count ?? 0),
+            },
             canWrite: isWriteRole(membership.role),
         });
     } catch (error) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { resources, actions } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, sql } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -28,7 +28,6 @@ export async function GET(
                 description: resources.description,
                 createdAt: resources.createdAt,
                 updatedAt: resources.updatedAt,
-                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} WHERE ${actions.resourceId} = ${resources.id})`,
             })
             .from(resources)
             .where(eq(resources.id, resourceId))
@@ -38,7 +37,17 @@ export async function GET(
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
 
-        return NextResponse.json({ resource: resource[0] });
+        const actionCountResult = await db
+            .select({ count: count() })
+            .from(actions)
+            .where(eq(actions.resourceId, resourceId));
+
+        return NextResponse.json({
+            resource: {
+                ...resource[0],
+                actionCount: Number(actionCountResult[0]?.count ?? 0),
+            },
+        });
     } catch (error) {
         return handleApiError(error, "fetch resource");
     }

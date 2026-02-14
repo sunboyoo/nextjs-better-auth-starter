@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions, member } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
@@ -51,6 +51,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }
 
     try {
+        // Fetch resource
         const resource = await db
             .select({
                 id: resources.id,
@@ -60,7 +61,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
                 description: resources.description,
                 createdAt: resources.createdAt,
                 updatedAt: resources.updatedAt,
-                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} WHERE ${actions.resourceId} = ${resources.id})`,
             })
             .from(resources)
             .innerJoin(apps, eq(resources.appId, apps.id))
@@ -77,6 +77,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
 
+        // Count actions for this resource
+        const actionCountResult = await db
+            .select({ count: count() })
+            .from(actions)
+            .where(eq(actions.resourceId, resourceId));
+
         // Get app name for breadcrumb
         const app = await db
             .select({ name: apps.name })
@@ -85,7 +91,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             .limit(1);
 
         return NextResponse.json({
-            resource: resource[0],
+            resource: {
+                ...resource[0],
+                actionCount: Number(actionCountResult[0]?.count ?? 0),
+            },
             appName: app[0]?.name ?? "",
             canWrite: isWriteRole(membership.role),
         });
