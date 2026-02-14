@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { generateSlugFromName } from "@/lib/utils";
 
 interface OrganizationAddDialogProps {
     isOpen: boolean;
@@ -29,6 +30,7 @@ export function OrganizationAddDialog({
 }: OrganizationAddDialogProps) {
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
+    const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
     const [logo, setLogo] = useState("");
     const [logoInvalid, setLogoInvalid] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function OrganizationAddDialog({
         e.preventDefault();
         setError(null);
 
-        const finalSlug = slug || generateSlug(name);
+        const finalSlug = slug || generateSlugFromName(name);
         const requestBody: { name: string; slug: string; logo?: string } = {
             name,
             slug: finalSlug,
@@ -79,6 +81,7 @@ export function OrganizationAddDialog({
             await createOrgMutation.mutateAsync(requestBody);
             setName("");
             setSlug("");
+            setIsSlugManuallyEdited(false);
             setLogo("");
             setLogoInvalid(false);
             onSuccess();
@@ -88,18 +91,17 @@ export function OrganizationAddDialog({
         }
     };
 
-    const generateSlug = (name: string) => {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
-    };
-
     const handleNameChange = (value: string) => {
         setName(value);
-        if (!slug) {
-            // Auto-generate slug from name if user hasn't manually set it
+        if (!isSlugManuallyEdited) {
+            setSlug(generateSlugFromName(value));
         }
+    };
+
+    const handleSlugChange = (value: string) => {
+        const normalized = generateSlugFromName(value);
+        setSlug(normalized);
+        setIsSlugManuallyEdited(normalized.length > 0);
     };
 
     return (
@@ -116,7 +118,7 @@ export function OrganizationAddDialog({
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="name">Organization Name</Label>
                                 <Input
@@ -134,8 +136,8 @@ export function OrganizationAddDialog({
                                 <Input
                                     id="slug"
                                     value={slug}
-                                    onChange={(e) => setSlug(e.target.value)}
-                                    placeholder={name ? generateSlug(name) : "my-organization"}
+                                    onChange={(e) => handleSlugChange(e.target.value)}
+                                    placeholder={name ? generateSlugFromName(name) : "my-organization"}
                                 />
                             </div>
                         </div>

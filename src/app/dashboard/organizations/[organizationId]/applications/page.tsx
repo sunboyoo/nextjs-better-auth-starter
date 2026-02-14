@@ -20,6 +20,8 @@ import {
     XCircle,
     Box,
     ArrowUpDown,
+    ImageIcon,
+    ImageOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { generateKeyFromName } from "@/lib/utils";
 
 interface App {
     id: string;
@@ -101,6 +104,7 @@ export default function ApplicationsPage() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [newKey, setNewKey] = useState("");
     const [newName, setNewName] = useState("");
+    const [isNewKeyManuallyEdited, setIsNewKeyManuallyEdited] = useState(false);
     const [newDescription, setNewDescription] = useState("");
     const [newLogo, setNewLogo] = useState("");
 
@@ -118,11 +122,43 @@ export default function ApplicationsPage() {
     // Submitting state
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Logo preview state (create)
+    const [newLogoPreviewStatus, setNewLogoPreviewStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+    const [debouncedNewLogo, setDebouncedNewLogo] = useState("");
+
+    // Logo preview state (edit)
+    const [editLogoPreviewStatus, setEditLogoPreviewStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+    const [debouncedEditLogo, setDebouncedEditLogo] = useState("");
+
     // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(search), 300);
         return () => clearTimeout(timer);
     }, [search]);
+
+    // Debounce create logo preview
+    useEffect(() => {
+        if (!newLogo.trim()) {
+            setDebouncedNewLogo("");
+            setNewLogoPreviewStatus("idle");
+            return;
+        }
+        setNewLogoPreviewStatus("loading");
+        const timer = setTimeout(() => setDebouncedNewLogo(newLogo.trim()), 500);
+        return () => clearTimeout(timer);
+    }, [newLogo]);
+
+    // Debounce edit logo preview
+    useEffect(() => {
+        if (!editLogo.trim()) {
+            setDebouncedEditLogo("");
+            setEditLogoPreviewStatus("idle");
+            return;
+        }
+        setEditLogoPreviewStatus("loading");
+        const timer = setTimeout(() => setDebouncedEditLogo(editLogo.trim()), 500);
+        return () => clearTimeout(timer);
+    }, [editLogo]);
 
     // Build API URL
     const buildUrl = useCallback(() => {
@@ -165,6 +201,19 @@ export default function ApplicationsPage() {
         },
     });
 
+    const handleNewNameChange = (value: string) => {
+        setNewName(value);
+        if (!isNewKeyManuallyEdited) {
+            setNewKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewKey(normalized);
+        setIsNewKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -182,8 +231,11 @@ export default function ApplicationsPage() {
             setIsCreateOpen(false);
             setNewKey("");
             setNewName("");
+            setIsNewKeyManuallyEdited(false);
             setNewDescription("");
             setNewLogo("");
+            setNewLogoPreviewStatus("idle");
+            setDebouncedNewLogo("");
             await queryClient.invalidateQueries({ queryKey });
             toast.success("Application created successfully");
         } catch (err) {
@@ -253,6 +305,8 @@ export default function ApplicationsPage() {
         setEditName(app.name);
         setEditDescription(app.description || "");
         setEditLogo(app.logo || "");
+        setEditLogoPreviewStatus("idle");
+        setDebouncedEditLogo("");
         setIsEditOpen(true);
     };
 
@@ -361,30 +415,28 @@ export default function ApplicationsPage() {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="create-name">Name</Label>
-                                            <Input
-                                                id="create-name"
-                                                placeholder="Order System"
-                                                value={newName}
-                                                onChange={(e) => setNewName(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="create-key">Key</Label>
-                                            <Input
-                                                id="create-key"
-                                                placeholder="order_system"
-                                                value={newKey}
-                                                onChange={(e) => setNewKey(e.target.value)}
-                                                required
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Lowercase letters, numbers, underscores only
-                                            </p>
-                                        </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="create-name">Name</Label>
+                                        <Input
+                                            id="create-name"
+                                            placeholder="Order System"
+                                            value={newName}
+                                            onChange={(e) => handleNewNameChange(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="create-key">Key</Label>
+                                        <Input
+                                            id="create-key"
+                                            placeholder="order_system"
+                                            value={newKey}
+                                            onChange={(e) => handleNewKeyChange(e.target.value)}
+                                            required
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Lowercase letters, numbers, underscores only
+                                        </p>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="create-logo">
@@ -399,6 +451,45 @@ export default function ApplicationsPage() {
                                             value={newLogo}
                                             onChange={(e) => setNewLogo(e.target.value)}
                                         />
+                                        {newLogo.trim() && (
+                                            <div className="flex items-center gap-3 rounded-md border p-3">
+                                                <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                                                    {newLogoPreviewStatus === "loading" && (
+                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                    )}
+                                                    {newLogoPreviewStatus === "error" && (
+                                                        <ImageOff className="h-4 w-4 text-muted-foreground" />
+                                                    )}
+                                                    {debouncedNewLogo && newLogoPreviewStatus !== "error" && (
+                                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                                        <img
+                                                            src={debouncedNewLogo}
+                                                            alt="Logo preview"
+                                                            className="h-full w-full object-cover"
+                                                            onLoad={() => setNewLogoPreviewStatus("loaded")}
+                                                            onError={() => setNewLogoPreviewStatus("error")}
+                                                        />
+                                                    )}
+                                                    {newLogoPreviewStatus === "idle" && (
+                                                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    {newLogoPreviewStatus === "loading" && (
+                                                        <p className="text-xs text-muted-foreground">Loading preview...</p>
+                                                    )}
+                                                    {newLogoPreviewStatus === "loaded" && (
+                                                        <p className="text-xs text-muted-foreground">Logo preview loaded</p>
+                                                    )}
+                                                    {newLogoPreviewStatus === "error" && (
+                                                        <p className="text-xs text-destructive">Unable to load image. Please check the URL.</p>
+                                                    )}
+                                                    {newLogoPreviewStatus === "idle" && (
+                                                        <p className="text-xs text-muted-foreground">Enter a URL to preview</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="create-desc">
@@ -600,28 +691,26 @@ export default function ApplicationsPage() {
                             <DialogDescription>Update the application details.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-name">Name</Label>
-                                    <Input
-                                        id="edit-name"
-                                        value={editName}
-                                        onChange={(e) => setEditName(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-key">Key</Label>
-                                    <Input
-                                        id="edit-key"
-                                        value={editKey}
-                                        disabled
-                                        className="bg-muted"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Key cannot be changed
-                                    </p>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Name</Label>
+                                <Input
+                                    id="edit-name"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-key">Key</Label>
+                                <Input
+                                    id="edit-key"
+                                    value={editKey}
+                                    disabled
+                                    className="bg-muted"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Key cannot be changed
+                                </p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-logo">
@@ -636,6 +725,45 @@ export default function ApplicationsPage() {
                                     value={editLogo}
                                     onChange={(e) => setEditLogo(e.target.value)}
                                 />
+                                {editLogo.trim() && (
+                                    <div className="flex items-center gap-3 rounded-md border p-3">
+                                        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                                            {editLogoPreviewStatus === "loading" && (
+                                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                            )}
+                                            {editLogoPreviewStatus === "error" && (
+                                                <ImageOff className="h-4 w-4 text-muted-foreground" />
+                                            )}
+                                            {debouncedEditLogo && editLogoPreviewStatus !== "error" && (
+                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                <img
+                                                    src={debouncedEditLogo}
+                                                    alt="Logo preview"
+                                                    className="h-full w-full object-cover"
+                                                    onLoad={() => setEditLogoPreviewStatus("loaded")}
+                                                    onError={() => setEditLogoPreviewStatus("error")}
+                                                />
+                                            )}
+                                            {editLogoPreviewStatus === "idle" && (
+                                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            {editLogoPreviewStatus === "loading" && (
+                                                <p className="text-xs text-muted-foreground">Loading preview...</p>
+                                            )}
+                                            {editLogoPreviewStatus === "loaded" && (
+                                                <p className="text-xs text-muted-foreground">Logo preview loaded</p>
+                                            )}
+                                            {editLogoPreviewStatus === "error" && (
+                                                <p className="text-xs text-destructive">Unable to load image. Please check the URL.</p>
+                                            )}
+                                            {editLogoPreviewStatus === "idle" && (
+                                                <p className="text-xs text-muted-foreground">Enter a URL to preview</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-desc">

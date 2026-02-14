@@ -68,6 +68,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { generateKeyFromName } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
@@ -116,6 +117,7 @@ export function AppsTable() {
     // Create form state
     const [newAppKey, setNewAppKey] = useState("");
     const [newAppName, setNewAppName] = useState("");
+    const [isNewAppKeyManuallyEdited, setIsNewAppKeyManuallyEdited] = useState(false);
     const [newAppDescription, setNewAppDescription] = useState("");
     const [newAppLogo, setNewAppLogo] = useState("");
     const [newAppLogoInvalid, setNewAppLogoInvalid] = useState(false);
@@ -192,6 +194,19 @@ export function AppsTable() {
             }),
     });
 
+    const handleNewAppNameChange = (value: string) => {
+        setNewAppName(value);
+        if (!isNewAppKeyManuallyEdited) {
+            setNewAppKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewAppKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewAppKey(normalized);
+        setIsNewAppKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -217,6 +232,7 @@ export function AppsTable() {
             setIsCreateDialogOpen(false);
             setNewAppKey("");
             setNewAppName("");
+            setIsNewAppKeyManuallyEdited(false);
             setNewAppDescription("");
             setNewAppLogo("");
             setNewAppLogoInvalid(false);
@@ -418,30 +434,28 @@ export function AppsTable() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">App Name</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Order System"
-                                        value={newAppName}
-                                        onChange={(e) => setNewAppName(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="key">Key</Label>
-                                    <Input
-                                        id="key"
-                                        placeholder="order_system"
-                                        value={newAppKey}
-                                        onChange={(e) => setNewAppKey(e.target.value)}
-                                        required
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Unique identifier (lowercase, no spaces)
-                                    </p>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">App Name</Label>
+                                <Input
+                                    id="name"
+                                    placeholder="Order System"
+                                    value={newAppName}
+                                    onChange={(e) => handleNewAppNameChange(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="key">Key</Label>
+                                <Input
+                                    id="key"
+                                    placeholder="order_system"
+                                    value={newAppKey}
+                                    onChange={(e) => handleNewAppKeyChange(e.target.value)}
+                                    required
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Unique identifier (lowercase, no spaces)
+                                </p>
                             </div>
 
                             <div className="grid gap-2">
@@ -748,29 +762,27 @@ export function AppsTable() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-name">Name</Label>
-                                    <Input
-                                        id="edit-name"
-                                        placeholder="Order System"
-                                        value={editAppName}
-                                        onChange={(e) => setEditAppName(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-key">Key</Label>
-                                    <Input
-                                        id="edit-key"
-                                        value={editAppKey}
-                                        disabled
-                                        className="bg-muted"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Key cannot be changed
-                                    </p>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Name</Label>
+                                <Input
+                                    id="edit-name"
+                                    placeholder="Order System"
+                                    value={editAppName}
+                                    onChange={(e) => setEditAppName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-key">Key</Label>
+                                <Input
+                                    id="edit-key"
+                                    value={editAppKey}
+                                    disabled
+                                    className="bg-muted"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Key cannot be changed
+                                </p>
                             </div>
 
                             <div className="grid gap-2">

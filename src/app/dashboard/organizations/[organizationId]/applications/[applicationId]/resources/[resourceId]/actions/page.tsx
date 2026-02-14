@@ -54,6 +54,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { generateKeyFromName } from "@/lib/utils";
 
 interface ActionItem {
     id: string;
@@ -95,6 +96,7 @@ export default function ActionsPage() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [newKey, setNewKey] = useState("");
     const [newName, setNewName] = useState("");
+    const [isNewKeyManuallyEdited, setIsNewKeyManuallyEdited] = useState(false);
     const [newDescription, setNewDescription] = useState("");
 
     // Edit form
@@ -155,6 +157,19 @@ export default function ActionsPage() {
         });
     }, [data?.actions, sortBy]);
 
+    const handleNewNameChange = (value: string) => {
+        setNewName(value);
+        if (!isNewKeyManuallyEdited) {
+            setNewKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewKey(normalized);
+        setIsNewKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -179,6 +194,7 @@ export default function ActionsPage() {
             setIsCreateOpen(false);
             setNewKey("");
             setNewName("");
+            setIsNewKeyManuallyEdited(false);
             setNewDescription("");
             await queryClient.invalidateQueries({ queryKey });
             toast.success("Action created successfully");
@@ -310,39 +326,37 @@ export default function ActionsPage() {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <div className="grid gap-4 py-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="create-name">
-                                                Name
-                                            </Label>
-                                            <Input
-                                                id="create-name"
-                                                placeholder="Create Order"
-                                                value={newName}
-                                                onChange={(e) =>
-                                                    setNewName(e.target.value)
-                                                }
-                                                required
-                                            />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="create-key">
-                                                Key
-                                            </Label>
-                                            <Input
-                                                id="create-key"
-                                                placeholder="create"
-                                                value={newKey}
-                                                onChange={(e) =>
-                                                    setNewKey(e.target.value)
-                                                }
-                                                required
-                                            />
-                                            <p className="text-xs text-muted-foreground">
-                                                Lowercase letters, numbers,
-                                                underscores only
-                                            </p>
-                                        </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="create-name">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id="create-name"
+                                            placeholder="Create Order"
+                                            value={newName}
+                                            onChange={(e) =>
+                                                handleNewNameChange(e.target.value)
+                                            }
+                                            required
+                                        />
+                                    </div>
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="create-key">
+                                            Key
+                                        </Label>
+                                        <Input
+                                            id="create-key"
+                                            placeholder="create"
+                                            value={newKey}
+                                            onChange={(e) =>
+                                                handleNewKeyChange(e.target.value)
+                                            }
+                                            required
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Lowercase letters, numbers,
+                                            underscores only
+                                        </p>
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="create-desc">

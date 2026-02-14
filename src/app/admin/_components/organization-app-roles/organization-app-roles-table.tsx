@@ -65,7 +65,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
+import { cn, generateKeyFromName } from "@/lib/utils";
 
 import { OrgAppSelector } from "./org-app-selector";
 import { AppResourceActionTreeSelector } from "@/components/shared/app-resource-action-tree-selector";
@@ -145,6 +145,7 @@ export function OrganizationAppRolesTable() {
     // Create form state
     const [newRoleKey, setNewRoleKey] = useState("");
     const [newRoleName, setNewRoleName] = useState("");
+    const [isNewRoleKeyManuallyEdited, setIsNewRoleKeyManuallyEdited] = useState(false);
     const [newRoleDescription, setNewRoleDescription] = useState("");
     const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
 
@@ -227,6 +228,19 @@ export function OrganizationAppRolesTable() {
             }),
     });
 
+    const handleNewRoleNameChange = (value: string) => {
+        setNewRoleName(value);
+        if (!isNewRoleKeyManuallyEdited) {
+            setNewRoleKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewRoleKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewRoleKey(normalized);
+        setIsNewRoleKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOrgId || !selectedAppId) {
@@ -256,6 +270,7 @@ export function OrganizationAppRolesTable() {
             setIsAddDialogOpen(false);
             setNewRoleKey("");
             setNewRoleName("");
+            setIsNewRoleKeyManuallyEdited(false);
             setNewRoleDescription("");
             setSelectedActionIds([]);
             await queryClient.invalidateQueries({
@@ -493,28 +508,26 @@ export function OrganizationAppRolesTable() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="name">Role Name</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Order Reviewer"
-                                        value={newRoleName}
-                                        onChange={(e) => setNewRoleName(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="key">Key</Label>
-                                    <Input
-                                        id="key"
-                                        placeholder="order_reviewer"
-                                        value={newRoleKey}
-                                        onChange={(e) => setNewRoleKey(e.target.value)}
-                                        required
-                                    />
-                                    <p className="text-xs text-muted-foreground">Lowercase with underscores</p>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="name">Role Name</Label>
+                                <Input
+                                    id="name"
+                                    placeholder="Order Reviewer"
+                                    value={newRoleName}
+                                    onChange={(e) => handleNewRoleNameChange(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="key">Key</Label>
+                                <Input
+                                    id="key"
+                                    placeholder="order_reviewer"
+                                    value={newRoleKey}
+                                    onChange={(e) => handleNewRoleKeyChange(e.target.value)}
+                                    required
+                                />
+                                <p className="text-xs text-muted-foreground">Lowercase with underscores</p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="description">Description <span className="text-muted-foreground text-xs">(optional)</span></Label>
@@ -762,26 +775,24 @@ export function OrganizationAppRolesTable() {
                             <DialogDescription>Update role details and action assignments.</DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-name">Role Name</Label>
-                                    <Input
-                                        id="edit-name"
-                                        value={editRoleName}
-                                        onChange={(e) => setEditRoleName(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-key">Key</Label>
-                                    <Input
-                                        id="edit-key"
-                                        value={editRoleKey}
-                                        disabled
-                                        className="bg-muted"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Key cannot be changed</p>
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Role Name</Label>
+                                <Input
+                                    id="edit-name"
+                                    value={editRoleName}
+                                    onChange={(e) => setEditRoleName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-key">Key</Label>
+                                <Input
+                                    id="edit-key"
+                                    value={editRoleKey}
+                                    disabled
+                                    className="bg-muted"
+                                />
+                                <p className="text-xs text-muted-foreground">Key cannot be changed</p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-description">Description <span className="text-muted-foreground text-xs">(optional)</span></Label>

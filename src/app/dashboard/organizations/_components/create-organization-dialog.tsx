@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import {
@@ -15,7 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, ImageIcon, ImageOff } from "lucide-react";
+import { generateSlugFromName } from "@/lib/utils";
 
 interface CreateOrganizationDialogProps {
     onSuccess?: () => void;
@@ -25,31 +26,43 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
     const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
+    const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
     const [logo, setLogo] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+    const [logoPreviewStatus, setLogoPreviewStatus] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+    const [debouncedLogo, setDebouncedLogo] = useState("");
 
-    const generateSlug = (name: string) => {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
-    };
+    useEffect(() => {
+        if (!logo.trim()) {
+            setDebouncedLogo("");
+            setLogoPreviewStatus("idle");
+            return;
+        }
+        setLogoPreviewStatus("loading");
+        const timer = setTimeout(() => {
+            setDebouncedLogo(logo.trim());
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [logo]);
 
     const handleNameChange = (value: string) => {
         setName(value);
-        const generated = generateSlug(value);
-        setSlug(generated);
-        if (generated) {
-            checkSlug(generated);
-        } else {
-            setSlugStatus("idle");
+        if (!isSlugManuallyEdited) {
+            const generated = generateSlugFromName(value);
+            setSlug(generated);
+            if (generated) {
+                checkSlug(generated);
+            } else {
+                setSlugStatus("idle");
+            }
         }
     };
 
     const handleSlugChange = (value: string) => {
-        const cleaned = value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+        const cleaned = generateSlugFromName(value);
         setSlug(cleaned);
+        setIsSlugManuallyEdited(cleaned.length > 0);
         if (cleaned) {
             checkSlug(cleaned);
         } else {
@@ -100,8 +113,11 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
     const resetForm = () => {
         setName("");
         setSlug("");
+        setIsSlugManuallyEdited(false);
         setLogo("");
         setSlugStatus("idle");
+        setLogoPreviewStatus("idle");
+        setDebouncedLogo("");
     };
 
     return (
@@ -167,6 +183,45 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
                                 onChange={(e) => setLogo(e.target.value)}
                                 disabled={isLoading}
                             />
+                            {logo.trim() && (
+                                <div className="flex items-center gap-3 rounded-md border p-3">
+                                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                                        {logoPreviewStatus === "loading" && (
+                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                        )}
+                                        {logoPreviewStatus === "error" && (
+                                            <ImageOff className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        {debouncedLogo && logoPreviewStatus !== "error" && (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img
+                                                src={debouncedLogo}
+                                                alt="Logo preview"
+                                                className="h-full w-full object-cover"
+                                                onLoad={() => setLogoPreviewStatus("loaded")}
+                                                onError={() => setLogoPreviewStatus("error")}
+                                            />
+                                        )}
+                                        {logoPreviewStatus === "idle" && (
+                                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        {logoPreviewStatus === "loading" && (
+                                            <p className="text-xs text-muted-foreground">Loading preview...</p>
+                                        )}
+                                        {logoPreviewStatus === "loaded" && (
+                                            <p className="text-xs text-muted-foreground">Logo preview loaded</p>
+                                        )}
+                                        {logoPreviewStatus === "error" && (
+                                            <p className="text-xs text-destructive">Unable to load image. Please check the URL.</p>
+                                        )}
+                                        {logoPreviewStatus === "idle" && (
+                                            <p className="text-xs text-muted-foreground">Enter a URL to preview</p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>

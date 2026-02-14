@@ -1,7 +1,9 @@
 "use client";
 
-import { Building2, Users, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Building2, Users, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,14 +15,38 @@ interface OrganizationCardProps {
         slug: string;
         logo?: string | null;
         createdAt: Date;
-        members?: { id: string }[];
     };
 }
 
 export function OrganizationCard({ organization }: OrganizationCardProps) {
     const router = useRouter();
+    const [memberCount, setMemberCount] = useState<number | null>(null);
 
-    const memberCount = organization.members?.length ?? 0;
+    useEffect(() => {
+        let cancelled = false;
+        authClient.organization
+            .listMembers({ query: { organizationId: organization.id } })
+            .then(({ data }) => {
+                if (!cancelled) {
+                    // data can be an array directly or an object like { members: [...] }
+                    const raw = data as unknown;
+                    const list = Array.isArray(raw)
+                        ? raw
+                        : Array.isArray((raw as Record<string, unknown>)?.members)
+                            ? (raw as Record<string, unknown>).members as unknown[]
+                            : [];
+                    setMemberCount(list.length);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setMemberCount(0);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [organization.id]);
     const initials = organization.name
         .split(" ")
         .map((word) => word[0])
@@ -56,7 +82,11 @@ export function OrganizationCard({ organization }: OrganizationCardProps) {
                         <div className="flex items-center gap-3 mt-3">
                             <Badge variant="secondary" className="text-xs font-normal gap-1">
                                 <Users className="h-3 w-3" />
-                                {memberCount} {memberCount === 1 ? "member" : "members"}
+                                {memberCount === null ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                    <>{memberCount} {memberCount === 1 ? "member" : "members"}</>
+                                )}
                             </Badge>
                         </div>
                     </div>

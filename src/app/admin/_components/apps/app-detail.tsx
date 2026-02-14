@@ -58,6 +58,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { generateKeyFromName } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
@@ -106,9 +107,11 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
     // Form state
     const [newResourceKey, setNewResourceKey] = useState("");
     const [newResourceName, setNewResourceName] = useState("");
+    const [isNewResourceKeyManuallyEdited, setIsNewResourceKeyManuallyEdited] = useState(false);
     const [newResourceDescription, setNewResourceDescription] = useState("");
     const [newActionKey, setNewActionKey] = useState("");
     const [newActionName, setNewActionName] = useState("");
+    const [isNewActionKeyManuallyEdited, setIsNewActionKeyManuallyEdited] = useState(false);
     const [newActionDescription, setNewActionDescription] = useState("");
 
     // Fetch app details
@@ -144,6 +147,32 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             }),
     });
 
+    const handleNewResourceNameChange = (value: string) => {
+        setNewResourceName(value);
+        if (!isNewResourceKeyManuallyEdited) {
+            setNewResourceKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewResourceKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewResourceKey(normalized);
+        setIsNewResourceKeyManuallyEdited(normalized.length > 0);
+    };
+
+    const handleNewActionNameChange = (value: string) => {
+        setNewActionName(value);
+        if (!isNewActionKeyManuallyEdited) {
+            setNewActionKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewActionKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewActionKey(normalized);
+        setIsNewActionKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleCreateResource = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -169,6 +198,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             setIsCreateResourceOpen(false);
             setNewResourceKey("");
             setNewResourceName("");
+            setIsNewResourceKeyManuallyEdited(false);
             setNewResourceDescription("");
             await queryClient.invalidateQueries({
                 queryKey: adminKeys.appResources(resourcesUrl),
@@ -206,6 +236,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             setIsCreateActionOpen(false);
             setNewActionKey("");
             setNewActionName("");
+            setIsNewActionKeyManuallyEdited(false);
             setNewActionDescription("");
             await queryClient.invalidateQueries({
                 queryKey: adminKeys.resourceActions(actionsUrl),
@@ -353,22 +384,22 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                                         </DialogHeader>
                                         <div className="grid gap-4 py-4">
                                             <div className="grid gap-2">
-                                                <Label htmlFor="resourceKey">Key</Label>
-                                                <Input
-                                                    id="resourceKey"
-                                                    placeholder="orders"
-                                                    value={newResourceKey}
-                                                    onChange={(e) => setNewResourceKey(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="grid gap-2">
                                                 <Label htmlFor="resourceName">Name</Label>
                                                 <Input
                                                     id="resourceName"
                                                     placeholder="Orders"
                                                     value={newResourceName}
-                                                    onChange={(e) => setNewResourceName(e.target.value)}
+                                                    onChange={(e) => handleNewResourceNameChange(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="grid gap-2">
+                                                <Label htmlFor="resourceKey">Key</Label>
+                                                <Input
+                                                    id="resourceKey"
+                                                    placeholder="orders"
+                                                    value={newResourceKey}
+                                                    onChange={(e) => handleNewResourceKeyChange(e.target.value)}
                                                     required
                                                 />
                                             </div>
@@ -475,22 +506,22 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                                             </DialogHeader>
                                             <div className="grid gap-4 py-4">
                                                 <div className="grid gap-2">
-                                                    <Label htmlFor="actionKey">Key</Label>
-                                                    <Input
-                                                        id="actionKey"
-                                                        placeholder="create"
-                                                        value={newActionKey}
-                                                        onChange={(e) => setNewActionKey(e.target.value)}
-                                                        required
-                                                    />
-                                                </div>
-                                                <div className="grid gap-2">
                                                     <Label htmlFor="actionName">Name</Label>
                                                     <Input
                                                         id="actionName"
                                                         placeholder="Create Order"
                                                         value={newActionName}
-                                                        onChange={(e) => setNewActionName(e.target.value)}
+                                                        onChange={(e) => handleNewActionNameChange(e.target.value)}
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="grid gap-2">
+                                                    <Label htmlFor="actionKey">Key</Label>
+                                                    <Input
+                                                        id="actionKey"
+                                                        placeholder="create"
+                                                        value={newActionKey}
+                                                        onChange={(e) => handleNewActionKeyChange(e.target.value)}
                                                         required
                                                     />
                                                 </div>

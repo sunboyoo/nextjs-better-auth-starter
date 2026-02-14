@@ -54,6 +54,7 @@ import {
     PaginationNext,
     PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { generateKeyFromName } from "@/lib/utils";
 
 const fetcher = async (url: string) => {
     const res = await fetch(url, { credentials: 'include' });
@@ -106,6 +107,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
     // Form state
     const [newKey, setNewKey] = useState("");
     const [newName, setNewName] = useState("");
+    const [isNewKeyManuallyEdited, setIsNewKeyManuallyEdited] = useState(false);
     const [newDescription, setNewDescription] = useState("");
 
     // Edit form state
@@ -174,6 +176,19 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             }),
     });
 
+    const handleNewNameChange = (value: string) => {
+        setNewName(value);
+        if (!isNewKeyManuallyEdited) {
+            setNewKey(generateKeyFromName(value));
+        }
+    };
+
+    const handleNewKeyChange = (value: string) => {
+        const normalized = generateKeyFromName(value);
+        setNewKey(normalized);
+        setIsNewKeyManuallyEdited(normalized.length > 0);
+    };
+
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editId) return;
@@ -233,6 +248,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             setIsCreateOpen(false);
             setNewKey("");
             setNewName("");
+            setIsNewKeyManuallyEdited(false);
             setNewDescription("");
             await queryClient.invalidateQueries({
                 queryKey: adminKeys.appResources(resourcesUrl),
@@ -371,22 +387,22 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="resourceKey">Key</Label>
-                                    <Input
-                                        id="resourceKey"
-                                        placeholder="orders"
-                                        value={newKey}
-                                        onChange={(e) => setNewKey(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="grid gap-2">
                                     <Label htmlFor="resourceName">Name</Label>
                                     <Input
                                         id="resourceName"
                                         placeholder="Orders"
                                         value={newName}
-                                        onChange={(e) => setNewName(e.target.value)}
+                                        onChange={(e) => handleNewNameChange(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="resourceKey">Key</Label>
+                                    <Input
+                                        id="resourceKey"
+                                        placeholder="orders"
+                                        value={newKey}
+                                        onChange={(e) => handleNewKeyChange(e.target.value)}
                                         required
                                     />
                                 </div>
@@ -533,6 +549,16 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Name</Label>
+                                <Input
+                                    id="edit-name"
+                                    placeholder="Orders"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
                                 <Label htmlFor="edit-key">Key</Label>
                                 <Input
                                     id="edit-key"
@@ -543,16 +569,6 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
                                 <p className="text-xs text-muted-foreground">
                                     Key cannot be changed
                                 </p>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-name">Name</Label>
-                                <Input
-                                    id="edit-name"
-                                    placeholder="Orders"
-                                    value={editName}
-                                    onChange={(e) => setEditName(e.target.value)}
-                                    required
-                                />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-description">Description</Label>

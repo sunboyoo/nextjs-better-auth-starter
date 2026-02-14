@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { generateSlugFromName } from "@/lib/utils";
 
 interface OrganizationEditDialogProps {
     isOpen: boolean;
@@ -36,6 +37,7 @@ export function OrganizationEditDialog({
 }: OrganizationEditDialogProps) {
     const [name, setName] = useState("");
     const [slug, setSlug] = useState("");
+    const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
     const [logo, setLogo] = useState("");
     const [logoInvalid, setLogoInvalid] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export function OrganizationEditDialog({
         if (organization) {
             setName(organization.name);
             setSlug(organization.slug);
+            setIsSlugManuallyEdited(false);
             setLogo(organization.logo || "");
             setLogoInvalid(false);
         }
@@ -89,7 +92,7 @@ export function OrganizationEditDialog({
             await updateOrgMutation.mutateAsync({
                 orgId: organization.id,
                 name,
-                slug: slug || generateSlug(name),
+                slug: slug || generateSlugFromName(name),
                 logo: logo || null,
                 excludeOrganizationId: organization.id,
             });
@@ -100,11 +103,17 @@ export function OrganizationEditDialog({
         }
     };
 
-    const generateSlug = (name: string) => {
-        return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-|-$/g, "");
+    const handleNameChange = (value: string) => {
+        setName(value);
+        if (!isSlugManuallyEdited) {
+            setSlug(generateSlugFromName(value));
+        }
+    };
+
+    const handleSlugChange = (value: string) => {
+        const normalized = generateSlugFromName(value);
+        setSlug(normalized);
+        setIsSlugManuallyEdited(normalized.length > 0);
     };
 
     return (
@@ -121,13 +130,13 @@ export function OrganizationEditDialog({
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="edit-name">Organization name</Label>
                                 <Input
                                     id="edit-name"
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e) => handleNameChange(e.target.value)}
                                     placeholder="My Organization"
                                     required
                                 />
@@ -139,8 +148,8 @@ export function OrganizationEditDialog({
                                 <Input
                                     id="edit-slug"
                                     value={slug}
-                                    onChange={(e) => setSlug(e.target.value)}
-                                    placeholder={name ? generateSlug(name) : "my-organization"}
+                                    onChange={(e) => handleSlugChange(e.target.value)}
+                                    placeholder={name ? generateSlugFromName(name) : "my-organization"}
                                 />
                             </div>
                         </div>

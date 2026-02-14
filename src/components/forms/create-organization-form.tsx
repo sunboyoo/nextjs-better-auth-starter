@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useOrganizationCreateMutation } from "@/data/better-auth-official/organization/organization-create-mutation";
 import { useImagePreview } from "@/hooks/use-image-preview";
-import { convertImageToBase64 } from "@/lib/utils";
+import { convertImageToBase64, generateSlugFromName } from "@/lib/utils";
 
 const createOrganizationSchema = z.object({
 	name: z
@@ -67,11 +67,7 @@ export function CreateOrganizationForm({
 	// Auto-generate slug from name if slug hasn't been manually edited
 	useEffect(() => {
 		if (!dirtyFields.slug) {
-			const generatedSlug = nameValue
-				.trim()
-				.toLowerCase()
-				.replace(/\s+/g, "-")
-				.replace(/[^a-z0-9-]/g, "");
+			const generatedSlug = generateSlugFromName(nameValue);
 			setValue("slug", generatedSlug);
 		}
 	}, [nameValue, dirtyFields.slug, setValue]);
