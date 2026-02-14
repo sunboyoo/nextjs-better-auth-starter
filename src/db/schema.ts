@@ -647,6 +647,8 @@ export const organizationRelations = relations(organization, ({ many }) => ({
   organizationRoles: many(organizationRole),
   members: many(member),
   invitations: many(invitation),
+  teams: many(team),
+  apps: many(apps),
 }));
 
 export const organizationRoleRelations = relations(

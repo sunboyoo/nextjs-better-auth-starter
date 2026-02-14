@@ -69,7 +69,7 @@ export function AppSidebar({
         },
         {
             title: "Organizations",
-            url: "/admin/organizations",
+            url: "/dashboard/organizations",
             icon: IconUsers,
         },
     ]
