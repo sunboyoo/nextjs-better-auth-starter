@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions, organizationAppRoles } from "@/db/schema";
+import { apps, resources, actions, appRoles } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
@@ -30,8 +30,8 @@ export async function GET(
                 createdAt: apps.createdAt,
                 updatedAt: apps.updatedAt,
                 resourceCount: sql<number>`(SELECT COUNT(*) FROM ${resources} WHERE ${resources.appId} = ${apps.id})`,
-                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} WHERE ${actions.appId} = ${apps.id})`,
-                roleCount: sql<number>`(SELECT COUNT(*) FROM ${organizationAppRoles} WHERE ${organizationAppRoles.appId} = ${apps.id})`,
+                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} INNER JOIN ${resources} ON ${actions.resourceId} = ${resources.id} WHERE ${resources.appId} = ${apps.id})`,
+                roleCount: sql<number>`(SELECT COUNT(*) FROM ${appRoles} WHERE ${appRoles.appId} = ${apps.id})`,
             })
             .from(apps)
             .where(eq(apps.id, appId))

@@ -77,6 +77,9 @@ export const authClient = createAuthClient({
       dynamicAccessControl: {
         enabled: true,
       },
+      teams: {
+        enabled: true,
+      },
     }),
     twoFactorClient({
       onTwoFactorRedirect() {
@@ -105,10 +108,10 @@ export const authClient = createAuthClient({
     oauthProviderClient(),
     ...(enableStripe
       ? [
-          stripeClient({
-            subscription: true,
-          }),
-        ]
+        stripeClient({
+          subscription: true,
+        }),
+      ]
       : []),
     electronProxyClient({
       protocol: {

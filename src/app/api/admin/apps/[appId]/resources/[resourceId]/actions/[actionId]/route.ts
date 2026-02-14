@@ -22,7 +22,6 @@ export async function GET(
         const action = await db
             .select({
                 id: actions.id,
-                appId: actions.appId,
                 resourceId: actions.resourceId,
                 key: actions.key,
                 name: actions.name,

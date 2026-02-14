@@ -9,22 +9,36 @@ import { useState, useCallback } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
-
 interface Organization {
     id: string;
     name: string;
     slug: string;
     logo: string | null;
-    createdAt: string;
+    createdAt: string | null;
     metadata: string | null;
     memberCount: number;
     roleCount?: number;
 }
 
+interface OrganizationResponse {
+    organization?: Organization;
+    error?: string;
+}
+
 interface OrganizationInfoCardProps {
     organizationId: string;
 }
+
+const fetcher = async (url: string): Promise<OrganizationResponse> => {
+    const response = await fetch(url, { credentials: "include" });
+    const payload = (await response.json().catch(() => null)) as OrganizationResponse | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load organization information");
+    }
+
+    return payload ?? {};
+};
 
 export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardProps) {
     const [brokenLogo, setBrokenLogo] = useState(false);
@@ -48,7 +62,7 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
         );
     }
 
-    if (isLoading || !data) {
+    if (isLoading) {
         return (
             <div className="flex items-start gap-5 pb-6">
                 <Skeleton className="h-16 w-16 rounded-lg shrink-0" />
@@ -60,8 +74,21 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
         );
     }
 
-    const org: Organization = data.organization;
+    const org: Organization | null = data?.organization ?? null;
+    if (!org) {
+        return (
+            <div className="py-8 text-center">
+                <p className="text-destructive">Organization data is unavailable</p>
+            </div>
+        );
+    }
+
     const showLogo = Boolean(org.logo) && !brokenLogo;
+    const createdAt = org.createdAt ? new Date(org.createdAt) : null;
+    const createdAtLabel =
+        createdAt && !Number.isNaN(createdAt.getTime())
+            ? format(createdAt, "MMM d, yyyy")
+            : "Unknown date";
 
     return (
         <div className="flex items-start gap-5 pb-6">
@@ -102,7 +129,7 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
                     )}
                     <span className="flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5" />
-                        Created {format(new Date(org.createdAt), "MMM d, yyyy")}
+                        Created {createdAtLabel}
                     </span>
                 </div>
             </div>

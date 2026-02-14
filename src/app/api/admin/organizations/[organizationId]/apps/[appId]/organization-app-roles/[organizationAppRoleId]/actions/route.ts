@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { organizationAppRoles, organizationAppRoleAction, actions, resources, apps } from "@/db/schema";
+import { appRoles, appRoleAction, actions, resources, apps } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -20,12 +20,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     try {
         const role = await db
-            .select({ id: organizationAppRoles.id })
-            .from(organizationAppRoles)
+            .select({ id: appRoles.id })
+            .from(appRoles)
             .where(and(
-                eq(organizationAppRoles.id, organizationAppRoleId),
-                eq(organizationAppRoles.organizationId, organizationId),
-                eq(organizationAppRoles.appId, appId)
+                eq(appRoles.id, organizationAppRoleId),
+                eq(appRoles.appId, appId)
             ))
             .limit(1);
 
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         const roleActions = await db
             .select({
-                actionId: organizationAppRoleAction.actionId,
+                actionId: appRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceId: resources.id,
@@ -44,11 +43,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 appKey: apps.key,
                 appName: apps.name,
             })
-            .from(organizationAppRoleAction)
-            .innerJoin(actions, eq(organizationAppRoleAction.actionId, actions.id))
+            .from(appRoleAction)
+            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .innerJoin(apps, eq(organizationAppRoleAction.appId, apps.id))
-            .where(eq(organizationAppRoleAction.roleId, organizationAppRoleId));
+            .innerJoin(apps, eq(resources.appId, apps.id))
+            .where(eq(appRoleAction.roleId, organizationAppRoleId));
 
         return NextResponse.json({
             actions: roleActions,
@@ -83,12 +82,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         // Verify role exists
         const role = await db
-            .select({ id: organizationAppRoles.id })
-            .from(organizationAppRoles)
+            .select({ id: appRoles.id })
+            .from(appRoles)
             .where(and(
-                eq(organizationAppRoles.id, organizationAppRoleId),
-                eq(organizationAppRoles.organizationId, organizationId),
-                eq(organizationAppRoles.appId, appId)
+                eq(appRoles.id, organizationAppRoleId),
+                eq(appRoles.appId, appId)
             ))
             .limit(1);
 
@@ -98,18 +96,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         // Delete existing role actions
         await db
-            .delete(organizationAppRoleAction)
-            .where(eq(organizationAppRoleAction.roleId, organizationAppRoleId));
+            .delete(appRoleAction)
+            .where(eq(appRoleAction.roleId, organizationAppRoleId));
 
         // Insert new role actions
         if (actionIds.length > 0) {
             const roleActionValues = actionIds.map((actionId: string) => ({
                 roleId: organizationAppRoleId,
                 actionId,
-                appId,
             }));
 
-            await db.insert(organizationAppRoleAction).values(roleActionValues);
+            await db.insert(appRoleAction).values(roleActionValues);
         }
 
         await writeAdminAuditLog({
@@ -129,17 +126,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         // Fetch updated actions
         const updatedActions = await db
             .select({
-                actionId: organizationAppRoleAction.actionId,
+                actionId: appRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceKey: resources.key,
                 appKey: apps.key,
             })
-            .from(organizationAppRoleAction)
-            .innerJoin(actions, eq(organizationAppRoleAction.actionId, actions.id))
+            .from(appRoleAction)
+            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .innerJoin(apps, eq(organizationAppRoleAction.appId, apps.id))
-            .where(eq(organizationAppRoleAction.roleId, organizationAppRoleId));
+            .innerJoin(apps, eq(resources.appId, apps.id))
+            .where(eq(appRoleAction.roleId, organizationAppRoleId));
 
         return NextResponse.json({
             actions: updatedActions,

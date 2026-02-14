@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { organizationAppRoles, organizationAppRoleAction, actions, resources, apps, organization } from "@/db/schema";
+import { appRoles, appRoleAction, actions, resources, apps, organization } from "@/db/schema";
 import { eq, and, ilike, desc, sql, count } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -24,50 +24,48 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const pagination = parsePagination(request);
 
     try {
-        // Build filter conditions
+        // Build filter conditions — organizationId is verified through app ownership
         const conditions = [
-            eq(organizationAppRoles.organizationId, organizationId),
-            eq(organizationAppRoles.appId, appId),
+            eq(appRoles.appId, appId),
         ];
-        if (search) conditions.push(ilike(organizationAppRoles.name, `%${search}%`));
+        if (search) conditions.push(ilike(appRoles.name, `%${search}%`));
         if (isActiveParam !== null && isActiveParam !== undefined) {
-            conditions.push(eq(organizationAppRoles.isActive, isActiveParam === "true"));
+            conditions.push(eq(appRoles.isActive, isActiveParam === "true"));
         }
 
         const whereConditions = and(...conditions);
 
-        // Fetch roles with organization and app info
+        // Fetch roles with app info
         const rolesList = await db
             .select({
-                id: organizationAppRoles.id,
-                organizationId: organizationAppRoles.organizationId,
-                appId: organizationAppRoles.appId,
-                key: organizationAppRoles.key,
-                name: organizationAppRoles.name,
-                description: organizationAppRoles.description,
-                isActive: organizationAppRoles.isActive,
-                createdAt: organizationAppRoles.createdAt,
-                updatedAt: organizationAppRoles.updatedAt,
+                id: appRoles.id,
+                appId: appRoles.appId,
+                key: appRoles.key,
+                name: appRoles.name,
+                description: appRoles.description,
+                isActive: appRoles.isActive,
+                createdAt: appRoles.createdAt,
+                updatedAt: appRoles.updatedAt,
                 organizationName: organization.name,
                 appName: apps.name,
                 appKey: apps.key,
             })
-            .from(organizationAppRoles)
-            .leftJoin(organization, eq(organizationAppRoles.organizationId, organization.id))
-            .leftJoin(apps, eq(organizationAppRoles.appId, apps.id))
+            .from(appRoles)
+            .leftJoin(apps, eq(appRoles.appId, apps.id))
+            .leftJoin(organization, eq(apps.organizationId, organization.id))
             .where(whereConditions)
-            .orderBy(desc(organizationAppRoles.createdAt))
+            .orderBy(desc(appRoles.createdAt))
             .limit(pagination.limit)
             .offset(pagination.offset);
 
         // Get action counts for each role
         const actionCounts = await db
             .select({
-                roleId: organizationAppRoleAction.roleId,
+                roleId: appRoleAction.roleId,
                 count: count(),
             })
-            .from(organizationAppRoleAction)
-            .groupBy(organizationAppRoleAction.roleId);
+            .from(appRoleAction)
+            .groupBy(appRoleAction.roleId);
 
         const actionCountMap = new Map(actionCounts.map(a => [a.roleId, Number(a.count)]));
 
@@ -78,16 +76,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (roleIds.length > 0) {
             const roleActions = await db
                 .select({
-                    roleId: organizationAppRoleAction.roleId,
+                    roleId: appRoleAction.roleId,
                     actionKey: actions.key,
                     resourceKey: resources.key,
                     appKey: apps.key,
                 })
-                .from(organizationAppRoleAction)
-                .innerJoin(actions, eq(organizationAppRoleAction.actionId, actions.id))
+                .from(appRoleAction)
+                .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
                 .innerJoin(resources, eq(actions.resourceId, resources.id))
-                .innerJoin(apps, eq(organizationAppRoleAction.appId, apps.id))
-                .where(sql`${organizationAppRoleAction.roleId} IN (${sql.join(roleIds.map(id => sql`${id}::uuid`), sql`, `)})`);
+                .innerJoin(apps, eq(resources.appId, apps.id))
+                .where(sql`${appRoleAction.roleId} IN (${sql.join(roleIds.map(id => sql`${id}::uuid`), sql`, `)})`);
 
             // Group actions by role ID
             roleActions.forEach(ra => {
@@ -109,7 +107,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         // Get total count
         const countResult = await db
             .select({ count: sql<number>`count(*)` })
-            .from(organizationAppRoles)
+            .from(appRoles)
             .where(whereConditions);
 
         const total = Number(countResult[0]?.count || 0);
@@ -167,29 +165,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Check if key already exists for this org+app combination
+        // Check if key already exists for this app
         const existing = await db
-            .select({ id: organizationAppRoles.id })
-            .from(organizationAppRoles)
+            .select({ id: appRoles.id })
+            .from(appRoles)
             .where(and(
-                eq(organizationAppRoles.organizationId, organizationId),
-                eq(organizationAppRoles.appId, appId),
-                eq(organizationAppRoles.key, key)
+                eq(appRoles.appId, appId),
+                eq(appRoles.key, key)
             ))
             .limit(1);
 
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "Role with this key already exists for this organization and app" },
+                { error: "Role with this key already exists for this app" },
                 { status: 400 }
             );
         }
 
         // Create the role
         const newRole = await db
-            .insert(organizationAppRoles)
+            .insert(appRoles)
             .values({
-                organizationId,
                 appId,
                 key,
                 name,
@@ -203,10 +199,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             const roleActionValues = actionIds.map((actionId: string) => ({
                 roleId: newRole[0].id,
                 actionId,
-                appId,
             }));
 
-            await db.insert(organizationAppRoleAction).values(roleActionValues);
+            await db.insert(appRoleAction).values(roleActionValues);
         }
 
         await writeAdminAuditLog({

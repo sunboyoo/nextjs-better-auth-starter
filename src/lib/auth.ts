@@ -121,8 +121,8 @@ const rateLimitMax = Number.isNaN(rateLimitMaxRaw)
   : Math.max(1, rateLimitMaxRaw);
 const requestedRateLimitStorage =
   process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "memory" ||
-  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
-  process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
+    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "database" ||
+    process.env.BETTER_AUTH_RATE_LIMIT_STORAGE === "secondary-storage"
     ? process.env.BETTER_AUTH_RATE_LIMIT_STORAGE
     : undefined;
 const rateLimitIpv6SubnetRaw = Number.parseInt(
@@ -302,15 +302,15 @@ const oneTapServerClientId =
 
 type SocialProviderEnvConfig = {
   providerId:
-    | "github"
-    | "google"
-    | "facebook"
-    | "discord"
-    | "microsoft"
-    | "twitch"
-    | "twitter"
-    | "paypal"
-    | "vercel";
+  | "github"
+  | "google"
+  | "facebook"
+  | "discord"
+  | "microsoft"
+  | "twitch"
+  | "twitter"
+  | "paypal"
+  | "vercel";
   clientIdEnv: readonly string[];
   clientSecretEnv: readonly string[];
 };
@@ -655,7 +655,7 @@ const enforcePhoneOtpThrottles = async (ctx: {
 
   const config =
     phoneOtpThrottlePathConfig[
-      ctx.path as keyof typeof phoneOtpThrottlePathConfig
+    ctx.path as keyof typeof phoneOtpThrottlePathConfig
     ];
   const phoneNumber = extractPhoneNumberFromRequestBody(ctx.body);
   if (!phoneNumber) {
@@ -1111,12 +1111,12 @@ function createUpstashRedisSecondaryStorage(
 
 const upstashRedisSecondaryStorage =
   secondaryStorageMode === "upstash-redis" &&
-  upstashRedisRestUrl &&
-  upstashRedisRestToken
+    upstashRedisRestUrl &&
+    upstashRedisRestToken
     ? createUpstashRedisSecondaryStorage(
-        upstashRedisRestUrl,
-        upstashRedisRestToken,
-      )
+      upstashRedisRestUrl,
+      upstashRedisRestToken,
+    )
     : undefined;
 
 const secondaryStorage =
@@ -1133,85 +1133,85 @@ const resolvedRateLimitStorage =
 const socialProviders = {
   ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
     ? {
-        github: {
-          clientId: process.env.GITHUB_CLIENT_ID,
-          clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        },
-      }
+      github: {
+        clientId: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...((process.env.GOOGLE_CLIENT_ID ||
     process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) &&
-  process.env.GOOGLE_CLIENT_SECRET
+    process.env.GOOGLE_CLIENT_SECRET
     ? {
-        google: {
-          prompt: "select_account" as const,
-          clientId:
-            process.env.GOOGLE_CLIENT_ID ||
-            process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        },
-      }
+      google: {
+        prompt: "select_account" as const,
+        clientId:
+          process.env.GOOGLE_CLIENT_ID ||
+          process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET
     ? {
-        facebook: {
-          clientId: process.env.FACEBOOK_CLIENT_ID,
-          clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-        },
-      }
+      facebook: {
+        clientId: process.env.FACEBOOK_CLIENT_ID,
+        clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET
     ? {
-        discord: {
-          clientId: process.env.DISCORD_CLIENT_ID,
-          clientSecret: process.env.DISCORD_CLIENT_SECRET,
-        },
-      }
+      discord: {
+        clientId: process.env.DISCORD_CLIENT_ID,
+        clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
     ? {
-        microsoft: {
-          clientId: process.env.MICROSOFT_CLIENT_ID,
-          clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-          tenantId: process.env.MICROSOFT_TENANT_ID || "common",
-          authority:
-            process.env.MICROSOFT_AUTHORITY ||
-            "https://login.microsoftonline.com",
-          prompt: "select_account" as const,
-        },
-      }
+      microsoft: {
+        clientId: process.env.MICROSOFT_CLIENT_ID,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+        tenantId: process.env.MICROSOFT_TENANT_ID || "common",
+        authority:
+          process.env.MICROSOFT_AUTHORITY ||
+          "https://login.microsoftonline.com",
+        prompt: "select_account" as const,
+      },
+    }
     : {}),
   ...(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET
     ? {
-        twitch: {
-          clientId: process.env.TWITCH_CLIENT_ID,
-          clientSecret: process.env.TWITCH_CLIENT_SECRET,
-        },
-      }
+      twitch: {
+        clientId: process.env.TWITCH_CLIENT_ID,
+        clientSecret: process.env.TWITCH_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET
     ? {
-        twitter: {
-          clientId: process.env.TWITTER_CLIENT_ID,
-          clientSecret: process.env.TWITTER_CLIENT_SECRET,
-        },
-      }
+      twitter: {
+        clientId: process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET
     ? {
-        paypal: {
-          clientId: process.env.PAYPAL_CLIENT_ID,
-          clientSecret: process.env.PAYPAL_CLIENT_SECRET,
-        },
-      }
+      paypal: {
+        clientId: process.env.PAYPAL_CLIENT_ID,
+        clientSecret: process.env.PAYPAL_CLIENT_SECRET,
+      },
+    }
     : {}),
   ...(process.env.VERCEL_CLIENT_ID && process.env.VERCEL_CLIENT_SECRET
     ? {
-        vercel: {
-          clientId: process.env.VERCEL_CLIENT_ID,
-          clientSecret: process.env.VERCEL_CLIENT_SECRET,
-        },
-      }
+      vercel: {
+        clientId: process.env.VERCEL_CLIENT_ID,
+        clientSecret: process.env.VERCEL_CLIENT_SECRET,
+      },
+    }
     : {}),
 };
 
@@ -1594,8 +1594,8 @@ const authOptions = {
           const existingUserByIdRaw =
             typeof targetUserId === "string" && hookContext
               ? await hookContext.internalAdapter
-                  .findUserById(targetUserId)
-                  .catch(() => null)
+                .findUserById(targetUserId)
+                .catch(() => null)
               : null;
           const fallbackLookupPhoneNumber =
             typeof user.phoneNumber === "string"
@@ -1603,25 +1603,25 @@ const authOptions = {
               : extractPhoneNumberFromRequestBody(hookContext?.body);
           const existingUserByPhoneRaw =
             !existingUserByIdRaw &&
-            hookContext &&
-            typeof fallbackLookupPhoneNumber === "string"
+              hookContext &&
+              typeof fallbackLookupPhoneNumber === "string"
               ? await hookContext.adapter
-                  .findOne<{
-                    id: string;
-                    email?: string | null;
-                    emailVerified?: boolean | null;
-                    phoneNumber?: string | null;
-                    phoneNumberVerified?: boolean | null;
-                  }>({
-                    model: "user",
-                    where: [
-                      {
-                        field: "phoneNumber",
-                        value: fallbackLookupPhoneNumber,
-                      },
-                    ],
-                  })
-                  .catch(() => null)
+                .findOne<{
+                  id: string;
+                  email?: string | null;
+                  emailVerified?: boolean | null;
+                  phoneNumber?: string | null;
+                  phoneNumberVerified?: boolean | null;
+                }>({
+                  model: "user",
+                  where: [
+                    {
+                      field: "phoneNumber",
+                      value: fallbackLookupPhoneNumber,
+                    },
+                  ],
+                })
+                .catch(() => null)
               : null;
           const fallbackLookupEmail =
             typeof user.email === "string"
@@ -1629,36 +1629,36 @@ const authOptions = {
               : extractEmailFromRequestBody(hookContext?.body);
           const existingUserByEmailRaw =
             !existingUserByIdRaw &&
-            !existingUserByPhoneRaw &&
-            hookContext &&
-            typeof fallbackLookupEmail === "string"
+              !existingUserByPhoneRaw &&
+              hookContext &&
+              typeof fallbackLookupEmail === "string"
               ? await hookContext.adapter
-                  .findOne<{
-                    id: string;
-                    email?: string | null;
-                    emailVerified?: boolean | null;
-                    phoneNumber?: string | null;
-                    phoneNumberVerified?: boolean | null;
-                  }>({
-                    model: "user",
-                    where: [
-                      {
-                        field: "email",
-                        value: fallbackLookupEmail,
-                      },
-                    ],
-                  })
-                  .catch(() => null)
+                .findOne<{
+                  id: string;
+                  email?: string | null;
+                  emailVerified?: boolean | null;
+                  phoneNumber?: string | null;
+                  phoneNumberVerified?: boolean | null;
+                }>({
+                  model: "user",
+                  where: [
+                    {
+                      field: "email",
+                      value: fallbackLookupEmail,
+                    },
+                  ],
+                })
+                .catch(() => null)
               : null;
           const existingUserRaw =
             existingUserByIdRaw ?? existingUserByPhoneRaw ?? existingUserByEmailRaw;
           const existingUser = existingUserRaw as
             | {
-                email?: string | null;
-                emailVerified?: boolean | null;
-                phoneNumber?: string | null;
-                phoneNumberVerified?: boolean | null;
-              }
+              email?: string | null;
+              emailVerified?: boolean | null;
+              phoneNumber?: string | null;
+              phoneNumberVerified?: boolean | null;
+            }
             | null;
 
           const metadata = getAuthChannelMetadata({
@@ -1689,9 +1689,9 @@ const authOptions = {
                 : {}),
               ...(metadata.normalizedEmail
                 ? {
-                    emailSource: metadata.emailSource,
-                    emailDeliverable: metadata.emailDeliverable,
-                  }
+                  emailSource: metadata.emailSource,
+                  emailDeliverable: metadata.emailDeliverable,
+                }
                 : {}),
             },
           };
@@ -1844,6 +1844,9 @@ const authOptions = {
       dynamicAccessControl: {
         enabled: true,
       },
+      teams: {
+        enabled: true,
+      },
       invitationExpiresIn:
         ORGANIZATION_INVITATION_EXPIRES_IN_DAYS * 24 * 60 * 60,
       requireEmailVerificationOnInvitation: true,
@@ -1934,9 +1937,9 @@ const authOptions = {
       requireVerification: phoneRequireVerification,
       ...(phoneOtpUseFixedCodeVerification
         ? {
-            verifyOTP: async ({ code }) =>
-              code.trim() === phoneOtpFixedTestCode,
-          }
+          verifyOTP: async ({ code }) =>
+            code.trim() === phoneOtpFixedTestCode,
+        }
         : {}),
       phoneNumberValidator: (phoneNumber) => e164PhoneRegex.test(phoneNumber),
       sendOTP: ({ phoneNumber, code }) => {
@@ -1961,11 +1964,11 @@ const authOptions = {
       },
       ...(phoneSignUpOnVerification
         ? {
-            signUpOnVerification: {
-              getTempEmail: getTempEmailForPhoneNumber,
-              getTempName: (phoneNumber) => phoneNumber,
-            },
-          }
+          signUpOnVerification: {
+            getTempEmail: getTempEmailForPhoneNumber,
+            getTempName: (phoneNumber) => phoneNumber,
+          },
+        }
         : {}),
     }),
     magicLink({
@@ -2106,52 +2109,52 @@ const authOptions = {
     electron(),
     ...(enableStripe
       ? [
-          stripe({
-            stripeClient: new Stripe(process.env.STRIPE_KEY || "sk_test_"),
-            stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-            subscription: {
-              enabled: true,
-              allowReTrialsForDifferentPlans: true,
-              plans: () => {
-                const proPriceId = {
-                  default:
-                    process.env.STRIPE_PRO_PRICE_ID ||
-                    "price_1RoxnRHmTADgihIt4y8c0lVE",
-                  annual:
-                    process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
-                    "price_1RoxnoHmTADgihItzFvVP8KT",
-                };
-                const plusPriceId = {
-                  default:
-                    process.env.STRIPE_PLUS_PRICE_ID ||
-                    "price_1RoxnJHmTADgihIthZTLmrPn",
-                  annual:
-                    process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
-                    "price_1Roxo5HmTADgihItEbJu5llL",
-                };
+        stripe({
+          stripeClient: new Stripe(process.env.STRIPE_KEY || "sk_test_"),
+          stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+          subscription: {
+            enabled: true,
+            allowReTrialsForDifferentPlans: true,
+            plans: () => {
+              const proPriceId = {
+                default:
+                  process.env.STRIPE_PRO_PRICE_ID ||
+                  "price_1RoxnRHmTADgihIt4y8c0lVE",
+                annual:
+                  process.env.STRIPE_PRO_ANNUAL_PRICE_ID ||
+                  "price_1RoxnoHmTADgihItzFvVP8KT",
+              };
+              const plusPriceId = {
+                default:
+                  process.env.STRIPE_PLUS_PRICE_ID ||
+                  "price_1RoxnJHmTADgihIthZTLmrPn",
+                annual:
+                  process.env.STRIPE_PLUS_ANNUAL_PRICE_ID ||
+                  "price_1Roxo5HmTADgihItEbJu5llL",
+              };
 
-                return [
-                  {
-                    name: "Plus",
-                    priceId: plusPriceId.default,
-                    annualDiscountPriceId: plusPriceId.annual,
-                    freeTrial: {
-                      days: 7,
-                    },
+              return [
+                {
+                  name: "Plus",
+                  priceId: plusPriceId.default,
+                  annualDiscountPriceId: plusPriceId.annual,
+                  freeTrial: {
+                    days: 7,
                   },
-                  {
-                    name: "Pro",
-                    priceId: proPriceId.default,
-                    annualDiscountPriceId: proPriceId.annual,
-                    freeTrial: {
-                      days: 7,
-                    },
+                },
+                {
+                  name: "Pro",
+                  priceId: proPriceId.default,
+                  annualDiscountPriceId: proPriceId.annual,
+                  freeTrial: {
+                    days: 7,
                   },
-                ];
-              },
+                },
+              ];
             },
-          }),
-        ]
+          },
+        }),
+      ]
       : []),
     ...(enableSSO ? [sso()] : []),
     ...(enableSCIM ? [scim()] : []),

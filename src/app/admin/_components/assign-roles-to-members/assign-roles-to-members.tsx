@@ -144,7 +144,7 @@ export function AssignRolesToMembers() {
             ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles?limit=${SELECTOR_PAGE_LIMIT}`
             : null;
     const { data: rolesData } = useQuery({
-        queryKey: adminKeys.organizationAppRoles(rolesUrl),
+        queryKey: adminKeys.appRoles(rolesUrl),
         queryFn: () => fetcher(rolesUrl!),
         enabled: Boolean(rolesUrl),
     });
@@ -174,7 +174,7 @@ export function AssignRolesToMembers() {
             ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/member-organization-app-roles`
             : null;
     const { data: assignmentsData } = useQuery({
-        queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+        queryKey: adminKeys.memberAppRoles(assignmentsUrl),
         queryFn: () => fetcher(assignmentsUrl!),
         enabled: Boolean(assignmentsUrl),
     });
@@ -254,7 +254,7 @@ export function AssignRolesToMembers() {
             }
 
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+                queryKey: adminKeys.memberAppRoles(assignmentsUrl),
             });
             setEditingMember(null);
         } catch (error) {
@@ -297,7 +297,7 @@ export function AssignRolesToMembers() {
             }
 
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.memberOrganizationAppRoles(assignmentsUrl),
+                queryKey: adminKeys.memberAppRoles(assignmentsUrl),
             });
             setEditingRole(null);
         } catch (error) {

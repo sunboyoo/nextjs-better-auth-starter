@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberOrganizationAppRoles, organizationAppRoles, member, user } from "@/db/schema";
+import { memberAppRoles, appRoles, member, user } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -37,18 +37,17 @@ export async function GET(
 
         const assignedRoles = await db
             .select({
-                roleId: memberOrganizationAppRoles.organizationAppRoleId,
-                createdAt: memberOrganizationAppRoles.createdAt,
-                roleKey: organizationAppRoles.key,
-                roleName: organizationAppRoles.name,
+                roleId: memberAppRoles.appRoleId,
+                createdAt: memberAppRoles.createdAt,
+                roleKey: appRoles.key,
+                roleName: appRoles.name,
             })
-            .from(memberOrganizationAppRoles)
-            .innerJoin(organizationAppRoles, eq(memberOrganizationAppRoles.organizationAppRoleId, organizationAppRoles.id))
+            .from(memberAppRoles)
+            .innerJoin(appRoles, eq(memberAppRoles.appRoleId, appRoles.id))
             .where(
                 and(
-                    eq(memberOrganizationAppRoles.memberId, memberId),
-                    eq(memberOrganizationAppRoles.organizationId, organizationId),
-                    eq(memberOrganizationAppRoles.appId, appId)
+                    eq(memberAppRoles.memberId, memberId),
+                    eq(appRoles.appId, appId)
                 )
             );
 
@@ -106,15 +105,14 @@ export async function POST(
 
         const insertedCount = { count: 0 };
         for (const id of idsToAssign) {
-            // Verify role exists, belongs to this org and app
+            // Verify role exists and belongs to this app
             const role = await db
-                .select({ id: organizationAppRoles.id })
-                .from(organizationAppRoles)
+                .select({ id: appRoles.id })
+                .from(appRoles)
                 .where(
                     and(
-                        eq(organizationAppRoles.id, id),
-                        eq(organizationAppRoles.organizationId, organizationId),
-                        eq(organizationAppRoles.appId, appId)
+                        eq(appRoles.id, id),
+                        eq(appRoles.appId, appId)
                     )
                 )
                 .limit(1);
@@ -128,22 +126,20 @@ export async function POST(
 
             // Check if already assigned
             const existing = await db
-                .select({ memberId: memberOrganizationAppRoles.memberId })
-                .from(memberOrganizationAppRoles)
+                .select({ memberId: memberAppRoles.memberId })
+                .from(memberAppRoles)
                 .where(
                     and(
-                        eq(memberOrganizationAppRoles.memberId, memberId),
-                        eq(memberOrganizationAppRoles.organizationAppRoleId, id)
+                        eq(memberAppRoles.memberId, memberId),
+                        eq(memberAppRoles.appRoleId, id)
                     )
                 )
                 .limit(1);
 
             if (existing.length === 0) {
-                await db.insert(memberOrganizationAppRoles).values({
+                await db.insert(memberAppRoles).values({
                     memberId,
-                    organizationAppRoleId: id,
-                    organizationId: organizationId,
-                    appId,
+                    appRoleId: id,
                 });
                 insertedCount.count++;
             }
@@ -194,13 +190,11 @@ export async function DELETE(
 
     try {
         await db
-            .delete(memberOrganizationAppRoles)
+            .delete(memberAppRoles)
             .where(
                 and(
-                    eq(memberOrganizationAppRoles.memberId, memberId),
-                    eq(memberOrganizationAppRoles.organizationAppRoleId, roleId),
-                    eq(memberOrganizationAppRoles.organizationId, organizationId),
-                    eq(memberOrganizationAppRoles.appId, appId)
+                    eq(memberAppRoles.memberId, memberId),
+                    eq(memberAppRoles.appRoleId, roleId)
                 )
             );
 

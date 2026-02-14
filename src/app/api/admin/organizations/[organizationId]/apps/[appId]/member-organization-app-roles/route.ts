@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberOrganizationAppRoles, organizationAppRoles } from "@/db/schema";
+import { memberAppRoles, appRoles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -18,21 +18,18 @@ export async function GET(
     try {
         const assignments = await db
             .select({
-                memberId: memberOrganizationAppRoles.memberId,
-                roleId: memberOrganizationAppRoles.organizationAppRoleId,
-                roleName: organizationAppRoles.name,
-                roleKey: organizationAppRoles.key,
+                memberId: memberAppRoles.memberId,
+                roleId: memberAppRoles.appRoleId,
+                roleName: appRoles.name,
+                roleKey: appRoles.key,
             })
-            .from(memberOrganizationAppRoles)
+            .from(memberAppRoles)
             .innerJoin(
-                organizationAppRoles,
-                eq(memberOrganizationAppRoles.organizationAppRoleId, organizationAppRoles.id)
+                appRoles,
+                eq(memberAppRoles.appRoleId, appRoles.id)
             )
             .where(
-                and(
-                    eq(memberOrganizationAppRoles.organizationId, organizationId),
-                    eq(memberOrganizationAppRoles.appId, appId)
-                )
+                eq(appRoles.appId, appId)
             );
 
         // Group by memberId

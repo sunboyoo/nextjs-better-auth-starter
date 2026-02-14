@@ -37,6 +37,11 @@ export type AdminAction =
     | "organization.roles.manage"
     | "organization.invitations.list"
     | "organization.invitations.manage"
+    | "organization.teams.list"
+    | "organization.teams.read"
+    | "organization.teams.manage"
+    | "organization.teams.members.list"
+    | "organization.teams.members.manage"
     | "apps.list"
     | "apps.manage"
     | "rbac.read";
@@ -63,6 +68,11 @@ const ADMIN_ACTION_ROLE_MATRIX: Record<AdminAction, readonly string[]> = {
     "organization.roles.manage": ["admin"],
     "organization.invitations.list": ["admin"],
     "organization.invitations.manage": ["admin"],
+    "organization.teams.list": ["admin"],
+    "organization.teams.read": ["admin"],
+    "organization.teams.manage": ["admin"],
+    "organization.teams.members.list": ["admin"],
+    "organization.teams.members.manage": ["admin"],
     "apps.list": ["admin"],
     "apps.manage": ["admin"],
     "rbac.read": ["admin"],

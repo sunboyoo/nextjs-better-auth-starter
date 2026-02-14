@@ -88,6 +88,7 @@ export const session = table(
       .references(() => user.id, { onDelete: "cascade" }),
     impersonatedBy: text("impersonated_by"),
     activeOrganizationId: text("active_organization_id"),
+    activeTeamId: text("active_team_id"),
   },
   (table) => [
     index("session_userId_idx").on(table.userId),
@@ -478,17 +479,22 @@ export const invitation = table(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
-    role: text("role"),
+    role: text("role").default("member").notNull(),
     status: text("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    teamId: text("team_id").references(() => team.id, {
+      onDelete: "cascade",
+    }),
   },
   (table) => [
     index("invitation_organizationId_idx").on(table.organizationId),
     index("invitation_email_idx").on(table.email),
+    index("invitation_inviterId_idx").on(table.inviterId),
+    index("invitation_teamId_idx").on(table.teamId),
   ],
 );
 
@@ -673,6 +679,10 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
     fields: [invitation.inviterId],
     references: [user.id],
   }),
+  team: one(team, {
+    fields: [invitation.teamId],
+    references: [team.id],
+  }),
 }));
 
 export const adminAuditLogRelations = relations(adminAuditLog, ({ one }) => ({
@@ -693,15 +703,78 @@ export const profileCompletionRelations = relations(
 );
 
 // =========================================================
+// Team Tables (better-auth organization teams)
+// =========================================================
+
+export const team = table(
+  "team",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date()),
+  },
+  (table) => [
+    index("team_organizationId_idx").on(table.organizationId),
+  ],
+);
+
+export const teamMember = table(
+  "team_member",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    index("teamMember_teamId_idx").on(table.teamId),
+    index("teamMember_userId_idx").on(table.userId),
+    uniqueIndex("teamMember_team_user_uidx").on(table.teamId, table.userId),
+  ],
+);
+
+export const teamRelations = relations(team, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [team.organizationId],
+    references: [organization.id],
+  }),
+  teamMembers: many(teamMember),
+}));
+
+export const teamMemberRelations = relations(teamMember, ({ one }) => ({
+  team: one(team, {
+    fields: [teamMember.teamId],
+    references: [team.id],
+  }),
+  user: one(user, {
+    fields: [teamMember.userId],
+    references: [user.id],
+  }),
+}));
+
+// =========================================================
 // RBAC Extension Tables
 // =========================================================
 
 export const apps = table(
-  "apps",
+  "app",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    key: text("key").notNull().unique(),
-    name: text("name").notNull().unique(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
     description: text("description"),
     logo: text("logo"),
     isActive: boolean("is_active").default(true).notNull(),
@@ -718,11 +791,14 @@ export const apps = table(
       "apps_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
+    index("idx_apps_org").on(table.organizationId),
+    uniqueIndex("apps_org_key_uniq").on(table.organizationId, table.key),
+    uniqueIndex("apps_org_name_uniq").on(table.organizationId, table.name),
   ],
 );
 
 export const resources = table(
-  "resources",
+  "resource",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     appId: uuid("app_id")
@@ -752,13 +828,12 @@ export const resources = table(
 );
 
 export const actions = table(
-  "actions",
+  "action",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    appId: uuid("app_id")
+    resourceId: uuid("resource_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
-    resourceId: uuid("resource_id").notNull(),
+      .references(() => resources.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -775,26 +850,16 @@ export const actions = table(
       "actions_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
-    index("idx_actions_app").on(table.appId),
     index("idx_actions_resource").on(table.resourceId),
-    unique("uq_actions_id_app").on(table.id, table.appId),
     uniqueIndex("actions_resource_key_uniq").on(table.resourceId, table.key),
     uniqueIndex("actions_resource_name_uniq").on(table.resourceId, table.name),
-    foreignKey({
-      columns: [table.resourceId, table.appId],
-      foreignColumns: [resources.id, resources.appId],
-      name: "actions_resource_fk",
-    }).onDelete("cascade"),
   ],
 );
 
-export const organizationAppRoles = table(
-  "organization_app_roles",
+export const appRoles = table(
+  "app_role",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
     appId: uuid("app_id")
       .notNull()
       .references(() => apps.id, { onDelete: "cascade" }),
@@ -812,98 +877,52 @@ export const organizationAppRoles = table(
   },
   (table) => [
     check(
-      "org_app_roles_key_format_chk",
+      "app_roles_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
-    index("idx_org_app_roles_org").on(table.organizationId),
-    index("idx_org_app_roles_app").on(table.appId),
-    unique("uq_org_app_roles_id_app").on(table.id, table.appId),
-    unique("uq_org_app_roles_id_org").on(table.id, table.organizationId),
-    uniqueIndex("org_app_roles_scope_key_uniq").on(
-      table.organizationId,
-      table.appId,
-      table.key,
-    ),
-    uniqueIndex("org_app_roles_scope_name_uniq").on(
-      table.organizationId,
-      table.appId,
-      table.name,
-    ),
+    index("idx_app_roles_app").on(table.appId),
+    uniqueIndex("app_roles_app_key_uniq").on(table.appId, table.key),
+    uniqueIndex("app_roles_app_name_uniq").on(table.appId, table.name),
   ],
 );
 
-export const organizationAppRoleAction = table(
-  "organization_app_role_action",
+export const appRoleAction = table(
+  "app_role_action",
   {
     roleId: uuid("role_id")
       .notNull()
-      .references(() => organizationAppRoles.id, { onDelete: "cascade" }),
+      .references(() => appRoles.id, { onDelete: "cascade" }),
     actionId: uuid("action_id")
       .notNull()
       .references(() => actions.id, { onDelete: "cascade" }),
-    appId: uuid("app_id")
-      .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.roleId, table.actionId] }),
-    index("idx_oara_role_id").on(table.roleId),
-    index("idx_oara_action_id").on(table.actionId),
-    index("idx_oara_app_id").on(table.appId),
-    foreignKey({
-      columns: [table.roleId, table.appId],
-      foreignColumns: [organizationAppRoles.id, organizationAppRoles.appId],
-      name: "oara_role_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.actionId, table.appId],
-      foreignColumns: [actions.id, actions.appId],
-      name: "oara_action_fk",
-    }).onDelete("cascade"),
+    index("idx_ara_role_id").on(table.roleId),
+    index("idx_ara_action_id").on(table.actionId),
   ],
 );
 
-export const memberOrganizationAppRoles = table(
-  "member_organization_app_roles",
+export const memberAppRoles = table(
+  "member_app_role",
   {
     memberId: text("member_id")
       .notNull()
       .references(() => member.id, { onDelete: "cascade" }),
-    organizationAppRoleId: uuid("organization_app_role_id")
+    appRoleId: uuid("app_role_id")
       .notNull()
-      .references(() => organizationAppRoles.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    appId: uuid("app_id")
-      .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => appRoles.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.memberId, table.organizationAppRoleId] }),
-    index("idx_moar_org").on(table.organizationId),
-    index("idx_moar_app").on(table.appId),
-    index("idx_moar_member").on(table.memberId),
-    index("idx_moar_role").on(table.organizationAppRoleId),
-    foreignKey({
-      columns: [table.organizationAppRoleId, table.organizationId],
-      foreignColumns: [
-        organizationAppRoles.id,
-        organizationAppRoles.organizationId,
-      ],
-      name: "moar_role_org_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.organizationAppRoleId, table.appId],
-      foreignColumns: [organizationAppRoles.id, organizationAppRoles.appId],
-      name: "moar_role_app_fk",
-    }).onDelete("cascade"),
+    primaryKey({ columns: [table.memberId, table.appRoleId] }),
+    index("idx_mar_member").on(table.memberId),
+    index("idx_mar_role").on(table.appRoleId),
   ],
 );
 
@@ -911,9 +930,13 @@ export const memberOrganizationAppRoles = table(
 // RBAC Relations
 // =========================================================
 
-export const appsRelations = relations(apps, ({ many }) => ({
+export const appsRelations = relations(apps, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [apps.organizationId],
+    references: [organization.id],
+  }),
   resources: many(resources),
-  organizationAppRoles: many(organizationAppRoles),
+  appRoles: many(appRoles),
 }));
 
 export const resourcesRelations = relations(resources, ({ one, many }) => ({
@@ -925,69 +948,50 @@ export const resourcesRelations = relations(resources, ({ one, many }) => ({
 }));
 
 export const actionsRelations = relations(actions, ({ one, many }) => ({
-  app: one(apps, {
-    fields: [actions.appId],
-    references: [apps.id],
-  }),
   resource: one(resources, {
     fields: [actions.resourceId],
     references: [resources.id],
   }),
-  roleActions: many(organizationAppRoleAction),
+  roleActions: many(appRoleAction),
 }));
 
-export const organizationAppRolesRelations = relations(
-  organizationAppRoles,
+export const appRolesRelations = relations(
+  appRoles,
   ({ one, many }) => ({
-    organization: one(organization, {
-      fields: [organizationAppRoles.organizationId],
-      references: [organization.id],
-    }),
     app: one(apps, {
-      fields: [organizationAppRoles.appId],
+      fields: [appRoles.appId],
       references: [apps.id],
     }),
-    roleActions: many(organizationAppRoleAction),
-    memberRoles: many(memberOrganizationAppRoles),
+    roleActions: many(appRoleAction),
+    memberRoles: many(memberAppRoles),
   }),
 );
 
-export const organizationAppRoleActionRelations = relations(
-  organizationAppRoleAction,
+export const appRoleActionRelations = relations(
+  appRoleAction,
   ({ one }) => ({
-    role: one(organizationAppRoles, {
-      fields: [organizationAppRoleAction.roleId],
-      references: [organizationAppRoles.id],
+    role: one(appRoles, {
+      fields: [appRoleAction.roleId],
+      references: [appRoles.id],
     }),
     action: one(actions, {
-      fields: [organizationAppRoleAction.actionId],
+      fields: [appRoleAction.actionId],
       references: [actions.id],
-    }),
-    app: one(apps, {
-      fields: [organizationAppRoleAction.appId],
-      references: [apps.id],
     }),
   }),
 );
 
-export const memberOrganizationAppRolesRelations = relations(
-  memberOrganizationAppRoles,
+export const memberAppRolesRelations = relations(
+  memberAppRoles,
   ({ one }) => ({
     member: one(member, {
-      fields: [memberOrganizationAppRoles.memberId],
+      fields: [memberAppRoles.memberId],
       references: [member.id],
     }),
-    role: one(organizationAppRoles, {
-      fields: [memberOrganizationAppRoles.organizationAppRoleId],
-      references: [organizationAppRoles.id],
-    }),
-    organization: one(organization, {
-      fields: [memberOrganizationAppRoles.organizationId],
-      references: [organization.id],
-    }),
-    app: one(apps, {
-      fields: [memberOrganizationAppRoles.appId],
-      references: [apps.id],
+    role: one(appRoles, {
+      fields: [memberAppRoles.appRoleId],
+      references: [appRoles.id],
     }),
   }),
 );
+

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { apps, resources, actions } from "@/db/schema";
-import { eq, ilike, desc, sql, count } from "drizzle-orm";
+import { eq, ilike, desc, sql, count, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -56,11 +56,12 @@ export async function GET(request: NextRequest) {
         // Get action counts grouped by app_id
         const actionCounts = await db
             .select({
-                appId: actions.appId,
+                appId: resources.appId,
                 count: count(),
             })
             .from(actions)
-            .groupBy(actions.appId);
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .groupBy(resources.appId);
 
         // Create lookup maps
         const resourceCountMap = new Map(resourceCounts.map(r => [r.appId, Number(r.count)]));
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const schema = z.object({
+            organizationId: z.string().trim().min(1),
             key: z.string().trim().min(1).max(50),
             name: z.string().trim().min(1).max(100),
             description: z.string().trim().max(1000).optional().nullable(),
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
         if (!result.success) {
             return NextResponse.json({ error: result.error.issues }, { status: 400 });
         }
-        const { key, name, description, logo } = result.data;
+        const { organizationId, key, name, description, logo } = result.data;
 
         if (!key || !name) {
             return NextResponse.json(
@@ -124,16 +126,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if key already exists
+        // Check if key already exists within the same organization
         const existing = await db
             .select({ id: apps.id })
             .from(apps)
-            .where(eq(apps.key, key))
+            .where(and(eq(apps.organizationId, organizationId), eq(apps.key, key)))
             .limit(1);
 
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "App with this key already exists" },
+                { error: "App with this key already exists in this organization" },
                 { status: 400 }
             );
         }
@@ -141,6 +143,7 @@ export async function POST(request: NextRequest) {
         const newApp = await db
             .insert(apps)
             .values({
+                organizationId,
                 key,
                 name,
                 description: description || null,

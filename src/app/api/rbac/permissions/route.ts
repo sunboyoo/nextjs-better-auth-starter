@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberOrganizationAppRoles, organizationAppRoleAction, organizationAppRoles, actions, resources, apps, member } from "@/db/schema";
+import { memberAppRoles, appRoleAction, appRoles, actions, resources, apps, member } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -156,19 +156,19 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(cachedResult);
         }
 
-        // Get member's roles for this app
+        // Get member's roles for this app (filter through appRoles.appId)
         const memberRoles = await db
             .select({
-                roleId: memberOrganizationAppRoles.organizationAppRoleId,
-                roleKey: organizationAppRoles.key,
-                roleName: organizationAppRoles.name,
+                roleId: memberAppRoles.appRoleId,
+                roleKey: appRoles.key,
+                roleName: appRoles.name,
             })
-            .from(memberOrganizationAppRoles)
-            .innerJoin(organizationAppRoles, eq(memberOrganizationAppRoles.organizationAppRoleId, organizationAppRoles.id))
+            .from(memberAppRoles)
+            .innerJoin(appRoles, eq(memberAppRoles.appRoleId, appRoles.id))
             .where(
                 and(
-                    eq(memberOrganizationAppRoles.memberId, memberId),
-                    eq(memberOrganizationAppRoles.appId, targetAppId)
+                    eq(memberAppRoles.memberId, memberId),
+                    eq(appRoles.appId, targetAppId)
                 )
             );
 
@@ -187,18 +187,18 @@ export async function GET(request: NextRequest) {
         const roleIds = memberRoles.map(r => r.roleId);
         const allRoleActions = await db
             .select({
-                roleId: organizationAppRoleAction.roleId,
-                actionId: organizationAppRoleAction.actionId,
+                roleId: appRoleAction.roleId,
+                actionId: appRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceId: actions.resourceId,
                 resourceKey: resources.key,
                 resourceName: resources.name,
             })
-            .from(organizationAppRoleAction)
-            .innerJoin(actions, eq(organizationAppRoleAction.actionId, actions.id))
+            .from(appRoleAction)
+            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .where(inArray(organizationAppRoleAction.roleId, roleIds));
+            .where(inArray(appRoleAction.roleId, roleIds));
 
         // Create role lookup map
         const roleMap = new Map(memberRoles.map(r => [r.roleId, { roleKey: r.roleKey, roleName: r.roleName }]));

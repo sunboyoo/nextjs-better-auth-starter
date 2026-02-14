@@ -18,9 +18,9 @@ export const adminKeys = {
 		["admin", "organizations", "roles", key ?? null] as const,
 	organizationInvitations: (key: string) =>
 		["admin", "organizations", "invitations", key] as const,
-	organizationAppRoles: (key: string | null | undefined) =>
+	appRoles: (key: string | null | undefined) =>
 		["admin", "organizations", "app-roles", key ?? null] as const,
-	memberOrganizationAppRoles: (key: string | null | undefined) =>
+	memberAppRoles: (key: string | null | undefined) =>
 		["admin", "organizations", "member-app-roles", key ?? null] as const,
 	users: (key: string) => ["admin", "users", "list", key] as const,
 	sessions: (key: string) => ["admin", "sessions", "list", key] as const,

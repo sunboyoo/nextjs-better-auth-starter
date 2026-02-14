@@ -211,7 +211,7 @@ export function OrganizationAppRolesTable() {
 
     const rolesUrl = buildSwrKey();
     const { data, error, isLoading } = useQuery({
-        queryKey: adminKeys.organizationAppRoles(rolesUrl),
+        queryKey: adminKeys.appRoles(rolesUrl),
         queryFn: () => fetcher(rolesUrl!),
         enabled: Boolean(rolesUrl),
         refetchOnWindowFocus: false,
@@ -259,7 +259,7 @@ export function OrganizationAppRolesTable() {
             setNewRoleDescription("");
             setSelectedActionIds([]);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+                queryKey: adminKeys.appRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error creating role:", error);
@@ -307,7 +307,7 @@ export function OrganizationAppRolesTable() {
             setEditRoleDescription("");
             setEditSelectedActionIds([]);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+                queryKey: adminKeys.appRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error updating role:", error);
@@ -333,7 +333,7 @@ export function OrganizationAppRolesTable() {
 
             setDeleteRoleId(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+                queryKey: adminKeys.appRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error deleting role:", error);
@@ -358,7 +358,7 @@ export function OrganizationAppRolesTable() {
 
             setToggleStatusRole(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.organizationAppRoles(rolesUrl),
+                queryKey: adminKeys.appRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error updating status:", error);

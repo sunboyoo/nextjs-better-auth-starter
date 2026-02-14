@@ -184,6 +184,36 @@ export type ExtendedAuthApi = {
     query: { slug: string };
     headers: Headers;
   }) => Promise<unknown>;
+
+  // Team endpoints (organization teams feature)
+  createTeam: (input: {
+    body: { name: string; organizationId?: string };
+    headers: Headers;
+  }) => Promise<unknown>;
+  listOrganizationTeams: (input: {
+    query: { organizationId?: string };
+    headers: Headers;
+  }) => Promise<unknown>;
+  updateTeam: (input: {
+    body: { teamId: string; data: { name?: string } };
+    headers: Headers;
+  }) => Promise<unknown>;
+  removeTeam: (input: {
+    body: { teamId: string; organizationId?: string };
+    headers: Headers;
+  }) => Promise<unknown>;
+  listTeamMembers: (input: {
+    query: { teamId?: string };
+    headers: Headers;
+  }) => Promise<unknown>;
+  addTeamMember: (input: {
+    body: { teamId: string; userId: string };
+    headers: Headers;
+  }) => Promise<unknown>;
+  removeTeamMember: (input: {
+    body: { teamId: string; userId: string };
+    headers: Headers;
+  }) => Promise<unknown>;
 };
 
 export const extendedAuthApi = auth.api as unknown as ExtendedAuthApi;

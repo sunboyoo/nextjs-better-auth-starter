@@ -10,6 +10,8 @@ export type AdminAuditTargetType =
   | "organization-member"
   | "organization-role"
   | "organization-invitation"
+  | "team"
+  | "team-member"
   | "app"
   | "resource"
   | "action"

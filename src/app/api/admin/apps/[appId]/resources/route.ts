@@ -53,7 +53,8 @@ export async function GET(
                 count: count(),
             })
             .from(actions)
-            .where(eq(actions.appId, appId))
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(eq(resources.appId, appId))
             .groupBy(actions.resourceId);
 
         // Create lookup map

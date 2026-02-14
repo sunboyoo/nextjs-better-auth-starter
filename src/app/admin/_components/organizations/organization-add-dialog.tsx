@@ -51,10 +51,19 @@ export function OrganizationAddDialog({
                 throw new Error("Organization with this slug already exists");
             }
 
+            const requestBody: { name: string; slug: string; logo?: string } = {
+                name,
+                slug: finalSlug,
+            };
+            const normalizedLogo = logo.trim();
+            if (normalizedLogo.length > 0) {
+                requestBody.logo = normalizedLogo;
+            }
+
             const response = await fetch("/api/admin/organizations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, slug: finalSlug, logo: logo || null }),
+                body: JSON.stringify(requestBody),
             });
 
             const data = await response.json();

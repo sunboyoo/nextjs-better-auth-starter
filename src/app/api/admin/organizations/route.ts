@@ -143,13 +143,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Organization with this slug already exists" }, { status: 400 });
         }
 
+        const createBody: {
+            name: string;
+            slug: string;
+            logo?: string;
+        } = {
+            name,
+            slug: orgSlug,
+        };
+        if (typeof logo === "string" && logo.trim().length > 0) {
+            createBody.logo = logo;
+        }
+
         const createdOrganization = await extendedAuthApi.createOrganization({
-            body: {
-                name,
-                slug: orgSlug,
-                logo,
-                metadata: result.data.metadata ?? null,
-            },
+            body: createBody,
             headers: authResult.headers,
         });
         const organizationPayload =

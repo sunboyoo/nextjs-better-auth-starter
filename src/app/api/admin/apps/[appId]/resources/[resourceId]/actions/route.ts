@@ -59,7 +59,7 @@ export async function GET(
         const resourceInfoMap = new Map(resourceInfoList.map(r => [r.id, { name: r.name, key: r.key, appId: r.appId }]));
 
         // Get app info (key) for all unique app IDs
-        const appIds = [...new Set(actionsList.map(a => a.appId))];
+        const appIds = [...new Set(resourceInfoList.map(r => r.appId))];
         const appInfoList = appIds.length > 0
             ? await db
                 .select({ id: apps.id, key: apps.key })
@@ -73,7 +73,7 @@ export async function GET(
         // Merge resource and app info into actions
         const actionsWithKeys = actionsList.map(action => {
             const resourceInfo = resourceInfoMap.get(action.resourceId);
-            const appKey = appKeyMap.get(action.appId);
+            const appKey = resourceInfo?.appId ? appKeyMap.get(resourceInfo.appId) : undefined;
             return {
                 ...action,
                 resourceName: resourceInfo?.name || null,
@@ -166,7 +166,6 @@ export async function POST(
         const newAction = await db
             .insert(actions)
             .values({
-                appId: resource[0].appId,
                 resourceId,
                 key,
                 name,

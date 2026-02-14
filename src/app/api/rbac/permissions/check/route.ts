@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberOrganizationAppRoles, organizationAppRoleAction, organizationAppRoles, actions, resources, apps, member } from "@/db/schema";
+import { memberAppRoles, appRoleAction, actions, resources, apps, member } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -157,15 +157,15 @@ export async function GET(request: NextRequest) {
     try {
         // Optimized: Single query to check permission using JOINs
         const permissionCheck = await db
-            .select({ roleId: memberOrganizationAppRoles.organizationAppRoleId })
-            .from(memberOrganizationAppRoles)
+            .select({ roleId: memberAppRoles.appRoleId })
+            .from(memberAppRoles)
             .innerJoin(
-                organizationAppRoleAction,
-                eq(memberOrganizationAppRoles.organizationAppRoleId, organizationAppRoleAction.roleId)
+                appRoleAction,
+                eq(memberAppRoles.appRoleId, appRoleAction.roleId)
             )
             .innerJoin(
                 actions,
-                eq(organizationAppRoleAction.actionId, actions.id)
+                eq(appRoleAction.actionId, actions.id)
             )
             .innerJoin(
                 resources,
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
             )
             .where(
                 and(
-                    eq(memberOrganizationAppRoles.memberId, memberId),
+                    eq(memberAppRoles.memberId, memberId),
                     eq(apps.key, appKey),
                     eq(resources.key, resourceKey),
                     eq(actions.key, actionKey)
