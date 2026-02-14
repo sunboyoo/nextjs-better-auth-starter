@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Mail, MoreHorizontal, XCircle, Loader2 } from "lucide-react";
@@ -62,6 +63,7 @@ function getStatusBadge(status: string) {
 export default function InvitationsPage() {
     const params = useParams<{ organizationId: string }>();
     const organizationId = params.organizationId;
+    const router = useRouter();
 
     const [invitations, setInvitations] = useState<Invitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -158,7 +160,11 @@ export default function InvitationsPage() {
                             </TableRow>
                         ) : (
                             invitations.map((invitation) => (
-                                <TableRow key={invitation.id}>
+                                <TableRow
+                                    key={invitation.id}
+                                    className="cursor-pointer hover:bg-muted/50"
+                                    onClick={() => router.push(`/dashboard/organizations/${organizationId}/invitations/${invitation.id}`)}
+                                >
                                     <TableCell className="text-sm font-medium">
                                         {invitation.email}
                                     </TableCell>
@@ -174,7 +180,7 @@ export default function InvitationsPage() {
                                     <TableCell className="text-xs text-muted-foreground">
                                         {format(new Date(invitation.expiresAt), "MMM d, yyyy")}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
                                         {invitation.status === "pending" && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>

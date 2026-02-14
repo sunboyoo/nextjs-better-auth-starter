@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { userKeys } from "@/data/query-keys/user";
 import { toast } from "sonner";
@@ -93,6 +93,7 @@ const fetcher = (url: string) =>
 
 export default function ApplicationsPage() {
     const { organizationId } = useParams<{ organizationId: string }>();
+    const router = useRouter();
     const queryClient = useQueryClient();
 
     // Search & filter state
@@ -469,7 +470,7 @@ export default function ApplicationsPage() {
                             </TableRow>
                         ) : (
                             appsList.map((app) => (
-                                <TableRow key={app.id}>
+                                <TableRow key={app.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/dashboard/organizations/${organizationId}/applications/${app.id}`)}>
                                     <TableCell className="px-4 py-3">
                                         <div className="flex items-center gap-3">
                                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-border/50">
@@ -499,7 +500,7 @@ export default function ApplicationsPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                             {canWrite ? (
                                                 <Switch
                                                     checked={app.isActive}
@@ -508,8 +509,8 @@ export default function ApplicationsPage() {
                                             ) : null}
                                             <span
                                                 className={`text-xs font-medium ${app.isActive
-                                                        ? "text-green-600 dark:text-green-500"
-                                                        : "text-muted-foreground"
+                                                    ? "text-green-600 dark:text-green-500"
+                                                    : "text-muted-foreground"
                                                     }`}
                                             >
                                                 {app.isActive ? "Active" : "Inactive"}
@@ -521,33 +522,35 @@ export default function ApplicationsPage() {
                                     </TableCell>
                                     {canWrite && (
                                         <TableCell className="px-4 py-3">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                    >
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => openEdit(app)}>
-                                                        <Pencil className="h-4 w-4 mr-2" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem
-                                                        className="text-destructive"
-                                                        onClick={() =>
-                                                            setDeleteApp({ id: app.id, name: app.name })
-                                                        }
-                                                    >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => openEdit(app)}>
+                                                            <Pencil className="h-4 w-4 mr-2" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive"
+                                                            onClick={() =>
+                                                                setDeleteApp({ id: app.id, name: app.name })
+                                                            }
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </TableCell>
                                     )}
                                 </TableRow>

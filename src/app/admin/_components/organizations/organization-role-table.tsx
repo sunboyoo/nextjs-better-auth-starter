@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { OrganizationRoleAddDialog } from "./organization-role-add-dialog";
 import { OrganizationRoleEditDialog } from "./organization-role-edit-dialog";
-import { OrganizationPermissionTreeDisplay } from "./organization-permission-tree-display";
+import { OrganizationPermissionTreeDisplay } from "@/components/shared/organization-permission-tree-display";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 

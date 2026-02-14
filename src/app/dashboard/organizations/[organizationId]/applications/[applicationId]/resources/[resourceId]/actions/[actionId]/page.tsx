@@ -1,0 +1,406 @@
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { userKeys } from "@/data/query-keys/user";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { useState } from "react";
+import {
+    ArrowLeft,
+    Zap,
+    Pencil,
+    Trash2,
+    Loader2,
+    Calendar,
+    Hash,
+    Info,
+} from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface ActionDetail {
+    id: string;
+    resourceId: string;
+    key: string;
+    name: string;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface ActionResponse {
+    action: ActionDetail;
+    resourceName: string;
+    resourceKey: string;
+    appName: string;
+    canWrite: boolean;
+}
+
+const fetcher = (url: string) =>
+    fetch(url, { credentials: "include" }).then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+    });
+
+export default function ActionDetailPage() {
+    const { organizationId, applicationId, resourceId, actionId } =
+        useParams<{
+            organizationId: string;
+            applicationId: string;
+            resourceId: string;
+            actionId: string;
+        }>();
+    const router = useRouter();
+    const queryClient = useQueryClient();
+
+    const [isEditOpen, setIsEditOpen] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+    const queryKey = userKeys.orgAppResourceAction(
+        organizationId,
+        applicationId,
+        resourceId,
+        actionId,
+    );
+
+    const { data, isLoading, error } = useQuery<ActionResponse>({
+        queryKey,
+        queryFn: () =>
+            fetcher(
+                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+            ),
+        refetchOnWindowFocus: false,
+    });
+
+    const action = data?.action;
+    const canWrite = data?.canWrite ?? false;
+
+    const openEdit = () => {
+        if (!action) return;
+        setEditName(action.name);
+        setEditDescription(action.description || "");
+        setIsEditOpen(true);
+    };
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const res = await fetch(
+                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: editName,
+                        description: editDescription || null,
+                    }),
+                    credentials: "include",
+                },
+            );
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || "Failed to update");
+            }
+            setIsEditOpen(false);
+            await queryClient.invalidateQueries({ queryKey });
+            toast.success("Action updated successfully");
+        } catch (err) {
+            toast.error(
+                err instanceof Error ? err.message : "Failed to update",
+            );
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        try {
+            const res = await fetch(
+                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+                { method: "DELETE", credentials: "include" },
+            );
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || "Failed to delete");
+            }
+            toast.success("Action deleted successfully");
+            router.push(
+                `/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`,
+            );
+        } catch (err) {
+            toast.error(
+                err instanceof Error ? err.message : "Failed to delete",
+            );
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (error || !action) {
+        return (
+            <div className="space-y-4">
+                <Link
+                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Actions
+                </Link>
+                <div className="rounded-xl border bg-card p-8 text-center">
+                    <Zap className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                        Action not found
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {/* Back Link */}
+            <Link
+                href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`}
+                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Actions
+            </Link>
+
+            {/* Header Card */}
+            <Card>
+                <CardHeader className="pb-4">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-border/50">
+                                <Zap className="h-7 w-7" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl">
+                                    {action.name}
+                                </CardTitle>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono mt-1 inline-block">
+                                    {action.key}
+                                </code>
+                            </div>
+                        </div>
+                        {canWrite && (
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={openEdit}
+                                >
+                                    <Pencil className="h-4 w-4 mr-1.5" />
+                                    Edit
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setIsDeleteOpen(true)}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1.5" />
+                                    Delete
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                    {action.description && (
+                        <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                            <p>{action.description}</p>
+                        </div>
+                    )}
+
+                    {/* Context */}
+                    <div className="rounded-lg border p-4 space-y-3">
+                        <h3 className="text-sm font-semibold">Context</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <span>App:</span>
+                                <Link
+                                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}`}
+                                    className="text-foreground hover:underline"
+                                >
+                                    {data?.appName}
+                                </Link>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <span>Resource:</span>
+                                <Link
+                                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`}
+                                    className="text-foreground hover:underline"
+                                >
+                                    {data?.resourceName}
+                                </Link>
+                                <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+                                    {data?.resourceKey}
+                                </code>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Details */}
+                    <div className="rounded-lg border p-4 space-y-3">
+                        <h3 className="text-sm font-semibold">Details</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Hash className="h-3.5 w-3.5" />
+                                <span>ID:</span>
+                                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                                    {action.id}
+                                </code>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>Created:</span>
+                                <span className="text-foreground">
+                                    {format(
+                                        new Date(action.createdAt),
+                                        "MMM d, yyyy HH:mm",
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-3.5 w-3.5" />
+                                <span>Updated:</span>
+                                <span className="text-foreground">
+                                    {format(
+                                        new Date(action.updatedAt),
+                                        "MMM d, yyyy HH:mm",
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <form onSubmit={handleUpdate}>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Pencil className="h-5 w-5" />
+                                Edit Action
+                            </DialogTitle>
+                            <DialogDescription>
+                                Update the action details.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-name">Name</Label>
+                                <Input
+                                    id="edit-name"
+                                    value={editName}
+                                    onChange={(e) =>
+                                        setEditName(e.target.value)
+                                    }
+                                    required
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="edit-desc">
+                                    Description{" "}
+                                    <span className="text-muted-foreground text-xs font-normal">
+                                        (optional)
+                                    </span>
+                                </Label>
+                                <Textarea
+                                    id="edit-desc"
+                                    value={editDescription}
+                                    onChange={(e) =>
+                                        setEditDescription(e.target.value)
+                                    }
+                                    rows={3}
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsEditOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    "Save Changes"
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Dialog */}
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete action?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete{" "}
+                            <span className="font-semibold">
+                                {action.name}
+                            </span>
+                            . This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+    );
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Layers, Plus, Trash2, MoreHorizontal, Loader2, Users } from "lucide-react";
@@ -215,7 +216,10 @@ export default function TeamsPage() {
                         <Card key={team.id} className="group">
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-3 min-w-0">
+                                    <Link
+                                        href={`/dashboard/organizations/${organizationId}/teams/${team.id}`}
+                                        className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+                                    >
                                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">
                                             <Users className="h-5 w-5" />
                                         </div>
@@ -225,7 +229,7 @@ export default function TeamsPage() {
                                                 Created {format(new Date(team.createdAt), "MMM d, yyyy")}
                                             </p>
                                         </div>
-                                    </div>
+                                    </Link>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">

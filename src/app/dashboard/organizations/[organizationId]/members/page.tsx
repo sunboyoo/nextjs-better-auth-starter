@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Users, Shield, User, Crown, MoreHorizontal, Trash2, Loader2, LogOut } from "lucide-react";
@@ -222,9 +223,12 @@ export default function MembersPage() {
                             members.map((member) => {
                                 const isCurrentUser = member.userId === currentUserId;
                                 return (
-                                    <TableRow key={member.id}>
+                                    <TableRow key={member.id} className="cursor-pointer">
                                         <TableCell>
-                                            <div className="flex items-center gap-3">
+                                            <Link
+                                                href={`/dashboard/organizations/${organizationId}/members/${member.id}`}
+                                                className="flex items-center gap-3"
+                                            >
                                                 <Avatar className="h-8 w-8">
                                                     {member.user.image && (
                                                         <AvatarImage src={member.user.image} alt={member.user.name} />
@@ -244,7 +248,7 @@ export default function MembersPage() {
                                                         {member.user.email}
                                                     </p>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         </TableCell>
                                         <TableCell>
                                             {member.role === "owner" ? (

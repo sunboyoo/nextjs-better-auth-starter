@@ -68,8 +68,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 import { OrgAppSelector } from "./org-app-selector";
-import { AppResourceActionTreeSelector } from "./app-resource-action-tree-selector";
-import { AppResourceActionTreeDisplay } from "./app-resource-action-tree-display";
+import { AppResourceActionTreeSelector } from "@/components/shared/app-resource-action-tree-selector";
+import { AppResourceActionTreeDisplay } from "@/components/shared/app-resource-action-tree-display";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 

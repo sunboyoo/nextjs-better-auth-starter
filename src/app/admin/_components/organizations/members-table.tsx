@@ -50,7 +50,7 @@ import {
 import { MemberAddDialog } from "./member-add-dialog";
 import { Input } from "@/components/ui/input";
 import { OrganizationRoleSelect } from "./organization-role-select";
-import { OrganizationPermissionTreeDisplay } from "./organization-permission-tree-display";
+import { OrganizationPermissionTreeDisplay } from "@/components/shared/organization-permission-tree-display";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 

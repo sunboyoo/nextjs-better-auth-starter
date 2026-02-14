@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OrganizationPermissionTreeSelector } from "./organization-permission-tree-selector";
+import { OrganizationPermissionTreeSelector } from "@/components/shared/organization-permission-tree-selector";
 import { statements } from "@/lib/built-in-organization-role-permissions";
 
 const RESOURCE_LABELS: Record<string, string> = {

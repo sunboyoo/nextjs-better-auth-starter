@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, member } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { apps, resources, actions, appRoles, member } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
@@ -26,6 +26,50 @@ async function verifyOrgMembership(userId: string, organizationId: string) {
 
 function isWriteRole(role: string): boolean {
     return role === "owner" || role === "admin";
+}
+
+// GET /api/user/organizations/[organizationId]/apps/[appId] - Get app details
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+    const authResult = await requireAuth();
+    if (!authResult.success) return authResult.response;
+
+    const { organizationId, appId } = await params;
+    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    if (!membership) {
+        return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
+    }
+
+    try {
+        const app = await db
+            .select({
+                id: apps.id,
+                organizationId: apps.organizationId,
+                key: apps.key,
+                name: apps.name,
+                description: apps.description,
+                logo: apps.logo,
+                isActive: apps.isActive,
+                createdAt: apps.createdAt,
+                updatedAt: apps.updatedAt,
+                resourceCount: sql<number>`(SELECT COUNT(*) FROM ${resources} WHERE ${resources.appId} = ${apps.id})`,
+                actionCount: sql<number>`(SELECT COUNT(*) FROM ${actions} INNER JOIN ${resources} ON ${actions.resourceId} = ${resources.id} WHERE ${resources.appId} = ${apps.id})`,
+                roleCount: sql<number>`(SELECT COUNT(*) FROM ${appRoles} WHERE ${appRoles.appId} = ${apps.id})`,
+            })
+            .from(apps)
+            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+            .limit(1);
+
+        if (app.length === 0) {
+            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({
+            app: app[0],
+            canWrite: isWriteRole(membership.role),
+        });
+    } catch (error) {
+        return handleApiError(error, "fetch app details");
+    }
 }
 
 // PUT /api/user/organizations/[organizationId]/apps/[appId] - Update app
