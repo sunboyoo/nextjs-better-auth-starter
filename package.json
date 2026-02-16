@@ -11,6 +11,7 @@
     "auth:guardrails": "tsx scripts/check-auth-guardrails.ts",
     "auth:env:check": "tsx scripts/validate-auth-env.ts",
     "auth:validate": "pnpm run auth:guardrails && pnpm run auth:env:check",
+    "test:e2e:impersonation": "tsx scripts/test-impersonation-e2e.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
