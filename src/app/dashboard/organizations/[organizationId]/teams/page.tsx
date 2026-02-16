@@ -44,6 +44,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface Team {
     id: string;
@@ -127,6 +129,16 @@ export default function TeamsPage() {
 
         return result;
     }, [teams, search, sortBy]);
+
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedTeams,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(filteredTeams, { isDataReady: !isLoading });
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -290,7 +302,7 @@ export default function TeamsPage() {
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredTeams.map((team) => (
+                    {paginatedTeams.map((team) => (
                         <Card key={team.id} className="group">
                             <CardContent className="p-5">
                                 <div className="flex items-start justify-between">
@@ -328,6 +340,19 @@ export default function TeamsPage() {
                             </CardContent>
                         </Card>
                     ))}
+                </div>
+            )}
+
+            {filteredTeams.length > 0 && (
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        limit={limit}
+                        totalCount={totalCount}
+                        onPageChange={onPageChange}
+                        onLimitChange={onLimitChange}
+                    />
                 </div>
             )}
 

@@ -36,6 +36,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { InviteMemberDialog } from "../../_components/invite-member-dialog";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface Member {
     id: string;
@@ -139,6 +141,16 @@ export default function MembersPage() {
 
         return result;
     }, [members, search, roleFilter, sortBy]);
+
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedMembers,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(filteredMembers, { isDataReady: !isLoading });
 
     const handleRemoveMember = async () => {
         if (!removeConfirm) return;
@@ -315,7 +327,7 @@ export default function MembersPage() {
                 </div>
             ) : (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredMembers.map((member) => {
+                    {paginatedMembers.map((member) => {
                         const isCurrentUser = member.userId === currentUserId;
                         const roleColor =
                             member.role === "owner"
@@ -426,12 +438,16 @@ export default function MembersPage() {
                 </div>
             )}
 
-            {/* Footer with count */}
-            {members.length > 0 && (
-                <div className="text-xs text-muted-foreground text-right">
-                    {filteredMembers.length === members.length
-                        ? `${members.length} member${members.length !== 1 ? "s" : ""}`
-                        : `Showing ${filteredMembers.length} of ${members.length} members`}
+            {filteredMembers.length > 0 && (
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        limit={limit}
+                        totalCount={totalCount}
+                        onPageChange={onPageChange}
+                        onLimitChange={onLimitChange}
+                    />
                 </div>
             )}
 

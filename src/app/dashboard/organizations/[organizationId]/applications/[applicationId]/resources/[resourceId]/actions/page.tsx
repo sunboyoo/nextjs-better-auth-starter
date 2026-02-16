@@ -55,6 +55,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { generateKeyFromName } from "@/lib/utils";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface ActionItem {
     id: string;
@@ -156,6 +158,16 @@ export default function ActionsPage() {
             }
         });
     }, [data?.actions, sortBy]);
+
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedActions,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(actionsList, { isDataReady: !isLoading });
 
     const handleNewNameChange = (value: string) => {
         setNewName(value);
@@ -441,7 +453,7 @@ export default function ActionsPage() {
             ) : (
                 <>
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {actionsList.map((action) => (
+                        {paginatedActions.map((action) => (
                             <Card
                                 key={action.id}
                                 className="group cursor-pointer transition-all hover:shadow-md hover:border-amber-300 dark:hover:border-amber-700"
@@ -509,11 +521,15 @@ export default function ActionsPage() {
                         ))}
                     </div>
 
-                    {/* Footer count */}
-                    <div className="text-xs text-muted-foreground text-right">
-                        {actionsList.length === (data?.total || 0)
-                            ? `${actionsList.length} action${actionsList.length !== 1 ? "s" : ""}`
-                            : `Showing ${actionsList.length} of ${data?.total || 0} actions`}
+                    <div className="rounded-xl border bg-card p-4 shadow-sm">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            limit={limit}
+                            totalCount={totalCount}
+                            onPageChange={onPageChange}
+                            onLimitChange={onLimitChange}
+                        />
                     </div>
                 </>
             )}

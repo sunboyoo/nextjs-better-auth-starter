@@ -51,6 +51,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { InviteMemberDialog } from "../../_components/invite-member-dialog";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface Invitation {
     id: string;
@@ -155,6 +157,16 @@ export default function InvitationsPage() {
 
         return result;
     }, [invitations, search, statusFilter, sortBy]);
+
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedInvitations,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(filteredInvitations, { isDataReady: !isLoading });
 
     const handleCancel = async () => {
         if (!cancelConfirm) return;
@@ -291,7 +303,7 @@ export default function InvitationsPage() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredInvitations.map((invitation) => (
+                            paginatedInvitations.map((invitation) => (
                                 <TableRow
                                     key={invitation.id}
                                     className="cursor-pointer hover:bg-muted/50"
@@ -349,18 +361,15 @@ export default function InvitationsPage() {
                 </Table>
 
                 {filteredInvitations.length > 0 && (
-                    <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-3">
-                        <div className="text-sm text-muted-foreground">
-                            Showing{" "}
-                            <span className="font-medium">{filteredInvitations.length}</span>
-                            {filteredInvitations.length !== invitations.length && (
-                                <>
-                                    {" "}of{" "}
-                                    <span className="font-medium">{invitations.length}</span>
-                                </>
-                            )}{" "}
-                            invitation{invitations.length !== 1 ? "s" : ""}
-                        </div>
+                    <div className="border-t bg-muted/20 px-4 py-3">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            limit={limit}
+                            totalCount={totalCount}
+                            onPageChange={onPageChange}
+                            onLimitChange={onLimitChange}
+                        />
                     </div>
                 )}
             </div>

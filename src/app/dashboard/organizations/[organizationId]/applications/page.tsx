@@ -64,6 +64,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { generateKeyFromName } from "@/lib/utils";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface Application {
     id: string;
@@ -330,6 +332,16 @@ export default function ApplicationsPage() {
         });
     }, [data?.applications, sortBy]);
 
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedApplications,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(applicationsList, { isDataReady: !isLoading });
+
     return (
         <div className="space-y-4">
             {/* Header */}
@@ -565,7 +577,7 @@ export default function ApplicationsPage() {
             ) : (
                 <>
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {applicationsList.map((application) => (
+                        {paginatedApplications.map((application) => (
                             <Card
                                 key={application.id}
                                 className="group cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
@@ -670,11 +682,15 @@ export default function ApplicationsPage() {
                         ))}
                     </div>
 
-                    {/* Footer count */}
-                    <div className="text-xs text-muted-foreground text-right">
-                        {applicationsList.length === (data?.total || 0)
-                            ? `${applicationsList.length} application${applicationsList.length !== 1 ? "s" : ""}`
-                            : `Showing ${applicationsList.length} of ${data?.total || 0} applications`}
+                    <div className="rounded-xl border bg-card p-4 shadow-sm">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            limit={limit}
+                            totalCount={totalCount}
+                            onPageChange={onPageChange}
+                            onLimitChange={onLimitChange}
+                        />
                     </div>
                 </>
             )}

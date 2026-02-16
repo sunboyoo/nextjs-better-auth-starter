@@ -51,6 +51,8 @@ import {
 import { OrganizationPermissionTreeDisplay } from "@/components/shared/organization-permission-tree-display";
 import { OrganizationPermissionTreeSelector } from "@/components/shared/organization-permission-tree-selector";
 import { statements } from "@/lib/built-in-organization-role-permissions";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 const RESOURCE_LABELS: Record<string, string> = {
     organization: "Organization",
@@ -415,6 +417,16 @@ export default function OrganizationRolesPage() {
         return result;
     }, [customRoles, search, sortBy, permFilter]);
 
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedCustomRoles,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(filteredCustomRoles, { isDataReady: !isLoading });
+
     const isFiltered = search.trim() !== "" || permFilter !== "all";
 
     if (isLoading) {
@@ -596,7 +608,7 @@ export default function OrganizationRolesPage() {
                     </div>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {filteredCustomRoles.map((role) => (
+                        {paginatedCustomRoles.map((role) => (
                             <Card
                                 key={role.id}
                                 className="cursor-pointer transition-colors hover:bg-muted/50"
@@ -648,12 +660,16 @@ export default function OrganizationRolesPage() {
                     </div>
                 )}
 
-                {/* Footer with count */}
-                {customRoles.length > 0 && (
-                    <div className="text-xs text-muted-foreground text-right">
-                        {filteredCustomRoles.length === customRoles.length
-                            ? `${customRoles.length} custom role${customRoles.length !== 1 ? "s" : ""}`
-                            : `Showing ${filteredCustomRoles.length} of ${customRoles.length} custom roles`}
+                {filteredCustomRoles.length > 0 && (
+                    <div className="rounded-xl border bg-card p-4 shadow-sm">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            limit={limit}
+                            totalCount={totalCount}
+                            onPageChange={onPageChange}
+                            onLimitChange={onLimitChange}
+                        />
                     </div>
                 )}
             </div>

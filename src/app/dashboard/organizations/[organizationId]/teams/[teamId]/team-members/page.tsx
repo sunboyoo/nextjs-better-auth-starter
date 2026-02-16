@@ -48,6 +48,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useUrlPagination } from "@/hooks/use-url-pagination";
+import { PaginationControls } from "@/components/pagination-controls";
 
 interface TeamMember {
     id: string;
@@ -238,6 +240,16 @@ export default function TeamMembersPage() {
 
         return result;
     }, [members, search, sortBy]);
+
+    const {
+        currentPage,
+        totalPages,
+        limit,
+        totalCount,
+        paginatedItems: paginatedTeamMembers,
+        onPageChange,
+        onLimitChange,
+    } = useUrlPagination(filteredMembers, { isDataReady: !isLoading });
 
     // Filter available organization members (exclude already in team)
     const teamUserIds = new Set(members.map((m) => m.userId));
@@ -439,7 +451,7 @@ export default function TeamMembersPage() {
                 </div>
             ) : (
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredMembers.map((m) => (
+                    {paginatedTeamMembers.map((m) => (
                         <Card
                             key={m.id}
                             className="group transition-all hover:shadow-md hover:border-primary/30"
@@ -497,6 +509,19 @@ export default function TeamMembersPage() {
                             </CardContent>
                         </Card>
                     ))}
+                </div>
+            )}
+
+            {filteredMembers.length > 0 && (
+                <div className="rounded-xl border bg-card p-4 shadow-sm">
+                    <PaginationControls
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        limit={limit}
+                        totalCount={totalCount}
+                        onPageChange={onPageChange}
+                        onLimitChange={onLimitChange}
+                    />
                 </div>
             )}
 
