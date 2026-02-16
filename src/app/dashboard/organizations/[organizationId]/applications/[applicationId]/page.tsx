@@ -238,7 +238,10 @@ export default function ApplicationDetailPage() {
                         {application.actionCount}
                     </p>
                 </div>
-                <div className="rounded-lg border p-4 text-center">
+                <Link
+                    href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/roles`}
+                    className="rounded-lg border p-4 text-center hover:bg-muted/50 transition-colors"
+                >
                     <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
                         <Shield className="h-4 w-4" />
                         <span className="text-xs font-medium">
@@ -248,7 +251,7 @@ export default function ApplicationDetailPage() {
                     <p className="text-2xl font-bold">
                         {application.roleCount}
                     </p>
-                </div>
+                </Link>
             </div>
 
             {/* Details */}
@@ -293,6 +296,14 @@ export default function ApplicationDetailPage() {
                     >
                         <Layers className="h-4 w-4 mr-1.5" />
                         Manage Resources
+                    </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                    <Link
+                        href={`/dashboard/organizations/${organizationId}/applications/${applicationId}/roles`}
+                    >
+                        <Shield className="h-4 w-4 mr-1.5" />
+                        Manage Roles
                     </Link>
                 </Button>
             </div>

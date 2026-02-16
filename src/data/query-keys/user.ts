@@ -3,6 +3,14 @@ export const userKeys = {
         ["user", "organizations", organizationId, "applications", search ?? ""] as const,
     organizationApplication: (organizationId: string, applicationId: string) =>
         ["user", "organizations", organizationId, "applications", applicationId] as const,
+    organizationApplicationActions: (organizationId: string, applicationId: string, search?: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "actions", search ?? ""] as const,
+    organizationApplicationRoles: (organizationId: string, applicationId: string, search?: string, isActive?: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "roles", search ?? "", isActive ?? "all"] as const,
+    organizationApplicationRole: (organizationId: string, applicationId: string, roleId: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "roles", roleId] as const,
+    organizationApplicationRoleActions: (organizationId: string, applicationId: string, roleId: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "roles", roleId, "actions"] as const,
     organizationApplicationResources: (organizationId: string, applicationId: string, search?: string) =>
         ["user", "organizations", organizationId, "applications", applicationId, "resources", search ?? ""] as const,
     organizationApplicationResource: (organizationId: string, applicationId: string, resourceId: string) =>

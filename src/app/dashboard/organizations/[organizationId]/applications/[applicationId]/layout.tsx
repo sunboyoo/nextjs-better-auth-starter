@@ -10,6 +10,7 @@ import {
     AppWindow,
     Layers,
     Zap,
+    UserCog,
     Loader2,
     CheckCircle,
     XCircle,
@@ -60,6 +61,7 @@ export default function ApplicationDetailLayout({
 
     const isOverviewActive = pathname === basePath;
     const isResourcesActive = pathname.includes("/resources");
+    const isRolesActive = pathname.includes("/roles");
 
     return (
         <div className="space-y-4">
@@ -163,6 +165,17 @@ export default function ApplicationDetailLayout({
                     >
                         <Layers className="h-4 w-4" />
                         Resources
+                    </Link>
+                    <Link
+                        href={`${basePath}/roles`}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                            isRolesActive
+                                ? "border-primary text-primary"
+                                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                        }`}
+                    >
+                        <UserCog className="h-4 w-4" />
+                        Roles
                     </Link>
                 </nav>
             </div>
