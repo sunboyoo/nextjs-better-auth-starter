@@ -1044,6 +1044,17 @@ const enableStripe =
   Boolean(process.env.STRIPE_WEBHOOK_SECRET);
 const enableSSO = process.env.BETTER_AUTH_ENABLE_SSO !== "false";
 const enableSCIM = process.env.BETTER_AUTH_ENABLE_SCIM !== "false";
+const adminAllowImpersonatingAdmins =
+  process.env.BETTER_AUTH_ADMIN_ALLOW_IMPERSONATING_ADMINS === "true";
+const adminImpersonationSessionDurationRaw = Number.parseInt(
+  process.env.BETTER_AUTH_ADMIN_IMPERSONATION_SESSION_DURATION ?? "",
+  10,
+);
+const adminImpersonationSessionDuration = Number.isNaN(
+  adminImpersonationSessionDurationRaw,
+)
+  ? undefined
+  : Math.max(60, adminImpersonationSessionDurationRaw);
 
 type SecondaryStorage = {
   get: (key: string) => Promise<string | null>;
@@ -1868,6 +1879,12 @@ const authOptions = {
     admin({
       defaultRole: "user",
       adminRoles: ["admin"],
+      allowImpersonatingAdmins: adminAllowImpersonatingAdmins,
+      ...(adminImpersonationSessionDuration
+        ? {
+          impersonationSessionDuration: adminImpersonationSessionDuration,
+        }
+        : {}),
     }),
     organization({
       ac,

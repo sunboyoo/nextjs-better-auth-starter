@@ -18,10 +18,10 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { getQueryClient } from "@/data/better-auth-official/query-client";
-import { userKeys } from "@/data/better-auth-official/user/keys";
-import type { SessionData } from "@/data/better-auth-official/user/session-query";
-import { useSessionQuery } from "@/data/better-auth-official/user/session-query";
+import { getQueryClient } from "@/data/query-client";
+import { userKeys } from "@/data/user/keys";
+import type { SessionData } from "@/data/user/session-query";
+import { useSessionQuery } from "@/data/user/session-query";
 import type { DeviceSession } from "@/lib/auth";
 import { authClient } from "@/lib/auth-client";
 

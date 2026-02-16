@@ -31,13 +31,27 @@ import { UserPasswordDialog } from "./user-password-dialog";
 import { UserNameDialog } from "./user-name-dialog";
 import { UserEmailDialog } from "./user-email-dialog";
 import { impersonateUser } from "@/utils/auth";
+import { toast } from "sonner";
 
 interface UserActionsProps {
   user: UserWithDetails;
+  currentUserId: string | null;
   onActionComplete: () => void;
 }
 
-export function UserActions({ user, onActionComplete }: UserActionsProps) {
+function hasAdminRole(role: string | undefined): boolean {
+  if (!role) return false;
+  return role
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .includes("admin");
+}
+
+export function UserActions({
+  user,
+  currentUserId,
+  onActionComplete,
+}: UserActionsProps) {
   const [showBanDialog, setShowBanDialog] = useState(false);
   const [showUnbanDialog, setShowUnbanDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -49,6 +63,9 @@ export function UserActions({ user, onActionComplete }: UserActionsProps) {
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const isSelf = currentUserId === user.id;
+  const isAdminTarget = hasAdminRole(user.role);
+  const canImpersonate = !isImpersonating && !isSelf && !isAdminTarget;
 
   const handleDialogClose = (
     setter: React.Dispatch<React.SetStateAction<boolean>>,
@@ -71,15 +88,19 @@ export function UserActions({ user, onActionComplete }: UserActionsProps) {
           </DropdownMenuLabel>
           <DropdownMenuItem
             className="text-xs"
-            disabled={isImpersonating}
+            disabled={!canImpersonate}
             onClick={async () => {
+              if (!canImpersonate) {
+                return;
+              }
+
               setDropdownOpen(false);
               setIsImpersonating(true);
               try {
                 await impersonateUser(user.id);
                 window.location.href = "/dashboard/user-profile";
               } catch (error) {
-                alert(
+                toast.error(
                   error instanceof Error
                     ? error.message
                     : "Failed to impersonate user",
@@ -91,7 +112,15 @@ export function UserActions({ user, onActionComplete }: UserActionsProps) {
             }}
           >
             <User className="mr-2 h-4 w-4" />
-            <span>{isImpersonating ? "Starting..." : "Impersonate user"}</span>
+            <span>
+              {isImpersonating
+                ? "Starting..."
+                : isSelf
+                  ? "Cannot impersonate yourself"
+                  : isAdminTarget
+                    ? "Admin impersonation disabled"
+                    : "Impersonate user"}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuItem
             className="text-xs"

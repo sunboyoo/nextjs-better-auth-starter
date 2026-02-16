@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      currentUserId: authResult.user.id,
     });
   } catch (error) {
     return handleApiError(error, "fetch users");

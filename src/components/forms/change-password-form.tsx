@@ -13,7 +13,7 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { PasswordInput } from "@/components/ui/password-input";
-import { useChangePasswordMutation } from "@/data/better-auth-official/user/change-password-mutation";
+import { useChangePasswordMutation } from "@/data/user/change-password-mutation";
 
 const changePasswordSchema = z
 	.object({

@@ -57,6 +57,15 @@ import { UserAddDialog } from "./user-add-dialog";
 // Fetcher function for SWR
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
+type UsersListResponse = {
+  users: UserWithDetails[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  currentUserId?: string;
+};
+
 // Helper function to render account icons
 const getAccountIcon = (account: string) => {
   switch (account) {
@@ -113,7 +122,7 @@ export function UsersTable() {
     return `/api/admin/users?${params.toString()}`;
   }, [role, debouncedEmail, page, limit]);
 
-  const { data, error, isLoading } = useQuery({
+  const { data, error, isLoading } = useQuery<UsersListResponse>({
     queryKey: adminKeys.users(swrKey),
     queryFn: () => fetcher(swrKey),
     refetchOnWindowFocus: false,
@@ -273,7 +282,7 @@ export function UsersTable() {
       </div>
     );
 
-  const { users, total, totalPages } = data;
+  const { users, total, totalPages, currentUserId } = data;
 
   // Pagination logic for shadcn/ui Pagination
   const renderPagination = () => {
@@ -531,6 +540,7 @@ export function UsersTable() {
                   <TableCell className="px-4 py-3">
                     <UserActions
                       user={user}
+                      currentUserId={currentUserId ?? null}
                       onActionComplete={handleActionComplete}
                     />
                   </TableCell>

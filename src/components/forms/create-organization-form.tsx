@@ -14,7 +14,7 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useOrganizationCreateMutation } from "@/data/better-auth-official/organization/organization-create-mutation";
+import { useOrganizationCreateMutation } from "@/data/organization/organization-create-mutation";
 import { useImagePreview } from "@/hooks/use-image-preview";
 import { convertImageToBase64, generateSlugFromName } from "@/lib/utils";
 

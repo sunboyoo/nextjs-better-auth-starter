@@ -19,7 +19,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useInviteMemberMutation } from "@/data/better-auth-official/organization/invitation-member-mutation";
+import { useInviteMemberMutation } from "@/data/organization/invitation-member-mutation";
 import type { OrganizationRole } from "@/lib/auth";
 
 const ORGANIZATION_ROLES = {

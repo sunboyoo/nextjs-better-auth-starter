@@ -14,9 +14,9 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useInviteAcceptMutation } from "@/data/better-auth-official/organization/invitation-accept-mutation";
-import { useInvitationQuery } from "@/data/better-auth-official/organization/invitation-query";
-import { useInviteRejectMutation } from "@/data/better-auth-official/organization/invitation-reject-mutation";
+import { useInviteAcceptMutation } from "@/data/organization/invitation-accept-mutation";
+import { useInvitationQuery } from "@/data/organization/invitation-query";
+import { useInviteRejectMutation } from "@/data/organization/invitation-reject-mutation";
 
 export default function Page() {
 	const params = useParams<{

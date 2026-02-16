@@ -6,7 +6,7 @@ import { Suspense, useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useSessionQuery } from "@/data/better-auth-official/user/session-query";
+import { useSessionQuery } from "@/data/user/session-query";
 import { authClient } from "@/lib/auth-client";
 
 function DeviceApprovePageContent() {

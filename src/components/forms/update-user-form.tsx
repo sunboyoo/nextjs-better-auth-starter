@@ -13,7 +13,7 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useUpdateUserMutation } from "@/data/better-auth-official/user/update-user-mutation";
+import { useUpdateUserMutation } from "@/data/user/update-user-mutation";
 import { useImagePreview } from "@/hooks/use-image-preview";
 import { convertImageToBase64 } from "@/lib/utils";
 

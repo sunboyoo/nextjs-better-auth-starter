@@ -114,6 +114,13 @@ export async function PATCH(
     }
 
     if (action === "impersonate") {
+      if (userId === authResult.user.id) {
+        return NextResponse.json(
+          { error: "Cannot impersonate your own account." },
+          { status: 400 },
+        );
+      }
+
       const result = await extendedAuthApi.impersonateUser({
         body: { userId },
         headers: requestHeaders,

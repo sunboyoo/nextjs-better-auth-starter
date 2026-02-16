@@ -63,7 +63,7 @@ import {
 	CAPTCHA_VERIFICATION_INCOMPLETE_MESSAGE,
 	getCaptchaHeaders,
 } from "@/lib/captcha";
-import { stopImpersonationAction } from "../_actions/stop-impersonation";
+import { stopImpersonationAction } from "@/app/dashboard/_actions/stop-impersonation";
 
 type CaptchaAction = "send-verification-email";
 
