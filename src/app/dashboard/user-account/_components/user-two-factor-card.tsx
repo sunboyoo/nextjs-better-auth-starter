@@ -139,7 +139,7 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
                                         <DialogHeader>
                                             <DialogTitle>Scan QR Code</DialogTitle>
                                             <DialogDescription>
-                                                Use your authenticator app to scan this QR code.
+                                                Use your authenticator application to scan this QR code.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <TwoFactorQrForm />
@@ -258,7 +258,7 @@ export function UserTwoFactorCard({ twoFactorEnabled }: UserTwoFactorCardProps) 
                             <div className="text-xs text-muted-foreground">
                                 <p>
                                     Secure your account with two-factor authentication.
-                                    You will need an authenticator app like Google Authenticator or Authy.
+                                    You will need an authenticator application like Google Authenticator or Authy.
                                 </p>
                             </div>
                             <Dialog open={isEnableOpen} onOpenChange={setIsEnableOpen}>

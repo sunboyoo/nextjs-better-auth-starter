@@ -442,8 +442,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.app_role_action": {
-      "name": "app_role_action",
+    "public.application_role_action": {
+      "name": "application_role_action",
       "schema": "",
       "columns": {
         "role_id": {
@@ -499,10 +499,10 @@
         }
       },
       "foreignKeys": {
-        "app_role_action_role_id_app_role_id_fk": {
-          "name": "app_role_action_role_id_app_role_id_fk",
-          "tableFrom": "app_role_action",
-          "tableTo": "app_role",
+        "application_role_action_role_id_application_role_id_fk": {
+          "name": "application_role_action_role_id_application_role_id_fk",
+          "tableFrom": "application_role_action",
+          "tableTo": "application_role",
           "columnsFrom": [
             "role_id"
           ],
@@ -512,9 +512,9 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "app_role_action_action_id_action_id_fk": {
-          "name": "app_role_action_action_id_action_id_fk",
-          "tableFrom": "app_role_action",
+        "application_role_action_action_id_action_id_fk": {
+          "name": "application_role_action_action_id_action_id_fk",
+          "tableFrom": "application_role_action",
           "tableTo": "action",
           "columnsFrom": [
             "action_id"
@@ -527,8 +527,8 @@
         }
       },
       "compositePrimaryKeys": {
-        "app_role_action_role_id_action_id_pk": {
-          "name": "app_role_action_role_id_action_id_pk",
+        "application_role_action_role_id_action_id_pk": {
+          "name": "application_role_action_role_id_action_id_pk",
           "columns": [
             "role_id",
             "action_id"
@@ -540,8 +540,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.app_role": {
-      "name": "app_role",
+    "public.application_role": {
+      "name": "application_role",
       "schema": "",
       "columns": {
         "id": {
@@ -551,8 +551,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "app_id": {
-          "name": "app_id",
+        "application_id": {
+          "name": "application_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -598,11 +598,11 @@
         }
       },
       "indexes": {
-        "idx_app_roles_app": {
-          "name": "idx_app_roles_app",
+        "idx_application_roles_application": {
+          "name": "idx_application_roles_application",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -613,11 +613,11 @@
           "method": "btree",
           "with": {}
         },
-        "app_roles_app_key_uniq": {
-          "name": "app_roles_app_key_uniq",
+        "application_roles_application_key_uniq": {
+          "name": "application_roles_application_key_uniq",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -634,11 +634,11 @@
           "method": "btree",
           "with": {}
         },
-        "app_roles_app_name_uniq": {
-          "name": "app_roles_app_name_uniq",
+        "application_roles_application_name_uniq": {
+          "name": "application_roles_application_name_uniq",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -657,12 +657,12 @@
         }
       },
       "foreignKeys": {
-        "app_role_app_id_app_id_fk": {
-          "name": "app_role_app_id_app_id_fk",
-          "tableFrom": "app_role",
-          "tableTo": "app",
+        "application_role_application_id_application_id_fk": {
+          "name": "application_role_application_id_application_id_fk",
+          "tableFrom": "application_role",
+          "tableTo": "application",
           "columnsFrom": [
-            "app_id"
+            "application_id"
           ],
           "columnsTo": [
             "id"
@@ -675,15 +675,15 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "app_roles_key_format_chk": {
-          "name": "app_roles_key_format_chk",
-          "value": "\"app_role\".\"key\" ~ '^[a-z0-9]+(_[a-z0-9]+)*$'"
+        "application_roles_key_format_chk": {
+          "name": "application_roles_key_format_chk",
+          "value": "\"application_role\".\"key\" ~ '^[a-z0-9]+(_[a-z0-9]+)*$'"
         }
       },
       "isRLSEnabled": false
     },
-    "public.app": {
-      "name": "app",
+    "public.application": {
+      "name": "application",
       "schema": "",
       "columns": {
         "id": {
@@ -761,8 +761,8 @@
           "method": "btree",
           "with": {}
         },
-        "apps_org_key_uniq": {
-          "name": "apps_org_key_uniq",
+        "apps_organization_key_uniq": {
+          "name": "apps_organization_key_uniq",
           "columns": [
             {
               "expression": "organization_id",
@@ -782,8 +782,8 @@
           "method": "btree",
           "with": {}
         },
-        "apps_org_name_uniq": {
-          "name": "apps_org_name_uniq",
+        "apps_organization_name_uniq": {
+          "name": "apps_organization_name_uniq",
           "columns": [
             {
               "expression": "organization_id",
@@ -805,9 +805,9 @@
         }
       },
       "foreignKeys": {
-        "app_organization_id_organization_id_fk": {
-          "name": "app_organization_id_organization_id_fk",
-          "tableFrom": "app",
+        "application_organization_id_organization_id_fk": {
+          "name": "application_organization_id_organization_id_fk",
+          "tableFrom": "application",
           "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
@@ -825,7 +825,7 @@
       "checkConstraints": {
         "apps_key_format_chk": {
           "name": "apps_key_format_chk",
-          "value": "\"app\".\"key\" ~ '^[a-z0-9]+(_[a-z0-9]+)*$'"
+          "value": "\"application\".\"key\" ~ '^[a-z0-9]+(_[a-z0-9]+)*$'"
         }
       },
       "isRLSEnabled": false
@@ -1235,8 +1235,8 @@
           "method": "btree",
           "with": {}
         },
-        "member_org_user_uidx": {
-          "name": "member_org_user_uidx",
+        "member_organization_user_uidx": {
+          "name": "member_organization_user_uidx",
           "columns": [
             {
               "expression": "organization_id",
@@ -1291,8 +1291,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.member_app_role": {
-      "name": "member_app_role",
+    "public.member_application_role": {
+      "name": "member_application_role",
       "schema": "",
       "columns": {
         "member_id": {
@@ -1301,8 +1301,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "app_role_id": {
-          "name": "app_role_id",
+        "application_role_id": {
+          "name": "application_role_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -1335,7 +1335,7 @@
           "name": "idx_mar_role",
           "columns": [
             {
-              "expression": "app_role_id",
+              "expression": "application_role_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1348,9 +1348,9 @@
         }
       },
       "foreignKeys": {
-        "member_app_role_member_id_member_id_fk": {
-          "name": "member_app_role_member_id_member_id_fk",
-          "tableFrom": "member_app_role",
+        "member_application_role_member_id_member_id_fk": {
+          "name": "member_application_role_member_id_member_id_fk",
+          "tableFrom": "member_application_role",
           "tableTo": "member",
           "columnsFrom": [
             "member_id"
@@ -1361,12 +1361,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "member_app_role_app_role_id_app_role_id_fk": {
-          "name": "member_app_role_app_role_id_app_role_id_fk",
-          "tableFrom": "member_app_role",
-          "tableTo": "app_role",
+        "member_application_role_application_role_id_application_role_id_fk": {
+          "name": "member_application_role_application_role_id_application_role_id_fk",
+          "tableFrom": "member_application_role",
+          "tableTo": "application_role",
           "columnsFrom": [
-            "app_role_id"
+            "application_role_id"
           ],
           "columnsTo": [
             "id"
@@ -1376,11 +1376,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "member_app_role_member_id_app_role_id_pk": {
-          "name": "member_app_role_member_id_app_role_id_pk",
+        "member_application_role_member_id_application_role_id_pk": {
+          "name": "member_application_role_member_id_application_role_id_pk",
           "columns": [
             "member_id",
-            "app_role_id"
+            "application_role_id"
           ]
         }
       },
@@ -2271,8 +2271,8 @@
           "method": "btree",
           "with": {}
         },
-        "organizationRole_org_role_uidx": {
-          "name": "organizationRole_org_role_uidx",
+        "organizationRole_organization_role_uidx": {
+          "name": "organizationRole_organization_role_uidx",
           "columns": [
             {
               "expression": "organization_id",
@@ -2673,8 +2673,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "app_id": {
-          "name": "app_id",
+        "application_id": {
+          "name": "application_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -2713,11 +2713,11 @@
         }
       },
       "indexes": {
-        "idx_resources_app": {
-          "name": "idx_resources_app",
+        "idx_resources_application": {
+          "name": "idx_resources_application",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2728,11 +2728,11 @@
           "method": "btree",
           "with": {}
         },
-        "resources_app_key_uniq": {
-          "name": "resources_app_key_uniq",
+        "resources_application_key_uniq": {
+          "name": "resources_application_key_uniq",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2749,11 +2749,11 @@
           "method": "btree",
           "with": {}
         },
-        "resources_app_name_uniq": {
-          "name": "resources_app_name_uniq",
+        "resources_application_name_uniq": {
+          "name": "resources_application_name_uniq",
           "columns": [
             {
-              "expression": "app_id",
+              "expression": "application_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2772,12 +2772,12 @@
         }
       },
       "foreignKeys": {
-        "resource_app_id_app_id_fk": {
-          "name": "resource_app_id_app_id_fk",
+        "resource_application_id_application_id_fk": {
+          "name": "resource_application_id_application_id_fk",
           "tableFrom": "resource",
-          "tableTo": "app",
+          "tableTo": "application",
           "columnsFrom": [
-            "app_id"
+            "application_id"
           ],
           "columnsTo": [
             "id"
@@ -2788,12 +2788,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "uq_resources_id_app": {
-          "name": "uq_resources_id_app",
+        "uq_resources_id_application": {
+          "name": "uq_resources_id_application",
           "nullsNotDistinct": false,
           "columns": [
             "id",
-            "app_id"
+            "application_id"
           ]
         }
       },

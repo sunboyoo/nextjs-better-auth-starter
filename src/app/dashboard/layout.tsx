@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { AppSidebar } from "./_components/dashboard/app-sidebar";
+import { ApplicationSidebar } from "./_components/dashboard/application-sidebar";
 import { SiteHeader } from "./_components/dashboard/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
@@ -38,7 +38,7 @@ export default async function DashboardLayout({
 				} as CSSProperties
 			}
 		>
-			<AppSidebar
+			<ApplicationSidebar
 				variant="inset"
 				deviceSessions={deviceSessions}
 			/>

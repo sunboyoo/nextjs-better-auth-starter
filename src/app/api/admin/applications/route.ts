@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions } from "@/db/schema";
+import { applications, resources, actions } from "@/db/schema";
 import { eq, ilike, desc, sql, count, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -8,9 +8,9 @@ import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET /api/admin/apps - List all apps with pagination and search
+// GET /api/admin/applications - List all applications with pagination and search
 export async function GET(request: NextRequest) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const searchParams = request.nextUrl.searchParams;
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
 
     try {
         const filters = [
-            search ? ilike(apps.name, `%${search}%`) : undefined,
-            isActiveParam !== null ? eq(apps.isActive, isActiveParam === "true") : undefined,
+            search ? ilike(applications.name, `%${search}%`) : undefined,
+            isActiveParam !== null ? eq(applications.isActive, isActiveParam === "true") : undefined,
         ].filter(Boolean);
 
         const whereConditions = filters.length > 0
@@ -35,64 +35,64 @@ export async function GET(request: NextRequest) {
         // const whereConditions = and(...filters); // Requires importing and from drizzle-orm
 
 
-        // Fetch apps
-        const appsList = await db
+        // Fetch applications
+        const applicationsList = await db
             .select()
-            .from(apps)
+            .from(applications)
             .where(whereConditions)
-            .orderBy(desc(apps.createdAt))
+            .orderBy(desc(applications.createdAt))
             .limit(pagination.limit)
             .offset(pagination.offset);
 
-        // Get resource counts grouped by app_id
+        // Get resource counts grouped by application_id
         const resourceCounts = await db
             .select({
-                appId: resources.appId,
+                applicationId: resources.applicationId,
                 count: count(),
             })
             .from(resources)
-            .groupBy(resources.appId);
+            .groupBy(resources.applicationId);
 
-        // Get action counts grouped by app_id
+        // Get action counts grouped by application_id
         const actionCounts = await db
             .select({
-                appId: resources.appId,
+                applicationId: resources.applicationId,
                 count: count(),
             })
             .from(actions)
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .groupBy(resources.appId);
+            .groupBy(resources.applicationId);
 
         // Create lookup maps
-        const resourceCountMap = new Map(resourceCounts.map(r => [r.appId, Number(r.count)]));
-        const actionCountMap = new Map(actionCounts.map(a => [a.appId, Number(a.count)]));
+        const resourceCountMap = new Map(resourceCounts.map(r => [r.applicationId, Number(r.count)]));
+        const actionCountMap = new Map(actionCounts.map(a => [a.applicationId, Number(a.count)]));
 
-        // Merge counts into apps
-        const appsWithCounts = appsList.map(app => ({
-            ...app,
-            resourceCount: resourceCountMap.get(app.id) || 0,
-            actionCount: actionCountMap.get(app.id) || 0,
+        // Merge counts into applications
+        const applicationsWithCounts = applicationsList.map(application => ({
+            ...application,
+            resourceCount: resourceCountMap.get(application.id) || 0,
+            actionCount: actionCountMap.get(application.id) || 0,
         }));
 
         const countResult = await db
             .select({ count: sql<number>`count(*)` })
-            .from(apps)
+            .from(applications)
             .where(whereConditions);
 
         const total = Number(countResult[0]?.count || 0);
 
         return NextResponse.json({
-            apps: appsWithCounts,
+            applications: applicationsWithCounts,
             ...createPaginationMeta(total, pagination),
         });
     } catch (error) {
-        return handleApiError(error, "fetch apps");
+        return handleApiError(error, "fetch applications");
     }
 }
 
-// POST /api/admin/apps - Create a new app
+// POST /api/admin/applications - Create a new application
 export async function POST(request: NextRequest) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     try {
@@ -128,20 +128,20 @@ export async function POST(request: NextRequest) {
 
         // Check if key already exists within the same organization
         const existing = await db
-            .select({ id: apps.id })
-            .from(apps)
-            .where(and(eq(apps.organizationId, organizationId), eq(apps.key, key)))
+            .select({ id: applications.id })
+            .from(applications)
+            .where(and(eq(applications.organizationId, organizationId), eq(applications.key, key)))
             .limit(1);
 
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "App with this key already exists in this organization" },
+                { error: "Application with this key already exists in this organization" },
                 { status: 400 }
             );
         }
 
-        const newApp = await db
-            .insert(apps)
+        const newApplication = await db
+            .insert(applications)
             .values({
                 organizationId,
                 key,
@@ -153,9 +153,9 @@ export async function POST(request: NextRequest) {
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.create",
-            targetType: "app",
-            targetId: newApp[0]?.id ?? null,
+            action: "admin.applications.create",
+            targetType: "application",
+            targetId: newApplication[0]?.id ?? null,
             metadata: {
                 key,
                 name,
@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
             headers: authResult.headers,
         });
 
-        return NextResponse.json({ app: newApp[0] }, { status: 201 });
+        return NextResponse.json({ application: newApplication[0] }, { status: 201 });
     } catch (error) {
-        return handleApiError(error, "create app");
+        return handleApiError(error, "create application");
     }
 }

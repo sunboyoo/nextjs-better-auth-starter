@@ -12,17 +12,17 @@ interface Action {
     resourceName: string;
 }
 
-interface AppResourceActionTreeDisplayProps {
-    appName: string;
-    actionStrings: string[]; // Strings like "app:resource:action"
+interface ApplicationResourceActionTreeDisplayProps {
+    applicationName: string;
+    actionStrings: string[]; // Strings like "application:resource:action"
     availableActions: Action[]; // Metadata to lookup names
 }
 
-export function AppResourceActionTreeDisplay({
-    appName,
+export function ApplicationResourceActionTreeDisplay({
+    applicationName,
     actionStrings,
     availableActions,
-}: AppResourceActionTreeDisplayProps) {
+}: ApplicationResourceActionTreeDisplayProps) {
     const [isExpanded, setIsExpanded] = React.useState(false);
 
     // Group assigned actions by resource
@@ -66,7 +66,7 @@ export function AppResourceActionTreeDisplay({
 
     return (
         <div className="text-xs">
-            {/* App Header / Toggle */}
+            {/* Application Header / Toggle */}
             <div
                 className="flex items-center gap-1.5 cursor-pointer hover:bg-muted/50 p-1 rounded transition-colors w-fit"
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -76,7 +76,7 @@ export function AppResourceActionTreeDisplay({
                 ) : (
                     <ChevronRight className="h-3 w-3 text-muted-foreground" />
                 )}
-                <span className="font-semibold text-foreground/80">{appName}</span>
+                <span className="font-semibold text-foreground/80">{applicationName}</span>
                 <span className="bg-muted px-1.5 py-0.5 rounded-full text-[10px] text-muted-foreground">
                     {actionStrings.length}
                 </span>

@@ -1,16 +1,16 @@
 export const userKeys = {
-    orgApps: (organizationId: string, search?: string) =>
-        ["user", "organizations", organizationId, "apps", search ?? ""] as const,
-    orgApp: (organizationId: string, appId: string) =>
-        ["user", "organizations", organizationId, "apps", appId] as const,
-    orgAppResources: (organizationId: string, appId: string, search?: string) =>
-        ["user", "organizations", organizationId, "apps", appId, "resources", search ?? ""] as const,
-    orgAppResource: (organizationId: string, appId: string, resourceId: string) =>
-        ["user", "organizations", organizationId, "apps", appId, "resources", resourceId] as const,
-    orgAppResourceActions: (organizationId: string, appId: string, resourceId: string, search?: string) =>
-        ["user", "organizations", organizationId, "apps", appId, "resources", resourceId, "actions", search ?? ""] as const,
-    orgAppResourceAction: (organizationId: string, appId: string, resourceId: string, actionId: string) =>
-        ["user", "organizations", organizationId, "apps", appId, "resources", resourceId, "actions", actionId] as const,
+    organizationApplications: (organizationId: string, search?: string) =>
+        ["user", "organizations", organizationId, "applications", search ?? ""] as const,
+    organizationApplication: (organizationId: string, applicationId: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId] as const,
+    organizationApplicationResources: (organizationId: string, applicationId: string, search?: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "resources", search ?? ""] as const,
+    organizationApplicationResource: (organizationId: string, applicationId: string, resourceId: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "resources", resourceId] as const,
+    organizationApplicationResourceActions: (organizationId: string, applicationId: string, resourceId: string, search?: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "resources", resourceId, "actions", search ?? ""] as const,
+    organizationApplicationResourceAction: (organizationId: string, applicationId: string, resourceId: string, actionId: string) =>
+        ["user", "organizations", organizationId, "applications", applicationId, "resources", resourceId, "actions", actionId] as const,
     teamDetail: (organizationId: string, teamId: string) =>
         ["user", "organizations", organizationId, "teams", teamId] as const,
     teamMembers: (organizationId: string, teamId: string) =>

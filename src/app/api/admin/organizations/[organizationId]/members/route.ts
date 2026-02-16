@@ -41,12 +41,12 @@ export async function GET(
     const pagination = parsePagination(request);
 
     try {
-        const orgRaw = (await extendedAuthApi.getFullOrganization({
+        const organizationRaw = (await extendedAuthApi.getFullOrganization({
             query: { organizationId },
             headers: authResult.headers,
         })) as { id?: string; name?: string; slug?: string; logo?: string | null } | null;
 
-        if (!orgRaw?.id) {
+        if (!organizationRaw?.id) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
@@ -126,10 +126,10 @@ export async function GET(
 
         return NextResponse.json({
             organization: {
-                id: orgRaw.id,
-                name: orgRaw.name ?? "",
-                slug: orgRaw.slug ?? "",
-                logo: orgRaw.logo ?? null,
+                id: organizationRaw.id,
+                name: organizationRaw.name ?? "",
+                slug: organizationRaw.slug ?? "",
+                logo: organizationRaw.logo ?? null,
             },
             members,
             ...createPaginationMeta(total, pagination),

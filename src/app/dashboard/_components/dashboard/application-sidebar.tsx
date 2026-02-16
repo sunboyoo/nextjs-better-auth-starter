@@ -5,7 +5,6 @@ import Link from "next/link"
 import {
     IconDashboard,
     IconSettings,
-    IconShield,
     IconUsers,
     IconHelp,
     IconUser,
@@ -38,14 +37,14 @@ const staticNavSecondary = [
     },
 ]
 
-type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+type ApplicationSidebarProps = React.ComponentProps<typeof Sidebar> & {
     deviceSessions: DeviceSession[]
 }
 
-export function AppSidebar({
+export function ApplicationSidebar({
     deviceSessions,
     ...props
-}: AppSidebarProps) {
+}: ApplicationSidebarProps) {
     const navMain = [
         {
             title: "Dashboard",
@@ -61,11 +60,6 @@ export function AppSidebar({
             title: "User Account",
             url: "/dashboard/user-account",
             icon: IconUser,
-        },
-        {
-            title: "Admin Panel",
-            url: "/admin",
-            icon: IconShield,
         },
         {
             title: "Organizations",

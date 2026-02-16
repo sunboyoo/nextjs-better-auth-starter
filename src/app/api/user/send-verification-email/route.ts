@@ -6,6 +6,7 @@ import {
   isSyntheticEmail,
   normalizeSyntheticEmailDomain,
 } from "@/lib/auth-channel";
+import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 
@@ -65,9 +66,9 @@ export async function POST(request: NextRequest) {
       undefined,
       ctx.options.emailVerification?.expiresIn,
     );
-    const callbackURL = parsed.data.callbackURL
-      ? encodeURIComponent(parsed.data.callbackURL)
-      : encodeURIComponent("/");
+    const callbackURL = encodeURIComponent(
+      getSafeCallbackUrl(parsed.data.callbackURL ?? null, "/"),
+    );
     const url = `${ctx.baseURL}/verify-email?token=${token}&callbackURL=${callbackURL}`;
 
     await ctx.runInBackgroundOrAwait(

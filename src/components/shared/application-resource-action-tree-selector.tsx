@@ -14,19 +14,19 @@ interface Action {
     resourceName: string;
 }
 
-interface AppResourceActionTreeSelectorProps {
-    appName: string;
+interface ApplicationResourceActionTreeSelectorProps {
+    applicationName: string;
     actions: Action[];
     selectedActionIds: string[];
     onSelectionChange: (ids: string[]) => void;
 }
 
-export function AppResourceActionTreeSelector({
-    appName,
+export function ApplicationResourceActionTreeSelector({
+    applicationName,
     actions,
     selectedActionIds,
     onSelectionChange,
-}: AppResourceActionTreeSelectorProps) {
+}: ApplicationResourceActionTreeSelectorProps) {
     const [expandedResources, setExpandedResources] = React.useState<Record<string, boolean>>({});
     const [isAppExpanded, setIsAppExpanded] = React.useState(true);
 
@@ -103,7 +103,7 @@ export function AppResourceActionTreeSelector({
         }));
     };
 
-    const appStatus = getSelectionStatus(actions.map((a) => a.id));
+    const applicationStatus = getSelectionStatus(actions.map((a) => a.id));
 
     if (actions.length === 0) {
         return <div className="text-sm text-muted-foreground p-4 text-center">No actions available.</div>;
@@ -111,7 +111,7 @@ export function AppResourceActionTreeSelector({
 
     return (
         <div className="border rounded-md overflow-hidden">
-            {/* App Level (Root) */}
+            {/* Application Level (Root) */}
             <div className="bg-muted/30 p-2 flex items-center gap-2 border-b">
                 <Button
                     type="button"
@@ -127,15 +127,15 @@ export function AppResourceActionTreeSelector({
                     )}
                 </Button>
                 <Checkbox
-                    id="tree-app-root"
-                    checked={appStatus === "checked" ? true : appStatus === "indeterminate" ? "indeterminate" : false}
+                    id="tree-application-root"
+                    checked={applicationStatus === "checked" ? true : applicationStatus === "indeterminate" ? "indeterminate" : false}
                     onCheckedChange={(checked) => toggleApp(checked === true)}
                 />
                 <label
-                    htmlFor="tree-app-root"
+                    htmlFor="tree-application-root"
                     className="font-semibold text-sm cursor-pointer select-none"
                 >
-                    {appName}
+                    {applicationName}
                 </label>
                 <span className="text-xs text-muted-foreground ml-auto">
                     {selectedActionIds.length}/{actions.length} selected

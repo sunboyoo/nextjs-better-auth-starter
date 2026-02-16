@@ -66,7 +66,7 @@ interface TeamMembersResponse {
     canWrite: boolean;
 }
 
-interface OrgMember {
+interface OrganizationMember {
     id: string;
     userId: string;
     role: string;
@@ -111,14 +111,14 @@ export default function TeamMembersPage() {
         staleTime: 2000,
     });
 
-    // Fetch org members (for add dialog)
-    const { data: orgMembersData, isLoading: orgMembersLoading } = useQuery({
-        queryKey: ["org-members-for-team", organizationId],
+    // Fetch organization members (for add dialog)
+    const { data: organizationMembersData, isLoading: organizationMembersLoading } = useQuery({
+        queryKey: ["organization-members-for-team", organizationId],
         queryFn: async () => {
             const { data, error } = await authClient.organization.listMembers({
                 query: { organizationId },
             });
-            if (error) throw new Error("Failed to load org members");
+            if (error) throw new Error("Failed to load organization members");
             const raw = data as unknown;
             const list = Array.isArray(raw)
                 ? raw
@@ -127,7 +127,7 @@ export default function TeamMembersPage() {
                 )
                     ? ((raw as Record<string, unknown>).members as unknown[])
                     : [];
-            return list as OrgMember[];
+            return list as OrganizationMember[];
         },
         enabled: isAddOpen,
         staleTime: 5000,
@@ -203,7 +203,7 @@ export default function TeamMembersPage() {
         }
     };
 
-    const members = data?.members ?? [];
+    const members = useMemo(() => data?.members ?? [], [data?.members]);
     const canWrite = data?.canWrite ?? false;
 
     // Search + sort displayed members
@@ -239,18 +239,18 @@ export default function TeamMembersPage() {
         return result;
     }, [members, search, sortBy]);
 
-    // Filter available org members (exclude already in team)
+    // Filter available organization members (exclude already in team)
     const teamUserIds = new Set(members.map((m) => m.userId));
-    const availableOrgMembers = (orgMembersData || []).filter(
+    const availableOrganizationMembers = (organizationMembersData || []).filter(
         (m) => !teamUserIds.has(m.userId),
     );
     const filteredAvailable = addSearch
-        ? availableOrgMembers.filter(
+        ? availableOrganizationMembers.filter(
             (m) =>
                 m.user?.name?.toLowerCase().includes(addSearch.toLowerCase()) ||
                 m.user?.email?.toLowerCase().includes(addSearch.toLowerCase()),
         )
-        : availableOrgMembers;
+        : availableOrganizationMembers;
 
     const getInitials = (name: string | null | undefined) =>
         name
@@ -338,7 +338,7 @@ export default function TeamMembersPage() {
                                     />
                                 </div>
                                 <div className="max-h-[300px] overflow-y-auto border rounded-md divide-y">
-                                    {orgMembersLoading ? (
+                                    {organizationMembersLoading ? (
                                         <div className="flex items-center justify-center p-6 text-muted-foreground">
                                             <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                             Loading...
@@ -346,7 +346,7 @@ export default function TeamMembersPage() {
                                     ) : filteredAvailable.length === 0 ? (
                                         <div className="flex flex-col items-center p-6 text-muted-foreground text-sm">
                                             <Users className="h-8 w-8 mb-2 opacity-50" />
-                                            {availableOrgMembers.length === 0
+                                            {availableOrganizationMembers.length === 0
                                                 ? "All organization members are already in this team"
                                                 : "No matching members found"}
                                         </div>

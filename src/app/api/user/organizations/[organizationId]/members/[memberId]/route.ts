@@ -9,7 +9,7 @@ interface RouteParams {
     params: Promise<{ organizationId: string; memberId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, memberId } = await params;
-    const currentMembership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const currentMembership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!currentMembership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -55,27 +55,27 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             .where(eq(user.id, memberRecord.userId))
             .limit(1);
 
-        // Fetch teams this member belongs to (within this org)
-        const orgTeams = await db
+        // Fetch teams this member belongs to (within this organization)
+        const organizationTeams = await db
             .select({ id: team.id, name: team.name })
             .from(team)
             .where(eq(team.organizationId, organizationId));
 
         const memberTeams: { teamId: string; teamName: string; joinedAt: Date }[] = [];
-        if (orgTeams.length > 0) {
+        if (organizationTeams.length > 0) {
             const teamMemberships = await db
                 .select()
                 .from(teamMember)
                 .where(eq(teamMember.userId, memberRecord.userId));
 
-            const orgTeamIds = new Set(orgTeams.map((t) => t.id));
-            const orgTeamMap = new Map(orgTeams.map((t) => [t.id, t.name]));
+            const organizationTeamIds = new Set(organizationTeams.map((t) => t.id));
+            const organizationTeamMap = new Map(organizationTeams.map((t) => [t.id, t.name]));
 
             for (const tm of teamMemberships) {
-                if (orgTeamIds.has(tm.teamId)) {
+                if (organizationTeamIds.has(tm.teamId)) {
                     memberTeams.push({
                         teamId: tm.teamId,
-                        teamName: orgTeamMap.get(tm.teamId) ?? "Unknown",
+                        teamName: organizationTeamMap.get(tm.teamId) ?? "Unknown",
                         joinedAt: tm.createdAt,
                     });
                 }

@@ -50,13 +50,13 @@ const navMainItems = [
         icon: Building2,
     },
     {
-        title: "Apps",
-        url: "/admin/apps",
+        title: "Applications",
+        url: "/admin/applications",
         icon: Box,
     },
     {
-        title: "Org App Roles",
-        url: "/admin/organization-app-roles",
+        title: "Organization Application Roles",
+        url: "/admin/organization-application-roles",
         icon: UserCog,
     },
     {
@@ -66,7 +66,7 @@ const navMainItems = [
     },
 ];
 
-// Mock user data - in real app, this would come from session context
+// Mock user data - in a real application this would come from session context
 const mockUser = {
     name: "Admin User",
     email: "admin@example.com",

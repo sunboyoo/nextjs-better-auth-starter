@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-interface AppLayoutResponse {
-    app: {
+interface ApplicationLayoutResponse {
+    application: {
         id: string;
         name: string;
         key: string;
@@ -40,22 +40,22 @@ export default function ApplicationDetailLayout({
     const { organizationId, applicationId } = params;
     const pathname = usePathname();
 
-    const { data, isLoading } = useQuery<AppLayoutResponse>({
-        queryKey: userKeys.orgApp(organizationId, applicationId),
+    const { data, isLoading } = useQuery<ApplicationLayoutResponse>({
+        queryKey: userKeys.organizationApplication(organizationId, applicationId),
         queryFn: () =>
             fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}`,
                 {
                     credentials: "include",
                 },
             ).then((res) => {
-                if (!res.ok) throw new Error("Failed to fetch app");
+                if (!res.ok) throw new Error("Failed to fetch application");
                 return res.json();
             }),
         staleTime: 5000,
     });
 
-    const app = data?.app;
+    const application = data?.application;
     const basePath = `/dashboard/organizations/${organizationId}/applications/${applicationId}`;
 
     const isOverviewActive = pathname === basePath;
@@ -91,44 +91,44 @@ export default function ApplicationDetailLayout({
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                                 <h2 className="font-semibold text-base">
-                                    {app?.name ?? "Loading..."}
+                                    {application?.name ?? "Loading..."}
                                 </h2>
-                                {app && (
+                                {application && (
                                     <Badge
                                         variant={
-                                            app.isActive
+                                            application.isActive
                                                 ? "default"
                                                 : "secondary"
                                         }
                                         className="text-[10px]"
                                     >
-                                        {app.isActive ? (
+                                        {application.isActive ? (
                                             <CheckCircle className="h-3 w-3 mr-1" />
                                         ) : (
                                             <XCircle className="h-3 w-3 mr-1" />
                                         )}
-                                        {app.isActive ? "Active" : "Inactive"}
+                                        {application.isActive ? "Active" : "Inactive"}
                                     </Badge>
                                 )}
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">
-                                {app?.key && (
+                                {application?.key && (
                                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                        {app.key}
+                                        {application.key}
                                     </code>
                                 )}
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                         <Layers className="h-3.5 w-3.5" />
-                                        {app?.resourceCount ?? 0} resource
-                                        {(app?.resourceCount ?? 0) !== 1
+                                        {application?.resourceCount ?? 0} resource
+                                        {(application?.resourceCount ?? 0) !== 1
                                             ? "s"
                                             : ""}
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Zap className="h-3.5 w-3.5" />
-                                        {app?.actionCount ?? 0} action
-                                        {(app?.actionCount ?? 0) !== 1
+                                        {application?.actionCount ?? 0} action
+                                        {(application?.actionCount ?? 0) !== 1
                                             ? "s"
                                             : ""}
                                     </span>

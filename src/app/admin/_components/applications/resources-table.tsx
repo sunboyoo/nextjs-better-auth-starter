@@ -74,7 +74,7 @@ type MutationInput = {
 
 interface Resource {
     id: string;
-    appId: string;
+    applicationId: string;
     key: string;
     name: string;
     description: string | null;
@@ -83,10 +83,10 @@ interface Resource {
 }
 
 interface ResourcesTableProps {
-    appId: string;
+    applicationId: string;
 }
 
-export function ResourcesTable({ appId }: ResourcesTableProps) {
+export function ResourcesTable({ applicationId }: ResourcesTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -161,9 +161,9 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
         }
     }, [page, limit, router, pathname, searchParams, debouncedSearch]);
 
-    const resourcesUrl = `/api/admin/apps/${appId}/resources?page=${page}&limit=${limit}&search=${debouncedSearch}`;
+    const resourcesUrl = `/api/admin/applications/${applicationId}/resources?page=${page}&limit=${limit}&search=${debouncedSearch}`;
     const { data, error } = useQuery({
-        queryKey: adminKeys.appResources(resourcesUrl),
+        queryKey: adminKeys.applicationResources(resourcesUrl),
         queryFn: () => fetcher(resourcesUrl),
     });
 
@@ -197,7 +197,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${editId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${editId}`,
                 method: "PUT",
                 body: {
                     name: editName,
@@ -214,7 +214,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             setIsUpdateOpen(false);
             setEditId(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error updating resource:", error);
@@ -229,10 +229,10 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources`,
+                url: `/api/admin/applications/${applicationId}/resources`,
                 method: "POST",
                 body: {
-                    appId,
+                    applicationId,
                     key: newKey,
                     name: newName,
                     description: newDescription || null,
@@ -251,7 +251,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             setIsNewKeyManuallyEdited(false);
             setNewDescription("");
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error creating resource:", error);
@@ -265,7 +265,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${deleteId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${deleteId}`,
                 method: "DELETE",
             });
             if (!response.ok) {
@@ -274,7 +274,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
             }
             setDeleteId(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error deleting resource:", error);
@@ -481,7 +481,7 @@ export function ResourcesTable({ appId }: ResourcesTableProps) {
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
                                         <button
-                                            onClick={() => router.push(`/admin/apps/${appId}/resources/${resource.id}/actions`)}
+                                            onClick={() => router.push(`/admin/applications/${applicationId}/resources/${resource.id}/actions`)}
                                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/30 text-xs font-medium hover:bg-muted/50 transition-colors cursor-pointer text-foreground"
                                         >
                                             <Zap className="h-3.5 w-3.5 opacity-70" />

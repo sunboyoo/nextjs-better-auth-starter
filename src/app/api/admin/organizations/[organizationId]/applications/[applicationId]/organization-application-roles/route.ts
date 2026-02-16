@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { appRoles, appRoleAction, actions, resources, apps, organization } from "@/db/schema";
+import { applicationRoles, applicationRoleAction, actions, resources, applications, organization } from "@/db/schema";
 import { eq, and, ilike, desc, sql, count } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -9,63 +9,63 @@ import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string }>;
 }
 
-// GET /api/admin/organizations/[organizationId]/apps/[appId]/roles - List roles
+// GET /api/admin/organizations/[organizationId]/applications/[applicationId]/roles - List roles
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
+    const { organizationId, applicationId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const isActiveParam = searchParams.get("isActive");
     const pagination = parsePagination(request);
 
     try {
-        // Build filter conditions — organizationId is verified through app ownership
+        // Build filter conditions — organizationId is verified through application ownership
         const conditions = [
-            eq(appRoles.appId, appId),
+            eq(applicationRoles.applicationId, applicationId),
         ];
-        if (search) conditions.push(ilike(appRoles.name, `%${search}%`));
+        if (search) conditions.push(ilike(applicationRoles.name, `%${search}%`));
         if (isActiveParam !== null && isActiveParam !== undefined) {
-            conditions.push(eq(appRoles.isActive, isActiveParam === "true"));
+            conditions.push(eq(applicationRoles.isActive, isActiveParam === "true"));
         }
 
         const whereConditions = and(...conditions);
 
-        // Fetch roles with app info
+        // Fetch roles with application info
         const rolesList = await db
             .select({
-                id: appRoles.id,
-                appId: appRoles.appId,
-                key: appRoles.key,
-                name: appRoles.name,
-                description: appRoles.description,
-                isActive: appRoles.isActive,
-                createdAt: appRoles.createdAt,
-                updatedAt: appRoles.updatedAt,
+                id: applicationRoles.id,
+                applicationId: applicationRoles.applicationId,
+                key: applicationRoles.key,
+                name: applicationRoles.name,
+                description: applicationRoles.description,
+                isActive: applicationRoles.isActive,
+                createdAt: applicationRoles.createdAt,
+                updatedAt: applicationRoles.updatedAt,
                 organizationName: organization.name,
-                appName: apps.name,
-                appKey: apps.key,
+                applicationName: applications.name,
+                applicationKey: applications.key,
             })
-            .from(appRoles)
-            .leftJoin(apps, eq(appRoles.appId, apps.id))
-            .leftJoin(organization, eq(apps.organizationId, organization.id))
+            .from(applicationRoles)
+            .leftJoin(applications, eq(applicationRoles.applicationId, applications.id))
+            .leftJoin(organization, eq(applications.organizationId, organization.id))
             .where(whereConditions)
-            .orderBy(desc(appRoles.createdAt))
+            .orderBy(desc(applicationRoles.createdAt))
             .limit(pagination.limit)
             .offset(pagination.offset);
 
         // Get action counts for each role
         const actionCounts = await db
             .select({
-                roleId: appRoleAction.roleId,
+                roleId: applicationRoleAction.roleId,
                 count: count(),
             })
-            .from(appRoleAction)
-            .groupBy(appRoleAction.roleId);
+            .from(applicationRoleAction)
+            .groupBy(applicationRoleAction.roleId);
 
         const actionCountMap = new Map(actionCounts.map(a => [a.roleId, Number(a.count)]));
 
@@ -76,20 +76,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (roleIds.length > 0) {
             const roleActions = await db
                 .select({
-                    roleId: appRoleAction.roleId,
+                    roleId: applicationRoleAction.roleId,
                     actionKey: actions.key,
                     resourceKey: resources.key,
-                    appKey: apps.key,
+                    applicationKey: applications.key,
                 })
-                .from(appRoleAction)
-                .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
+                .from(applicationRoleAction)
+                .innerJoin(actions, eq(applicationRoleAction.actionId, actions.id))
                 .innerJoin(resources, eq(actions.resourceId, resources.id))
-                .innerJoin(apps, eq(resources.appId, apps.id))
-                .where(sql`${appRoleAction.roleId} IN (${sql.join(roleIds.map(id => sql`${id}::uuid`), sql`, `)})`);
+                .innerJoin(applications, eq(resources.applicationId, applications.id))
+                .where(sql`${applicationRoleAction.roleId} IN (${sql.join(roleIds.map(id => sql`${id}::uuid`), sql`, `)})`);
 
             // Group actions by role ID
             roleActions.forEach(ra => {
-                const key = `${ra.appKey}:${ra.resourceKey}:${ra.actionKey}`;
+                const key = `${ra.applicationKey}:${ra.resourceKey}:${ra.actionKey}`;
                 if (!roleActionsMap.has(ra.roleId)) {
                     roleActionsMap.set(ra.roleId, []);
                 }
@@ -101,13 +101,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const rolesWithData = rolesList.map(role => ({
             ...role,
             actionCount: actionCountMap.get(role.id) || 0,
-            appResourceActions: roleActionsMap.get(role.id) || [],
+            applicationResourceActions: roleActionsMap.get(role.id) || [],
         }));
 
         // Get total count
         const countResult = await db
             .select({ count: sql<number>`count(*)` })
-            .from(appRoles)
+            .from(applicationRoles)
             .where(whereConditions);
 
         const total = Number(countResult[0]?.count || 0);
@@ -117,16 +117,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             ...createPaginationMeta(total, pagination),
         });
     } catch (error) {
-        return handleApiError(error, "fetch organization app roles");
+        return handleApiError(error, "fetch organization application roles");
     }
 }
 
-// POST /api/admin/organizations/[organizationId]/apps/[appId]/roles - Create a new role
+// POST /api/admin/organizations/[organizationId]/applications/[applicationId]/roles - Create a new role
 export async function POST(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
+    const { organizationId, applicationId } = await params;
 
     try {
         const body = await request.json();
@@ -165,28 +165,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Check if key already exists for this app
+        // Check if key already exists for this application
         const existing = await db
-            .select({ id: appRoles.id })
-            .from(appRoles)
+            .select({ id: applicationRoles.id })
+            .from(applicationRoles)
             .where(and(
-                eq(appRoles.appId, appId),
-                eq(appRoles.key, key)
+                eq(applicationRoles.applicationId, applicationId),
+                eq(applicationRoles.key, key)
             ))
             .limit(1);
 
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "Role with this key already exists for this app" },
+                { error: "Role with this key already exists for this application" },
                 { status: 400 }
             );
         }
 
         // Create the role
         const newRole = await db
-            .insert(appRoles)
+            .insert(applicationRoles)
             .values({
-                appId,
+                applicationId,
                 key,
                 name,
                 description: description || null,
@@ -201,17 +201,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 actionId,
             }));
 
-            await db.insert(appRoleAction).values(roleActionValues);
+            await db.insert(applicationRoleAction).values(roleActionValues);
         }
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.app-roles.create",
+            action: "admin.organization.application-roles.create",
             targetType: "rbac",
             targetId: newRole[0]?.id ?? null,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
                 key,
                 name,
                 actionIds,
@@ -221,6 +221,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         return NextResponse.json({ role: newRole[0] }, { status: 201 });
     } catch (error) {
-        return handleApiError(error, "create organization app role");
+        return handleApiError(error, "create organization application role");
     }
 }

@@ -9,7 +9,7 @@ interface RouteParams {
     params: Promise<{ organizationId: string; teamId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, teamId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }

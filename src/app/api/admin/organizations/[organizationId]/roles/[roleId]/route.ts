@@ -46,7 +46,7 @@ export async function DELETE(
     const { organizationId, roleId } = await params;
 
     try {
-        await extendedAuthApi.deleteOrgRole({
+        await extendedAuthApi.deleteOrganizationRole({
             body: {
                 organizationId,
                 roleId,
@@ -101,7 +101,7 @@ export async function PATCH(
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const updatedRoleRaw = await extendedAuthApi.updateOrgRole({
+        const updatedRoleRaw = await extendedAuthApi.updateOrganizationRole({
             body: {
                 organizationId,
                 roleId,

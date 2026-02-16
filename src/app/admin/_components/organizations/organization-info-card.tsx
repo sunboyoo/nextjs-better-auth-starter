@@ -74,8 +74,8 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
         );
     }
 
-    const org: Organization | null = data?.organization ?? null;
-    if (!org) {
+    const organization: Organization | null = data?.organization ?? null;
+    if (!organization) {
         return (
             <div className="py-8 text-center">
                 <p className="text-destructive">Organization data is unavailable</p>
@@ -83,8 +83,8 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
         );
     }
 
-    const showLogo = Boolean(org.logo) && !brokenLogo;
-    const createdAt = org.createdAt ? new Date(org.createdAt) : null;
+    const showLogo = Boolean(organization.logo) && !brokenLogo;
+    const createdAt = organization.createdAt ? new Date(organization.createdAt) : null;
     const createdAtLabel =
         createdAt && !Number.isNaN(createdAt.getTime())
             ? format(createdAt, "MMM d, yyyy")
@@ -96,8 +96,8 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground overflow-hidden relative">
                 {showLogo ? (
                     <Image
-                        src={org.logo ?? ""}
-                        alt={org.name}
+                        src={organization.logo ?? ""}
+                        alt={organization.name}
                         fill
                         className="object-cover"
                         unoptimized
@@ -111,20 +111,20 @@ export function OrganizationInfoCard({ organizationId }: OrganizationInfoCardPro
             {/* Info */}
             <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-semibold tracking-tight truncate">
-                    {org.name}
+                    {organization.name}
                 </h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
                     <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
-                        {org.slug}
+                        {organization.slug}
                     </span>
                     <span className="flex items-center gap-1.5">
                         <Users className="h-3.5 w-3.5" />
-                        {org.memberCount} members
+                        {organization.memberCount} members
                     </span>
-                    {typeof org.roleCount === 'number' && (
+                    {typeof organization.roleCount === 'number' && (
                         <span className="flex items-center gap-1.5">
                             <Shield className="h-3.5 w-3.5" />
-                            {org.roleCount} roles
+                            {organization.roleCount} roles
                         </span>
                     )}
                     <span className="flex items-center gap-1.5">

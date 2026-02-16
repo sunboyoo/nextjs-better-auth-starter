@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { AppsTable } from "../_components/apps/apps-table";
+import { ApplicationsTable } from "../_components/applications/applications-table";
 
 export const metadata: Metadata = {
     title: "Applications | Admin Dashboard",
     description: "Manage applications",
 };
 
-export default function AppsPage() {
+export default function ApplicationsPage() {
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
-            <AppsTable />
+            <ApplicationsTable />
         </div>
     );
 }

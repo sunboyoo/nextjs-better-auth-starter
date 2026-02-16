@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { appRoles, appRoleAction, actions, resources, apps } from "@/db/schema";
+import { applicationRoles, applicationRoleAction, actions, resources, applications } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
 import { eq, sql, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
@@ -9,24 +9,24 @@ import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string; organizationAppRoleId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string; organizationApplicationRoleId: string }>;
 }
 
-// GET /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Get single role
+// GET /api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId] - Get single role
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, organizationAppRoleId } = await params;
+    const { organizationId, applicationId, organizationApplicationRoleId } = await params;
 
     try {
         // Fetch role
         const role = await db
             .select()
-            .from(appRoles)
+            .from(applicationRoles)
             .where(and(
-                eq(appRoles.id, organizationAppRoleId),
-                eq(appRoles.appId, appId)
+                eq(applicationRoles.id, organizationApplicationRoleId),
+                eq(applicationRoles.applicationId, applicationId)
             ))
             .limit(1);
 
@@ -37,38 +37,38 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         // Fetch role actions with details
         const roleActions = await db
             .select({
-                actionId: appRoleAction.actionId,
+                actionId: applicationRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceId: resources.id,
                 resourceKey: resources.key,
                 resourceName: resources.name,
-                appKey: apps.key,
+                applicationKey: applications.key,
             })
-            .from(appRoleAction)
-            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
+            .from(applicationRoleAction)
+            .innerJoin(actions, eq(applicationRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .innerJoin(apps, eq(resources.appId, apps.id))
-            .where(eq(appRoleAction.roleId, organizationAppRoleId));
+            .innerJoin(applications, eq(resources.applicationId, applications.id))
+            .where(eq(applicationRoleAction.roleId, organizationApplicationRoleId));
 
         return NextResponse.json({
             role: {
                 ...role[0],
                 actions: roleActions,
-                appResourceActions: roleActions.map(ra => `${ra.appKey}:${ra.resourceKey}:${ra.actionKey}`),
+                applicationResourceActions: roleActions.map(ra => `${ra.applicationKey}:${ra.resourceKey}:${ra.actionKey}`),
             },
         });
     } catch (error) {
-        return handleApiError(error, "fetch organization app role");
+        return handleApiError(error, "fetch organization application role");
     }
 }
 
-// PUT /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Update role
+// PUT /api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId] - Update role
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, organizationAppRoleId } = await params;
+    const { organizationId, applicationId, organizationApplicationRoleId } = await params;
 
     try {
         const body = await request.json();
@@ -93,11 +93,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
 
         const updatedRole = await db
-            .update(appRoles)
+            .update(applicationRoles)
             .set(withUpdatedAt(updateData))
             .where(and(
-                eq(appRoles.id, organizationAppRoleId),
-                eq(appRoles.appId, appId)
+                eq(applicationRoles.id, organizationApplicationRoleId),
+                eq(applicationRoles.applicationId, applicationId)
             ))
             .returning();
 
@@ -107,12 +107,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.app-roles.update",
+            action: "admin.organization.application-roles.update",
             targetType: "rbac",
-            targetId: organizationAppRoleId,
+            targetId: organizationApplicationRoleId,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
                 fields: Object.keys(updateData),
             },
             headers: authResult.headers,
@@ -120,24 +120,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         return NextResponse.json({ role: updatedRole[0] });
     } catch (error) {
-        return handleApiError(error, "update organization app role");
+        return handleApiError(error, "update organization application role");
     }
 }
 
-// DELETE /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId] - Delete role
+// DELETE /api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId] - Delete role
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, organizationAppRoleId } = await params;
+    const { organizationId, applicationId, organizationApplicationRoleId } = await params;
 
     try {
         // Delete role (cascade will handle role_action associations)
         const deleted = await db
-            .delete(appRoles)
+            .delete(applicationRoles)
             .where(and(
-                eq(appRoles.id, organizationAppRoleId),
-                eq(appRoles.appId, appId)
+                eq(applicationRoles.id, organizationApplicationRoleId),
+                eq(applicationRoles.applicationId, applicationId)
             ))
             .returning();
 
@@ -147,18 +147,18 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.app-roles.delete",
+            action: "admin.organization.application-roles.delete",
             targetType: "rbac",
-            targetId: organizationAppRoleId,
+            targetId: organizationApplicationRoleId,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
             },
             headers: authResult.headers,
         });
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        return handleApiError(error, "delete organization app role");
+        return handleApiError(error, "delete organization application role");
     }
 }

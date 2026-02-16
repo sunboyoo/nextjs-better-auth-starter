@@ -163,18 +163,18 @@ const ActiveOrganizationCard = () => {
                                     <DropdownMenuContent align="start" className="w-[240px]">
                                         <DropdownMenuLabel>Your Organizations</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        {organizations.map((org) => (
+                                        {organizations.map((organization) => (
                                             <DropdownMenuItem
-                                                key={org.id}
-                                                onClick={() => handleSetActive(org.id)}
+                                                key={organization.id}
+                                                onClick={() => handleSetActive(organization.id)}
                                                 className="cursor-pointer"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    {org.logo ? (
+                                                    {organization.logo ? (
                                                         // eslint-disable-next-line @next/next/no-img-element
                                                         <img
-                                                            src={org.logo}
-                                                            alt={org.name}
+                                                            src={organization.logo}
+                                                            alt={organization.name}
                                                             className="h-8 w-8 rounded-md object-cover"
                                                         />
                                                     ) : (
@@ -183,9 +183,9 @@ const ActiveOrganizationCard = () => {
                                                         </span>
                                                     )}
                                                     <div className="flex flex-col">
-                                                        <span className="font-medium">{org.name}</span>
+                                                        <span className="font-medium">{organization.name}</span>
                                                         <span className="text-xs text-muted-foreground">
-                                                            {org.slug}
+                                                            {organization.slug}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -271,20 +271,20 @@ const ActiveOrganizationCard = () => {
                             <DropdownMenuContent align="end" className="w-[240px]">
                                 <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                {organizations?.map((org) => (
+                                {organizations?.map((organization) => (
                                     <DropdownMenuItem
-                                        key={org.id}
-                                        onClick={() => handleSetActive(org.id)}
+                                        key={organization.id}
+                                        onClick={() => handleSetActive(organization.id)}
                                         className="cursor-pointer"
-                                        disabled={org.id === activeOrganization.id}
+                                        disabled={organization.id === activeOrganization.id}
                                     >
                                         <div className="flex w-full items-center justify-between gap-3">
                                             <div className="flex items-center gap-3">
-                                                {org.logo ? (
+                                                {organization.logo ? (
                                                     // eslint-disable-next-line @next/next/no-img-element
                                                     <img
-                                                        src={org.logo}
-                                                        alt={org.name}
+                                                        src={organization.logo}
+                                                        alt={organization.name}
                                                         className="h-8 w-8 rounded-md object-cover"
                                                     />
                                                 ) : (
@@ -293,13 +293,13 @@ const ActiveOrganizationCard = () => {
                                                     </span>
                                                 )}
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium">{org.name}</span>
+                                                    <span className="font-medium">{organization.name}</span>
                                                     <span className="text-xs text-muted-foreground">
-                                                        {org.slug}
+                                                        {organization.slug}
                                                     </span>
                                                 </div>
                                             </div>
-                                            {org.id === activeOrganization.id && (
+                                            {organization.id === activeOrganization.id && (
                                                 <Check className="h-4 w-4 text-primary" />
                                             )}
                                         </div>

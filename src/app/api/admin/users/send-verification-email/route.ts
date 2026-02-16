@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createEmailVerificationToken } from "better-auth/api";
 import { auth } from "@/lib/auth";
+import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -49,9 +50,9 @@ export async function POST(request: NextRequest) {
       undefined,
       ctx.options.emailVerification?.expiresIn,
     );
-    const callbackURL = parsed.data.callbackURL
-      ? encodeURIComponent(parsed.data.callbackURL)
-      : encodeURIComponent("/");
+    const callbackURL = encodeURIComponent(
+      getSafeCallbackUrl(parsed.data.callbackURL ?? null, "/"),
+    );
     const url = `${ctx.baseURL}/verify-email?token=${token}&callbackURL=${callbackURL}`;
 
     await ctx.runInBackgroundOrAwait(

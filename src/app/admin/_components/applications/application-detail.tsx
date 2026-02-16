@@ -64,7 +64,7 @@ const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((re
 
 interface Resource {
     id: string;
-    appId: string;
+    applicationId: string;
     key: string;
     name: string;
     description: string | null;
@@ -74,7 +74,7 @@ interface Resource {
 
 interface Action {
     id: string;
-    appId: string;
+    applicationId: string;
     resourceId: string;
     key: string;
     name: string;
@@ -84,8 +84,8 @@ interface Action {
 }
 
 
-interface AppDetailProps {
-    appId: string;
+interface ApplicationDetailProps {
+    applicationId: string;
     organizationId?: string;
 }
 
@@ -95,7 +95,7 @@ type MutationInput = {
     body?: unknown;
 };
 
-export function AppDetail({ appId, organizationId }: AppDetailProps) {
+export function ApplicationDetail({ applicationId, organizationId }: ApplicationDetailProps) {
     const queryClient = useQueryClient();
     const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
     const [isCreateResourceOpen, setIsCreateResourceOpen] = useState(false);
@@ -114,23 +114,23 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
     const [isNewActionKeyManuallyEdited, setIsNewActionKeyManuallyEdited] = useState(false);
     const [newActionDescription, setNewActionDescription] = useState("");
 
-    // Fetch app details
-    const appUrl = `/api/admin/apps/${appId}`;
-    const { data: appData, error: appError } = useQuery({
-        queryKey: adminKeys.app(appUrl),
-        queryFn: () => fetcher(appUrl),
+    // Fetch application details
+    const applicationUrl = `/api/admin/applications/${applicationId}`;
+    const { data: applicationData, error: applicationError } = useQuery({
+        queryKey: adminKeys.application(applicationUrl),
+        queryFn: () => fetcher(applicationUrl),
     });
 
     // Fetch resources
-    const resourcesUrl = `/api/admin/apps/${appId}/resources`;
+    const resourcesUrl = `/api/admin/applications/${applicationId}/resources`;
     const { data: resourcesData } = useQuery({
-        queryKey: adminKeys.appResources(resourcesUrl),
+        queryKey: adminKeys.applicationResources(resourcesUrl),
         queryFn: () => fetcher(resourcesUrl),
     });
 
     // Fetch actions for selected resource
     const actionsUrl = selectedResourceId
-        ? `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`
+        ? `/api/admin/applications/${applicationId}/resources/${selectedResourceId}/actions`
         : null;
     const { data: actionsData } = useQuery({
         queryKey: adminKeys.resourceActions(actionsUrl),
@@ -179,10 +179,10 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources`,
+                url: `/api/admin/applications/${applicationId}/resources`,
                 method: "POST",
                 body: {
-                    appId,
+                    applicationId,
                     key: newResourceKey,
                     name: newResourceName,
                     description: newResourceDescription || null,
@@ -201,7 +201,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             setIsNewResourceKeyManuallyEdited(false);
             setNewResourceDescription("");
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error creating resource:", error);
@@ -217,7 +217,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions`,
+                url: `/api/admin/applications/${applicationId}/resources/${selectedResourceId}/actions`,
                 method: "POST",
                 body: {
                     resourceId: selectedResourceId,
@@ -242,7 +242,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                 queryKey: adminKeys.resourceActions(actionsUrl),
             });
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error creating action:", error);
@@ -256,7 +256,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${deleteResourceId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${deleteResourceId}`,
                 method: "DELETE",
             });
             if (!response.ok) {
@@ -268,11 +268,11 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                 setSelectedResourceId(null);
             }
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
             await queryClient.invalidateQueries({
                 queryKey: adminKeys.resourceActions(
-                    `/api/admin/apps/${appId}/resources/${deleteResourceId}/actions`,
+                    `/api/admin/applications/${applicationId}/resources/${deleteResourceId}/actions`,
                 ),
             });
         } catch (error) {
@@ -285,7 +285,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${selectedResourceId}/actions/${deleteActionId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${selectedResourceId}/actions/${deleteActionId}`,
                 method: "DELETE",
             });
             if (!response.ok) {
@@ -297,14 +297,14 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                 queryKey: adminKeys.resourceActions(actionsUrl),
             });
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appResources(resourcesUrl),
+                queryKey: adminKeys.applicationResources(resourcesUrl),
             });
         } catch (error) {
             console.error("Error deleting action:", error);
         }
     };
 
-    if (appError) {
+    if (applicationError) {
         return (
             <Card>
                 <CardContent className="p-6">
@@ -314,7 +314,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
         );
     }
 
-    const app = appData?.app;
+    const application = applicationData?.application;
     const resources: Resource[] = resourcesData?.resources || [];
     const actions: Action[] = actionsData?.actions || [];
     const selectedResource = resources.find((r) => r.id === selectedResourceId);
@@ -324,7 +324,7 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
             {/* Header */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                 <Link
-                    href={organizationId ? `/admin/rbac/organizations/${organizationId}/apps` : "/admin/rbac/apps"}
+                    href={organizationId ? `/admin/rbac/organizations/${organizationId}/applications` : "/admin/rbac/applications"}
                     className="flex items-center gap-1 hover:text-foreground"
                 >
                     <ChevronLeft className="h-4 w-4" />
@@ -332,25 +332,25 @@ export function AppDetail({ appId, organizationId }: AppDetailProps) {
                 </Link>
             </div>
 
-            {/* App Info Card */}
+            {/* Application Info Card */}
             <Card className="mb-6">
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2">
                                 <Box className="h-5 w-5" />
-                                {app?.name || "Loading..."}
+                                {application?.name || "Loading..."}
                             </CardTitle>
                             <CardDescription>
-                                {app?.description || "No description"}
+                                {application?.description || "No description"}
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Badge variant={app?.isActive ? "default" : "secondary"}>
-                                {app?.isActive ? "Active" : "Inactive"}
+                            <Badge variant={application?.isActive ? "default" : "secondary"}>
+                                {application?.isActive ? "Active" : "Inactive"}
                             </Badge>
                             <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {app?.key}
+                                {application?.key}
                             </code>
                         </div>
                     </div>

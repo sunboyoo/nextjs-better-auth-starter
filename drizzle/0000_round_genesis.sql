@@ -38,26 +38,26 @@ CREATE TABLE "admin_audit_log" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "app_role_action" (
+CREATE TABLE "application_role_action" (
 	"role_id" uuid NOT NULL,
 	"action_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "app_role_action_role_id_action_id_pk" PRIMARY KEY("role_id","action_id")
+	CONSTRAINT "application_role_action_role_id_action_id_pk" PRIMARY KEY("role_id","action_id")
 );
 --> statement-breakpoint
-CREATE TABLE "app_role" (
+CREATE TABLE "application_role" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"app_id" uuid NOT NULL,
+	"application_id" uuid NOT NULL,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "app_roles_key_format_chk" CHECK ("app_role"."key" ~ '^[a-z0-9]+(_[a-z0-9]+)*$')
+	CONSTRAINT "application_roles_key_format_chk" CHECK ("application_role"."key" ~ '^[a-z0-9]+(_[a-z0-9]+)*$')
 );
 --> statement-breakpoint
-CREATE TABLE "app" (
+CREATE TABLE "application" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" text NOT NULL,
 	"key" text NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE "app" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "apps_key_format_chk" CHECK ("app"."key" ~ '^[a-z0-9]+(_[a-z0-9]+)*$')
+	CONSTRAINT "apps_key_format_chk" CHECK ("application"."key" ~ '^[a-z0-9]+(_[a-z0-9]+)*$')
 );
 --> statement-breakpoint
 CREATE TABLE "device_code" (
@@ -112,11 +112,11 @@ CREATE TABLE "member" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "member_app_role" (
+CREATE TABLE "member_application_role" (
 	"member_id" text NOT NULL,
-	"app_role_id" uuid NOT NULL,
+	"application_role_id" uuid NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "member_app_role_member_id_app_role_id_pk" PRIMARY KEY("member_id","app_role_id")
+	CONSTRAINT "member_application_role_member_id_application_role_id_pk" PRIMARY KEY("member_id","application_role_id")
 );
 --> statement-breakpoint
 CREATE TABLE "oauth_access_token" (
@@ -252,13 +252,13 @@ CREATE TABLE "rate_limit" (
 --> statement-breakpoint
 CREATE TABLE "resource" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"app_id" uuid NOT NULL,
+	"application_id" uuid NOT NULL,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "uq_resources_id_app" UNIQUE("id","app_id"),
+	CONSTRAINT "uq_resources_id_application" UNIQUE("id","application_id"),
 	CONSTRAINT "resources_key_format_chk" CHECK ("resource"."key" ~ '^[a-z0-9]+(_[a-z0-9]+)*$')
 );
 --> statement-breakpoint
@@ -392,18 +392,18 @@ CREATE TABLE "verification" (
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "action" ADD CONSTRAINT "action_resource_id_resource_id_fk" FOREIGN KEY ("resource_id") REFERENCES "public"."resource"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "admin_audit_log" ADD CONSTRAINT "admin_audit_log_actor_user_id_user_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app_role_action" ADD CONSTRAINT "app_role_action_role_id_app_role_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."app_role"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app_role_action" ADD CONSTRAINT "app_role_action_action_id_action_id_fk" FOREIGN KEY ("action_id") REFERENCES "public"."action"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app_role" ADD CONSTRAINT "app_role_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "app" ADD CONSTRAINT "app_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "application_role_action" ADD CONSTRAINT "application_role_action_role_id_application_role_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."application_role"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "application_role_action" ADD CONSTRAINT "application_role_action_action_id_action_id_fk" FOREIGN KEY ("action_id") REFERENCES "public"."action"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "application_role" ADD CONSTRAINT "application_role_application_id_application_id_fk" FOREIGN KEY ("application_id") REFERENCES "public"."application"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "application" ADD CONSTRAINT "application_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "device_code" ADD CONSTRAINT "device_code_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_team_id_team_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."team"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "member_app_role" ADD CONSTRAINT "member_app_role_member_id_member_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."member"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "member_app_role" ADD CONSTRAINT "member_app_role_app_role_id_app_role_id_fk" FOREIGN KEY ("app_role_id") REFERENCES "public"."app_role"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_application_role" ADD CONSTRAINT "member_application_role_member_id_member_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."member"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_application_role" ADD CONSTRAINT "member_application_role_application_role_id_application_role_id_fk" FOREIGN KEY ("application_role_id") REFERENCES "public"."application_role"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_client_id_oauth_client_client_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."oauth_client"("client_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_session_id_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."session"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "oauth_access_token" ADD CONSTRAINT "oauth_access_token_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -417,7 +417,7 @@ ALTER TABLE "oauth_refresh_token" ADD CONSTRAINT "oauth_refresh_token_user_id_us
 ALTER TABLE "organization_role" ADD CONSTRAINT "organization_role_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "passkey" ADD CONSTRAINT "passkey_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "profile_completion" ADD CONSTRAINT "profile_completion_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "resource" ADD CONSTRAINT "resource_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "resource" ADD CONSTRAINT "resource_application_id_application_id_fk" FOREIGN KEY ("application_id") REFERENCES "public"."application"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sso_provider" ADD CONSTRAINT "sso_provider_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "team" ADD CONSTRAINT "team_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -434,14 +434,14 @@ CREATE INDEX "adminAuditLog_actorUserId_idx" ON "admin_audit_log" USING btree ("
 CREATE INDEX "adminAuditLog_action_idx" ON "admin_audit_log" USING btree ("action");--> statement-breakpoint
 CREATE INDEX "adminAuditLog_targetType_idx" ON "admin_audit_log" USING btree ("target_type");--> statement-breakpoint
 CREATE INDEX "adminAuditLog_createdAt_idx" ON "admin_audit_log" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "idx_ara_role_id" ON "app_role_action" USING btree ("role_id");--> statement-breakpoint
-CREATE INDEX "idx_ara_action_id" ON "app_role_action" USING btree ("action_id");--> statement-breakpoint
-CREATE INDEX "idx_app_roles_app" ON "app_role" USING btree ("app_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "app_roles_app_key_uniq" ON "app_role" USING btree ("app_id","key");--> statement-breakpoint
-CREATE UNIQUE INDEX "app_roles_app_name_uniq" ON "app_role" USING btree ("app_id","name");--> statement-breakpoint
-CREATE INDEX "idx_apps_org" ON "app" USING btree ("organization_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "apps_org_key_uniq" ON "app" USING btree ("organization_id","key");--> statement-breakpoint
-CREATE UNIQUE INDEX "apps_org_name_uniq" ON "app" USING btree ("organization_id","name");--> statement-breakpoint
+CREATE INDEX "idx_ara_role_id" ON "application_role_action" USING btree ("role_id");--> statement-breakpoint
+CREATE INDEX "idx_ara_action_id" ON "application_role_action" USING btree ("action_id");--> statement-breakpoint
+CREATE INDEX "idx_application_roles_application" ON "application_role" USING btree ("application_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "application_roles_application_key_uniq" ON "application_role" USING btree ("application_id","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "application_roles_application_name_uniq" ON "application_role" USING btree ("application_id","name");--> statement-breakpoint
+CREATE INDEX "idx_apps_org" ON "application" USING btree ("organization_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "apps_organization_key_uniq" ON "application" USING btree ("organization_id","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "apps_organization_name_uniq" ON "application" USING btree ("organization_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "deviceCode_deviceCode_uidx" ON "device_code" USING btree ("device_code");--> statement-breakpoint
 CREATE UNIQUE INDEX "deviceCode_userCode_uidx" ON "device_code" USING btree ("user_code");--> statement-breakpoint
 CREATE INDEX "deviceCode_userId_idx" ON "device_code" USING btree ("user_id");--> statement-breakpoint
@@ -450,9 +450,9 @@ CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> st
 CREATE INDEX "invitation_teamId_idx" ON "invitation" USING btree ("team_id");--> statement-breakpoint
 CREATE INDEX "member_organizationId_idx" ON "member" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "member_org_user_uidx" ON "member" USING btree ("organization_id","user_id");--> statement-breakpoint
-CREATE INDEX "idx_mar_member" ON "member_app_role" USING btree ("member_id");--> statement-breakpoint
-CREATE INDEX "idx_mar_role" ON "member_app_role" USING btree ("app_role_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "member_organization_user_uidx" ON "member" USING btree ("organization_id","user_id");--> statement-breakpoint
+CREATE INDEX "idx_mar_member" ON "member_application_role" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX "idx_mar_role" ON "member_application_role" USING btree ("application_role_id");--> statement-breakpoint
 CREATE INDEX "oauthAccessToken_clientId_idx" ON "oauth_access_token" USING btree ("client_id");--> statement-breakpoint
 CREATE INDEX "oauthAccessToken_sessionId_idx" ON "oauth_access_token" USING btree ("session_id");--> statement-breakpoint
 CREATE INDEX "oauthAccessToken_userId_idx" ON "oauth_access_token" USING btree ("user_id");--> statement-breakpoint
@@ -468,15 +468,15 @@ CREATE INDEX "oauthRefreshToken_userId_idx" ON "oauth_refresh_token" USING btree
 CREATE UNIQUE INDEX "organization_slug_uidx" ON "organization" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "organizationRole_organizationId_idx" ON "organization_role" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "organizationRole_role_idx" ON "organization_role" USING btree ("role");--> statement-breakpoint
-CREATE UNIQUE INDEX "organizationRole_org_role_uidx" ON "organization_role" USING btree ("organization_id","role");--> statement-breakpoint
+CREATE UNIQUE INDEX "organizationRole_organization_role_uidx" ON "organization_role" USING btree ("organization_id","role");--> statement-breakpoint
 CREATE INDEX "passkey_userId_idx" ON "passkey" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "passkey_credentialID_uidx" ON "passkey" USING btree ("credential_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "profileCompletion_userId_uidx" ON "profile_completion" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "profileCompletion_completed_idx" ON "profile_completion" USING btree ("completed");--> statement-breakpoint
 CREATE INDEX "rateLimit_key_idx" ON "rate_limit" USING btree ("key");--> statement-breakpoint
-CREATE INDEX "idx_resources_app" ON "resource" USING btree ("app_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "resources_app_key_uniq" ON "resource" USING btree ("app_id","key");--> statement-breakpoint
-CREATE UNIQUE INDEX "resources_app_name_uniq" ON "resource" USING btree ("app_id","name");--> statement-breakpoint
+CREATE INDEX "idx_resources_application" ON "resource" USING btree ("application_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "resources_application_key_uniq" ON "resource" USING btree ("application_id","key");--> statement-breakpoint
+CREATE UNIQUE INDEX "resources_application_name_uniq" ON "resource" USING btree ("application_id","name");--> statement-breakpoint
 CREATE INDEX "scimProvider_organizationId_idx" ON "scim_provider" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_expiresAt_idx" ON "session" USING btree ("expires_at");--> statement-breakpoint

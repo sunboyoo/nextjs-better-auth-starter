@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions, member } from "@/db/schema";
+import { applications, resources, actions, member } from "@/db/schema";
 import { eq, and, ilike, desc, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string; resourceId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string; resourceId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -23,35 +23,35 @@ function isWriteRole(role: string): boolean {
     return role === "owner" || role === "admin";
 }
 
-async function verifyResourceOwnership(appId: string, resourceId: string, organizationId: string) {
+async function verifyResourceOwnership(applicationId: string, resourceId: string, organizationId: string) {
     const result = await db
         .select({ id: resources.id, name: resources.name })
         .from(resources)
-        .innerJoin(apps, eq(resources.appId, apps.id))
+        .innerJoin(applications, eq(resources.applicationId, applications.id))
         .where(
             and(
                 eq(resources.id, resourceId),
-                eq(resources.appId, appId),
-                eq(apps.organizationId, organizationId),
+                eq(resources.applicationId, applicationId),
+                eq(applications.organizationId, organizationId),
             ),
         )
         .limit(1);
     return result[0] ?? null;
 }
 
-// GET /api/user/organizations/[organizationId]/apps/[appId]/resources/[resourceId]/actions
+// GET /api/user/organizations/[organizationId]/applications/[applicationId]/resources/[resourceId]/actions
 export async function GET(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, resourceId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId, resourceId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
     try {
-        const resource = await verifyResourceOwnership(appId, resourceId, organizationId);
+        const resource = await verifyResourceOwnership(applicationId, resourceId, organizationId);
         if (!resource) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
@@ -86,13 +86,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 }
 
-// POST /api/user/organizations/[organizationId]/apps/[appId]/resources/[resourceId]/actions
+// POST /api/user/organizations/[organizationId]/applications/[applicationId]/resources/[resourceId]/actions
 export async function POST(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, resourceId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId, resourceId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        const resource = await verifyResourceOwnership(appId, resourceId, organizationId);
+        const resource = await verifyResourceOwnership(applicationId, resourceId, organizationId);
         if (!resource) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }

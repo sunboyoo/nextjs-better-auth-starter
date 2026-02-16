@@ -8,12 +8,12 @@ import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET /api/admin/apps/[appId]/resources/[resourceId] - Get resource details
+// GET /api/admin/applications/[applicationId]/resources/[resourceId] - Get resource details
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { resourceId } = await params;
@@ -22,7 +22,7 @@ export async function GET(
         const resource = await db
             .select({
                 id: resources.id,
-                appId: resources.appId,
+                applicationId: resources.applicationId,
                 key: resources.key,
                 name: resources.name,
                 description: resources.description,
@@ -53,12 +53,12 @@ export async function GET(
     }
 }
 
-// PUT /api/admin/apps/[appId]/resources/[resourceId] - Update resource
+// PUT /api/admin/applications/[applicationId]/resources/[resourceId] - Update resource
 export async function PUT(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { resourceId } = await params;
@@ -97,7 +97,7 @@ export async function PUT(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.resources.update",
+            action: "admin.applications.resources.update",
             targetType: "resource",
             targetId: resourceId,
             metadata: {
@@ -112,12 +112,12 @@ export async function PUT(
     }
 }
 
-// DELETE /api/admin/apps/[appId]/resources/[resourceId] - Delete resource
+// DELETE /api/admin/applications/[applicationId]/resources/[resourceId] - Delete resource
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { resourceId } = await params;
@@ -137,7 +137,7 @@ export async function DELETE(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.resources.delete",
+            action: "admin.applications.resources.delete",
             targetType: "resource",
             targetId: resourceId,
             headers: authResult.headers,

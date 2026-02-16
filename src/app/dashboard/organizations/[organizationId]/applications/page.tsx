@@ -65,7 +65,7 @@ import {
 } from "@/components/ui/select";
 import { generateKeyFromName } from "@/lib/utils";
 
-interface App {
+interface Application {
     id: string;
     key: string;
     name: string;
@@ -78,7 +78,7 @@ interface App {
 }
 
 interface AppsResponse {
-    apps: App[];
+    applications: Application[];
     total: number;
     canWrite: boolean;
 }
@@ -117,7 +117,7 @@ export default function ApplicationsPage() {
     const [editLogo, setEditLogo] = useState("");
 
     // Delete state
-    const [deleteApp, setDeleteApp] = useState<{ id: string; name: string } | null>(null);
+    const [deleteApp, setDeleteApplication] = useState<{ id: string; name: string } | null>(null);
 
     // Submitting state
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,10 +165,10 @@ export default function ApplicationsPage() {
         const params = new URLSearchParams();
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (statusFilter !== "all") params.set("isActive", statusFilter === "active" ? "true" : "false");
-        return `/api/user/organizations/${organizationId}/apps?${params.toString()}`;
+        return `/api/user/organizations/${organizationId}/applications?${params.toString()}`;
     }, [organizationId, debouncedSearch, statusFilter]);
 
-    const queryKey = userKeys.orgApps(organizationId, `${debouncedSearch}:${statusFilter}`);
+    const queryKey = userKeys.organizationApplications(organizationId, `${debouncedSearch}:${statusFilter}`);
 
     const { data, isLoading, error } = useQuery<AppsResponse>({
         queryKey,
@@ -219,7 +219,7 @@ export default function ApplicationsPage() {
         setIsSubmitting(true);
         try {
             await mutation.mutateAsync({
-                url: `/api/user/organizations/${organizationId}/apps`,
+                url: `/api/user/organizations/${organizationId}/applications`,
                 method: "POST",
                 body: {
                     key: newKey,
@@ -239,7 +239,7 @@ export default function ApplicationsPage() {
             await queryClient.invalidateQueries({ queryKey });
             toast.success("Application created successfully");
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to create app");
+            toast.error(err instanceof Error ? err.message : "Failed to create application");
         } finally {
             setIsSubmitting(false);
         }
@@ -251,7 +251,7 @@ export default function ApplicationsPage() {
         setIsSubmitting(true);
         try {
             await mutation.mutateAsync({
-                url: `/api/user/organizations/${organizationId}/apps/${editId}`,
+                url: `/api/user/organizations/${organizationId}/applications/${editId}`,
                 method: "PUT",
                 body: {
                     name: editName,
@@ -264,7 +264,7 @@ export default function ApplicationsPage() {
             await queryClient.invalidateQueries({ queryKey });
             toast.success("Application updated successfully");
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to update app");
+            toast.error(err instanceof Error ? err.message : "Failed to update application");
         } finally {
             setIsSubmitting(false);
         }
@@ -274,37 +274,37 @@ export default function ApplicationsPage() {
         if (!deleteApp) return;
         try {
             await mutation.mutateAsync({
-                url: `/api/user/organizations/${organizationId}/apps/${deleteApp.id}`,
+                url: `/api/user/organizations/${organizationId}/applications/${deleteApp.id}`,
                 method: "DELETE",
             });
-            setDeleteApp(null);
+            setDeleteApplication(null);
             await queryClient.invalidateQueries({ queryKey });
             toast.success("Application deleted successfully");
         } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to delete app");
+            toast.error(err instanceof Error ? err.message : "Failed to delete application");
         }
     };
 
-    const handleToggleStatus = async (app: App) => {
+    const handleToggleStatus = async (application: Application) => {
         try {
             await mutation.mutateAsync({
-                url: `/api/user/organizations/${organizationId}/apps/${app.id}`,
+                url: `/api/user/organizations/${organizationId}/applications/${application.id}`,
                 method: "PUT",
-                body: { isActive: !app.isActive },
+                body: { isActive: !application.isActive },
             });
             await queryClient.invalidateQueries({ queryKey });
-            toast.success(`Application ${!app.isActive ? "activated" : "deactivated"}`);
+            toast.success(`Application ${!application.isActive ? "activated" : "deactivated"}`);
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Failed to toggle status");
         }
     };
 
-    const openEdit = (app: App) => {
-        setEditId(app.id);
-        setEditKey(app.key);
-        setEditName(app.name);
-        setEditDescription(app.description || "");
-        setEditLogo(app.logo || "");
+    const openEdit = (application: Application) => {
+        setEditId(application.id);
+        setEditKey(application.key);
+        setEditName(application.name);
+        setEditDescription(application.description || "");
+        setEditLogo(application.logo || "");
         setEditLogoPreviewStatus("idle");
         setDebouncedEditLogo("");
         setIsEditOpen(true);
@@ -312,8 +312,8 @@ export default function ApplicationsPage() {
 
     const canWrite = data?.canWrite ?? false;
 
-    const appsList = useMemo(() => {
-        const list: App[] = data?.apps || [];
+    const applicationsList = useMemo(() => {
+        const list: Application[] = data?.applications || [];
         return [...list].sort((a, b) => {
             switch (sortBy) {
                 case "name-asc":
@@ -328,7 +328,7 @@ export default function ApplicationsPage() {
                     return 0;
             }
         });
-    }, [data?.apps, sortBy]);
+    }, [data?.applications, sortBy]);
 
     return (
         <div className="space-y-4">
@@ -544,7 +544,7 @@ export default function ApplicationsPage() {
                 <div className="rounded-xl border bg-card p-12 text-center">
                     <p className="text-sm text-destructive">Failed to load applications</p>
                 </div>
-            ) : appsList.length === 0 ? (
+            ) : applicationsList.length === 0 ? (
                 <div className="rounded-xl border bg-card p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
@@ -565,11 +565,11 @@ export default function ApplicationsPage() {
             ) : (
                 <>
                     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                        {appsList.map((app) => (
+                        {applicationsList.map((application) => (
                             <Card
-                                key={app.id}
+                                key={application.id}
                                 className="group cursor-pointer transition-all hover:shadow-md hover:border-primary/30"
-                                onClick={() => router.push(`/dashboard/organizations/${organizationId}/applications/${app.id}`)}
+                                onClick={() => router.push(`/dashboard/organizations/${organizationId}/applications/${application.id}`)}
                             >
                                 <CardHeader className="pb-3">
                                     <div className="flex items-start justify-between gap-2">
@@ -579,19 +579,19 @@ export default function ApplicationsPage() {
                                             </div>
                                             <div className="min-w-0">
                                                 <h3 className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                                                    {app.name}
+                                                    {application.name}
                                                 </h3>
                                                 <code className="text-[11px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                                    {app.key}
+                                                    {application.key}
                                                 </code>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1 shrink-0">
                                             <Badge
-                                                variant={app.isActive ? "default" : "secondary"}
+                                                variant={application.isActive ? "default" : "secondary"}
                                                 className="text-[10px] px-1.5 py-0"
                                             >
-                                                {app.isActive ? "Active" : "Inactive"}
+                                                {application.isActive ? "Active" : "Inactive"}
                                             </Badge>
                                             {canWrite && (
                                                 <div onClick={(e) => e.stopPropagation()}>
@@ -606,23 +606,23 @@ export default function ApplicationsPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => openEdit(app)}>
+                                                            <DropdownMenuItem onClick={() => openEdit(application)}>
                                                                 <Pencil className="h-4 w-4 mr-2" />
                                                                 Edit
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleStatus(app); }}>
-                                                                {app.isActive ? (
+                                                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleStatus(application); }}>
+                                                                {application.isActive ? (
                                                                     <XCircle className="h-4 w-4 mr-2" />
                                                                 ) : (
                                                                     <CheckCircle className="h-4 w-4 mr-2" />
                                                                 )}
-                                                                {app.isActive ? "Deactivate" : "Activate"}
+                                                                {application.isActive ? "Deactivate" : "Activate"}
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="text-destructive"
                                                                 onClick={() =>
-                                                                    setDeleteApp({ id: app.id, name: app.name })
+                                                                    setDeleteApplication({ id: application.id, name: application.name })
                                                                 }
                                                             >
                                                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -636,30 +636,30 @@ export default function ApplicationsPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-0 space-y-3">
-                                    {app.description && (
+                                    {application.description && (
                                         <p className="text-xs text-muted-foreground line-clamp-2">
-                                            {app.description}
+                                            {application.description}
                                         </p>
                                     )}
                                     <div className="flex items-center gap-3">
                                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                             <Layers className="h-3.5 w-3.5 opacity-70" />
-                                            {app.resourceCount || 0} resource{(app.resourceCount || 0) !== 1 ? "s" : ""}
+                                            {application.resourceCount || 0} resource{(application.resourceCount || 0) !== 1 ? "s" : ""}
                                         </span>
                                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                             <Zap className="h-3.5 w-3.5 opacity-70" />
-                                            {app.actionCount || 0} action{(app.actionCount || 0) !== 1 ? "s" : ""}
+                                            {application.actionCount || 0} action{(application.actionCount || 0) !== 1 ? "s" : ""}
                                         </span>
                                     </div>
                                     <div className="pt-2 border-t flex items-center justify-between">
                                         <span className="text-[11px] text-muted-foreground">
-                                            Created {format(new Date(app.createdAt), "MMM d, yyyy")}
+                                            Created {format(new Date(application.createdAt), "MMM d, yyyy")}
                                         </span>
                                         {canWrite && (
                                             <div onClick={(e) => e.stopPropagation()}>
                                                 <Switch
-                                                    checked={app.isActive}
-                                                    onCheckedChange={() => handleToggleStatus(app)}
+                                                    checked={application.isActive}
+                                                    onCheckedChange={() => handleToggleStatus(application)}
                                                     className="scale-75 origin-right"
                                                 />
                                             </div>
@@ -672,9 +672,9 @@ export default function ApplicationsPage() {
 
                     {/* Footer count */}
                     <div className="text-xs text-muted-foreground text-right">
-                        {appsList.length === (data?.total || 0)
-                            ? `${appsList.length} application${appsList.length !== 1 ? "s" : ""}`
-                            : `Showing ${appsList.length} of ${data?.total || 0} applications`}
+                        {applicationsList.length === (data?.total || 0)
+                            ? `${applicationsList.length} application${applicationsList.length !== 1 ? "s" : ""}`
+                            : `Showing ${applicationsList.length} of ${data?.total || 0} applications`}
                     </div>
                 </>
             )}
@@ -804,7 +804,7 @@ export default function ApplicationsPage() {
             </Dialog>
 
             {/* Delete Dialog */}
-            <AlertDialog open={!!deleteApp} onOpenChange={() => setDeleteApp(null)}>
+            <AlertDialog open={!!deleteApp} onOpenChange={() => setDeleteApplication(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete application?</AlertDialogTitle>

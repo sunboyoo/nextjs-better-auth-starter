@@ -8,12 +8,12 @@ import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Get action details
+// GET /api/admin/applications/[applicationId]/resources/[resourceId]/actions/[actionId] - Get action details
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -45,12 +45,12 @@ export async function GET(
     }
 }
 
-// PUT /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Update action
+// PUT /api/admin/applications/[applicationId]/resources/[resourceId]/actions/[actionId] - Update action
 export async function PUT(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -89,7 +89,7 @@ export async function PUT(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.actions.update",
+            action: "admin.applications.actions.update",
             targetType: "action",
             targetId: actionId,
             metadata: {
@@ -104,12 +104,12 @@ export async function PUT(
     }
 }
 
-// DELETE /api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId] - Delete action
+// DELETE /api/admin/applications/[applicationId]/resources/[resourceId]/actions/[actionId] - Delete action
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string; actionId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string; actionId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
     const { actionId } = await params;
@@ -129,7 +129,7 @@ export async function DELETE(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.actions.delete",
+            action: "admin.applications.actions.delete",
             targetType: "action",
             targetId: actionId,
             headers: authResult.headers,

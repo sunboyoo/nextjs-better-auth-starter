@@ -266,12 +266,12 @@ export function SocialOAuthCard({ rows }: SocialOAuthCardProps) {
 			icon={Share2}
 			iconColor="text-purple-600 dark:text-purple-400"
 			title="Connected Social Accounts"
-			description="Social apps currently connected to your login."
+			description="Social applications currently connected to your login."
 			rows={rows}
 			emptyMessage="You have not connected any social account yet."
 			recordFields={[
 				{ key: "id", label: "Connection ID" },
-				{ key: "providerId", label: "Social app" },
+				{ key: "providerId", label: "Social application" },
 				{ key: "accountId", label: "Social account ID" },
 				{ key: "userId", label: "User ID" },
 				{ key: "scope", label: "Permissions granted" },

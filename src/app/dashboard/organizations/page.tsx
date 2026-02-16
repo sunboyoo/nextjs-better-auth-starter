@@ -60,8 +60,8 @@ export default function OrganizationsPage() {
                 </div>
             ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {organizations.map((org) => (
-                        <OrganizationCard key={org.id} organization={org} />
+                    {organizations.map((organization) => (
+                        <OrganizationCard key={organization.id} organization={organization} />
                     ))}
                 </div>
             )}

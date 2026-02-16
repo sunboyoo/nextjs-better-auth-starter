@@ -40,13 +40,13 @@ export async function GET(
 
     try {
         // Verify organization exists
-        const org = await db
+        const organizationRows = await db
             .select()
             .from(organization)
             .where(eq(organization.id, organizationId))
             .limit(1);
 
-        if (org.length === 0) {
+        if (organizationRows.length === 0) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
@@ -109,7 +109,7 @@ export async function GET(
         });
 
         return NextResponse.json({
-            organization: org[0],
+            organization: organizationRows[0],
             invitations,
             ...createPaginationMeta(total, pagination),
         });
@@ -143,13 +143,13 @@ export async function POST(
         const { email, role, resend } = result.data;
 
         // Verify organization exists
-        const org = await db
+        const organizationRows = await db
             .select()
             .from(organization)
             .where(eq(organization.id, organizationId))
             .limit(1);
 
-        if (org.length === 0) {
+        if (organizationRows.length === 0) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 

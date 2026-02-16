@@ -10,7 +10,7 @@ interface RouteParams {
     params: Promise<{ organizationId: string; teamId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -29,13 +29,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, teamId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
     try {
-        // Verify team belongs to org
+        // Verify team belongs to organization
         const teamResult = await db
             .select()
             .from(team)
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, teamId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
         const { userId } = result.data;
 
-        // Verify team belongs to org
+        // Verify team belongs to organization
         const teamResult = await db
             .select()
             .from(team)
@@ -135,14 +135,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Verify user is a member of the org
-        const orgMembership = await db
+        // Verify user is a member of the organization
+        const organizationMembership = await db
             .select({ id: member.id })
             .from(member)
             .where(and(eq(member.userId, userId), eq(member.organizationId, organizationId)))
             .limit(1);
 
-        if (orgMembership.length === 0) {
+        if (organizationMembership.length === 0) {
             return NextResponse.json({ error: "User is not a member of this organization" }, { status: 400 });
         }
 

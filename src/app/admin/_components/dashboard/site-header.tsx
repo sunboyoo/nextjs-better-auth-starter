@@ -27,7 +27,7 @@ const isUUID = (str: string) =>
 // Helper to check if a string looks like a nanoid/cuid (organization IDs)
 const isNanoId = (str: string) =>
     /^[a-zA-Z0-9_-]{10,30}$/.test(str) &&
-    !/^(apps|resources|actions|organizations|roles|members|users|rbac)$/i.test(
+    !/^(applications|resources|actions|organizations|roles|members|users|rbac)$/i.test(
         str
     );
 
@@ -38,14 +38,14 @@ export function SiteHeader() {
     const relevantSegments =
         pathSegments[0] === "admin" ? pathSegments.slice(1) : pathSegments;
 
-    // Extract appId and resourceId from path if present
-    // Pattern: apps/[appId]/resources/[resourceId]/actions
-    const appsIndex = relevantSegments.indexOf("apps");
-    const appId =
-        appsIndex !== -1 &&
-            relevantSegments[appsIndex + 1] &&
-            isUUID(relevantSegments[appsIndex + 1])
-            ? relevantSegments[appsIndex + 1]
+    // Extract applicationId and resourceId from path if present
+    // Pattern: applications/[applicationId]/resources/[resourceId]/actions
+    const applicationsIndex = relevantSegments.indexOf("applications");
+    const applicationId =
+        applicationsIndex !== -1 &&
+            relevantSegments[applicationsIndex + 1] &&
+            isUUID(relevantSegments[applicationsIndex + 1])
+            ? relevantSegments[applicationsIndex + 1]
             : null;
 
     const resourcesIndex = relevantSegments.indexOf("resources");
@@ -66,25 +66,25 @@ export function SiteHeader() {
             ? relevantSegments[organizationsIndex + 1]
             : null;
 
-    // Fetch app name if appId is present
-    const appUrl = appId ? `/api/admin/apps/${appId}` : null;
-    const { data: appData } = useQuery({
-        queryKey: adminKeys.app(appUrl),
-        queryFn: () => fetcher(appUrl!),
-        enabled: Boolean(appUrl),
+    // Fetch application name if applicationId is present
+    const applicationUrl = applicationId ? `/api/admin/applications/${applicationId}` : null;
+    const { data: applicationData } = useQuery({
+        queryKey: adminKeys.application(applicationUrl),
+        queryFn: () => fetcher(applicationUrl!),
+        enabled: Boolean(applicationUrl),
         refetchOnWindowFocus: false,
     });
 
     // Fetch resource name if resourceId is present
-    const resourcesUrl = resourceId && appId ? `/api/admin/apps/${appId}/resources` : null;
+    const resourcesUrl = resourceId && applicationId ? `/api/admin/applications/${applicationId}/resources` : null;
     const { data: resourceData } = useQuery({
-        queryKey: adminKeys.appResources(resourcesUrl),
+        queryKey: adminKeys.applicationResources(resourcesUrl),
         queryFn: () => fetcher(resourcesUrl!),
         enabled: Boolean(resourcesUrl),
         refetchOnWindowFocus: false,
     });
 
-    const appName = appData?.app?.name;
+    const applicationName = applicationData?.application?.name;
     const resourceName = resourceData?.resources?.find(
         (r: { id: string }) => r.id === resourceId
     )?.name;
@@ -93,19 +93,19 @@ export function SiteHeader() {
     const organizationUrl = organizationId
         ? `/api/admin/organizations/${organizationId}`
         : null;
-    const { data: orgData } = useQuery({
+    const { data: organizationData } = useQuery({
         queryKey: adminKeys.organization(organizationUrl),
         queryFn: () => fetcher(organizationUrl!),
         enabled: Boolean(organizationUrl),
         refetchOnWindowFocus: false,
     });
-    const orgName = orgData?.organization?.name;
+    const organizationName = organizationData?.organization?.name;
 
     // Create a map of ID to name
     const nameMap: Record<string, string> = {};
-    if (appId && appName) nameMap[appId] = appName;
+    if (applicationId && applicationName) nameMap[applicationId] = applicationName;
     if (resourceId && resourceName) nameMap[resourceId] = resourceName;
-    if (organizationId && orgName) nameMap[organizationId] = orgName;
+    if (organizationId && organizationName) nameMap[organizationId] = organizationName;
 
     return (
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">

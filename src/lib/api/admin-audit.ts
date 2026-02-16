@@ -12,7 +12,7 @@ export type AdminAuditTargetType =
   | "organization-invitation"
   | "team"
   | "team-member"
-  | "app"
+  | "application"
   | "resource"
   | "action"
   | "rbac";

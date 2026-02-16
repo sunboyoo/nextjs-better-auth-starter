@@ -353,6 +353,7 @@ function EditRoleDialog({
 }) {
     const [open, setOpen] = useState(false);
     const [roleName, setRoleName] = useState(role.role);
+    const roleId = role.id;
     const [permissions, setPermissions] = useState<Record<string, string[]>>(
         role.permissions,
     );
@@ -360,7 +361,7 @@ function EditRoleDialog({
     const mutation = useMutation({
         mutationFn: async () => {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/roles/${role.id}`,
+                `/api/user/organizations/${organizationId}/roles/${roleId}`,
                 {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
@@ -456,10 +457,11 @@ function DeleteRoleDialog({
     role: RoleDetailResponse["role"];
     onSuccess: () => void;
 }) {
+    const roleId = role.id;
     const mutation = useMutation({
         mutationFn: async () => {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/roles/${role.id}`,
+                `/api/user/organizations/${organizationId}/roles/${roleId}`,
                 {
                     method: "DELETE",
                     credentials: "include",

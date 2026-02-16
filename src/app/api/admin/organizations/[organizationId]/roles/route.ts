@@ -64,12 +64,12 @@ export async function GET(
     const pagination = parsePagination(request);
 
     try {
-        const orgRaw = (await extendedAuthApi.getFullOrganization({
+        const organizationRaw = (await extendedAuthApi.getFullOrganization({
             query: { organizationId },
             headers: authResult.headers,
         })) as { id?: string; name?: string; slug?: string; logo?: string | null } | null;
 
-        if (!orgRaw?.id) {
+        if (!organizationRaw?.id) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
@@ -99,7 +99,7 @@ export async function GET(
             return acc;
         }, {} as Record<string, { memberId: string; user: { name: string; image: string | null; email: string } }[]>);
 
-        const rolesRaw = (await extendedAuthApi.listOrgRoles({
+        const rolesRaw = (await extendedAuthApi.listOrganizationRoles({
             query: { organizationId },
             headers: authResult.headers,
         })) as unknown;
@@ -140,10 +140,10 @@ export async function GET(
 
         return NextResponse.json({
             organization: {
-                id: orgRaw.id,
-                name: orgRaw.name ?? "",
-                slug: orgRaw.slug ?? "",
-                logo: orgRaw.logo ?? null,
+                id: organizationRaw.id,
+                name: organizationRaw.name ?? "",
+                slug: organizationRaw.slug ?? "",
+                logo: organizationRaw.logo ?? null,
             },
             roles,
             activeRoleMembers,
@@ -179,7 +179,7 @@ export async function POST(
             return NextResponse.json({ error: "Role name is required" }, { status: 400 });
         }
 
-        const newRole = await extendedAuthApi.createOrgRole({
+        const newRole = await extendedAuthApi.createOrganizationRole({
             body: {
                 organizationId,
                 role,

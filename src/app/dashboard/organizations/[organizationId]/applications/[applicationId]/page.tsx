@@ -42,7 +42,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-interface AppDetail {
+interface ApplicationDetail {
     id: string;
     organizationId: string;
     key: string;
@@ -57,8 +57,8 @@ interface AppDetail {
     roleCount: number;
 }
 
-interface AppResponse {
-    app: AppDetail;
+interface ApplicationResponse {
+    application: ApplicationDetail;
     canWrite: boolean;
 }
 
@@ -83,25 +83,25 @@ export default function ApplicationDetailPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    const queryKey = userKeys.orgApp(organizationId, applicationId);
+    const queryKey = userKeys.organizationApplication(organizationId, applicationId);
 
-    const { data, isLoading, error } = useQuery<AppResponse>({
+    const { data, isLoading, error } = useQuery<ApplicationResponse>({
         queryKey,
         queryFn: () =>
             fetcher(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}`,
             ),
         refetchOnWindowFocus: false,
     });
 
-    const app = data?.app;
+    const application = data?.application;
     const canWrite = data?.canWrite ?? false;
 
     const openEdit = () => {
-        if (!app) return;
-        setEditName(app.name);
-        setEditDescription(app.description || "");
-        setEditLogo(app.logo || "");
+        if (!application) return;
+        setEditName(application.name);
+        setEditDescription(application.description || "");
+        setEditLogo(application.logo || "");
         setIsEditOpen(true);
     };
 
@@ -110,7 +110,7 @@ export default function ApplicationDetailPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ export default function ApplicationDetailPage() {
     const handleDelete = async () => {
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}`,
                 { method: "DELETE", credentials: "include" },
             );
             if (!res.ok) {
@@ -167,7 +167,7 @@ export default function ApplicationDetailPage() {
         );
     }
 
-    if (error || !app) {
+    if (error || !application) {
         return (
             <div className="rounded-xl border bg-card p-8 text-center">
                 <AppWindow className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
@@ -204,10 +204,10 @@ export default function ApplicationDetailPage() {
             )}
 
             {/* Description */}
-            {app.description && (
+            {application.description && (
                 <div className="flex items-start gap-2 text-sm text-muted-foreground rounded-lg border p-4">
                     <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                    <p>{app.description}</p>
+                    <p>{application.description}</p>
                 </div>
             )}
 
@@ -224,7 +224,7 @@ export default function ApplicationDetailPage() {
                         </span>
                     </div>
                     <p className="text-2xl font-bold">
-                        {app.resourceCount}
+                        {application.resourceCount}
                     </p>
                 </Link>
                 <div className="rounded-lg border p-4 text-center">
@@ -235,7 +235,7 @@ export default function ApplicationDetailPage() {
                         </span>
                     </div>
                     <p className="text-2xl font-bold">
-                        {app.actionCount}
+                        {application.actionCount}
                     </p>
                 </div>
                 <div className="rounded-lg border p-4 text-center">
@@ -246,7 +246,7 @@ export default function ApplicationDetailPage() {
                         </span>
                     </div>
                     <p className="text-2xl font-bold">
-                        {app.roleCount}
+                        {application.roleCount}
                     </p>
                 </div>
             </div>
@@ -259,7 +259,7 @@ export default function ApplicationDetailPage() {
                         <Hash className="h-3.5 w-3.5" />
                         <span>ID:</span>
                         <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                            {app.id}
+                            {application.id}
                         </code>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -267,7 +267,7 @@ export default function ApplicationDetailPage() {
                         <span>Created:</span>
                         <span className="text-foreground">
                             {format(
-                                new Date(app.createdAt),
+                                new Date(application.createdAt),
                                 "MMM d, yyyy HH:mm",
                             )}
                         </span>
@@ -277,7 +277,7 @@ export default function ApplicationDetailPage() {
                         <span>Updated:</span>
                         <span className="text-foreground">
                             {format(
-                                new Date(app.updatedAt),
+                                new Date(application.updatedAt),
                                 "MMM d, yyyy HH:mm",
                             )}
                         </span>
@@ -390,7 +390,7 @@ export default function ApplicationDetailPage() {
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             This will permanently delete{" "}
-                            <span className="font-semibold">{app.name}</span>{" "}
+                            <span className="font-semibold">{application.name}</span>{" "}
                             and all associated resources, actions, and role
                             assignments. This action cannot be undone.
                         </AlertDialogDescription>

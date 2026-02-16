@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { appRoles, appRoleAction, actions, resources, apps } from "@/db/schema";
+import { applicationRoles, applicationRoleAction, actions, resources, applications } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -8,23 +8,23 @@ import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string; organizationAppRoleId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string; organizationApplicationRoleId: string }>;
 }
 
-// GET /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]/actions - Get role's assigned actions
+// GET /api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]/actions - Get role's assigned actions
 export async function GET(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, organizationAppRoleId } = await params;
+    const { organizationId, applicationId, organizationApplicationRoleId } = await params;
 
     try {
         const role = await db
-            .select({ id: appRoles.id })
-            .from(appRoles)
+            .select({ id: applicationRoles.id })
+            .from(applicationRoles)
             .where(and(
-                eq(appRoles.id, organizationAppRoleId),
-                eq(appRoles.appId, appId)
+                eq(applicationRoles.id, organizationApplicationRoleId),
+                eq(applicationRoles.applicationId, applicationId)
             ))
             .limit(1);
 
@@ -34,20 +34,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
         const roleActions = await db
             .select({
-                actionId: appRoleAction.actionId,
+                actionId: applicationRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceId: resources.id,
                 resourceKey: resources.key,
                 resourceName: resources.name,
-                appKey: apps.key,
-                appName: apps.name,
+                applicationKey: applications.key,
+                applicationName: applications.name,
             })
-            .from(appRoleAction)
-            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
+            .from(applicationRoleAction)
+            .innerJoin(actions, eq(applicationRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .innerJoin(apps, eq(resources.appId, apps.id))
-            .where(eq(appRoleAction.roleId, organizationAppRoleId));
+            .innerJoin(applications, eq(resources.applicationId, applications.id))
+            .where(eq(applicationRoleAction.roleId, organizationApplicationRoleId));
 
         return NextResponse.json({
             actions: roleActions,
@@ -58,12 +58,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 }
 
-// PUT /api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]/actions - Replace all role actions
+// PUT /api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]/actions - Replace all role actions
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, organizationAppRoleId } = await params;
+    const { organizationId, applicationId, organizationApplicationRoleId } = await params;
 
     try {
         const body = await request.json();
@@ -82,11 +82,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         // Verify role exists
         const role = await db
-            .select({ id: appRoles.id })
-            .from(appRoles)
+            .select({ id: applicationRoles.id })
+            .from(applicationRoles)
             .where(and(
-                eq(appRoles.id, organizationAppRoleId),
-                eq(appRoles.appId, appId)
+                eq(applicationRoles.id, organizationApplicationRoleId),
+                eq(applicationRoles.applicationId, applicationId)
             ))
             .limit(1);
 
@@ -96,27 +96,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
         // Delete existing role actions
         await db
-            .delete(appRoleAction)
-            .where(eq(appRoleAction.roleId, organizationAppRoleId));
+            .delete(applicationRoleAction)
+            .where(eq(applicationRoleAction.roleId, organizationApplicationRoleId));
 
         // Insert new role actions
         if (actionIds.length > 0) {
             const roleActionValues = actionIds.map((actionId: string) => ({
-                roleId: organizationAppRoleId,
+                roleId: organizationApplicationRoleId,
                 actionId,
             }));
 
-            await db.insert(appRoleAction).values(roleActionValues);
+            await db.insert(applicationRoleAction).values(roleActionValues);
         }
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.app-roles.actions.replace",
+            action: "admin.organization.application-roles.actions.replace",
             targetType: "rbac",
-            targetId: organizationAppRoleId,
+            targetId: organizationApplicationRoleId,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
                 actionCount: actionIds.length,
                 actionIds,
             },
@@ -126,17 +126,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         // Fetch updated actions
         const updatedActions = await db
             .select({
-                actionId: appRoleAction.actionId,
+                actionId: applicationRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceKey: resources.key,
-                appKey: apps.key,
+                applicationKey: applications.key,
             })
-            .from(appRoleAction)
-            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
+            .from(applicationRoleAction)
+            .innerJoin(actions, eq(applicationRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .innerJoin(apps, eq(resources.appId, apps.id))
-            .where(eq(appRoleAction.roleId, organizationAppRoleId));
+            .innerJoin(applications, eq(resources.applicationId, applications.id))
+            .where(eq(applicationRoleAction.roleId, organizationApplicationRoleId));
 
         return NextResponse.json({
             actions: updatedActions,

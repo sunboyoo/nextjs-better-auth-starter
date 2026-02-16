@@ -76,7 +76,7 @@ export function OrganizationsTable() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [metadataViewOpen, setMetadataViewOpen] = useState(false);
     const [metadataToView, setMetadataToView] = useState<any>({});
-    const [orgIdForMetadata, setOrgIdForMetadata] = useState<string | null>(null);
+    const [organizationIdForMetadata, setOrganizationIdForMetadata] = useState<string | null>(null);
     const [isEditingMetadata, setIsEditingMetadata] = useState(false);
     const [editedMetadata, setEditedMetadata] = useState<any>({});
     const [isSavingMetadata, setIsSavingMetadata] = useState(false);
@@ -84,7 +84,7 @@ export function OrganizationsTable() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [brokenLogos, setBrokenLogos] = useState<Set<string>>(() => new Set());
 
-    const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
+    const [organizationToDelete, setOrganizationToDelete] = useState<{ id: string; name: string } | null>(null);
     const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
     const limit = 10;
 
@@ -133,39 +133,39 @@ export function OrganizationsTable() {
     });
 
     const deleteOrganizationMutation = useMutation({
-        mutationFn: async (orgId: string) =>
-            fetch(`/api/admin/organizations/${orgId}`, {
+        mutationFn: async (organizationId: string) =>
+            fetch(`/api/admin/organizations/${organizationId}`, {
                 method: "DELETE",
             }),
     });
 
     const saveMetadataMutation = useMutation({
         mutationFn: async ({
-            orgId,
+            organizationId,
             metadata,
         }: {
-            orgId: string;
+            organizationId: string;
             metadata: unknown;
         }) =>
-            fetch(`/api/admin/organizations/${orgId}`, {
+            fetch(`/api/admin/organizations/${organizationId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ metadata }),
             }),
     });
 
-    const openDeleteConfirm = (orgId: string, orgName: string) => {
-        setOrgToDelete({ id: orgId, name: orgName });
+    const openDeleteConfirm = (organizationId: string, organizationName: string) => {
+        setOrganizationToDelete({ id: organizationId, name: organizationName });
         setDeleteConfirmOpen(true);
     };
 
     const handleDelete = async () => {
-        if (!orgToDelete) return;
+        if (!organizationToDelete) return;
 
-        setDeletingId(orgToDelete.id);
+        setDeletingId(organizationToDelete.id);
         setDeleteConfirmOpen(false);
         try {
-            const response = await deleteOrganizationMutation.mutateAsync(orgToDelete.id);
+            const response = await deleteOrganizationMutation.mutateAsync(organizationToDelete.id);
 
             if (response.ok) {
                 await queryClient.invalidateQueries({
@@ -179,18 +179,18 @@ export function OrganizationsTable() {
             alert("Failed to delete organization");
         } finally {
             setDeletingId(null);
-            setOrgToDelete(null);
+            setOrganizationToDelete(null);
         }
     };
 
 
 
-    const openMetadataView = (metadata: string | null, orgId: string) => {
+    const openMetadataView = (metadata: string | null, organizationId: string) => {
         try {
             const parsed = metadata ? JSON.parse(metadata) : {};
             setMetadataToView(cloneJson(parsed));
             setEditedMetadata(cloneJson(parsed));
-            setOrgIdForMetadata(orgId);
+            setOrganizationIdForMetadata(organizationId);
             setIsEditingMetadata(false);
             setMetadataViewOpen(true);
         } catch (e) {
@@ -199,11 +199,11 @@ export function OrganizationsTable() {
     };
 
     const handleSaveMetadata = async () => {
-        if (!orgIdForMetadata) return;
+        if (!organizationIdForMetadata) return;
         setIsSavingMetadata(true);
         try {
             const response = await saveMetadataMutation.mutateAsync({
-                orgId: orgIdForMetadata,
+                organizationId: organizationIdForMetadata,
                 metadata: editedMetadata,
             });
 
@@ -414,23 +414,23 @@ export function OrganizationsTable() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            organizations.map((org: Organization) => {
-                                const logoKey = `${org.id}:${org.logo ?? ""}`;
-                                const showLogo = Boolean(org.logo) && !brokenLogos.has(logoKey);
+                            organizations.map((organization: Organization) => {
+                                const logoKey = `${organization.id}:${organization.logo ?? ""}`;
+                                const showLogo = Boolean(organization.logo) && !brokenLogos.has(logoKey);
 
                                 return (
-                                    <TableRow key={org.id}>
+                                    <TableRow key={organization.id}>
                                         <TableCell className="px-4 py-3">
                                             <Link
-                                                href={`/admin/organizations/${org.id}`}
+                                                href={`/admin/organizations/${organization.id}`}
                                                 className="flex items-center gap-3 hover:opacity-80 transition-opacity group"
                                                 title="View organization details"
                                             >
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary overflow-hidden border border-border/50 group-hover:border-primary/50 transition-colors relative">
                                                     {showLogo ? (
                                                         <Image
-                                                            src={org.logo ?? ""}
-                                                            alt={org.name}
+                                                            src={organization.logo ?? ""}
+                                                            alt={organization.name}
                                                             fill
                                                             className="object-cover"
                                                             unoptimized
@@ -440,27 +440,27 @@ export function OrganizationsTable() {
                                                         <Building2 className="h-5 w-5" />
                                                     )}
                                                 </div>
-                                                <span className="font-medium group-hover:text-primary transition-colors">{org.name}</span>
+                                                <span className="font-medium group-hover:text-primary transition-colors">{organization.name}</span>
                                             </Link>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <span className="font-mono text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                                                {org.slug}
+                                                {organization.slug}
                                             </span>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
-                                            <Link href={`/admin/organizations/${org.id}/members`}>
+                                            <Link href={`/admin/organizations/${organization.id}/members`}>
                                                 <Badge variant="secondary" className="hover:bg-secondary/80 transition-colors cursor-pointer gap-1.5 pl-2.5 pr-3 py-1">
                                                     <Users className="h-3.5 w-3.5 opacity-70" />
-                                                    <span>{org.memberCount}</span>
+                                                    <span>{organization.memberCount}</span>
                                                 </Badge>
                                             </Link>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
-                                            <Link href={`/admin/organizations/${org.id}/roles`}>
+                                            <Link href={`/admin/organizations/${organization.id}/roles`}>
                                                 <Badge variant="secondary" className="hover:bg-secondary/80 transition-colors cursor-pointer gap-1.5 pl-2.5 pr-3 py-1">
                                                     <Shield className="h-3.5 w-3.5 opacity-70" />
-                                                    <span>{org.roleCount || 0}</span>
+                                                    <span>{organization.roleCount || 0}</span>
                                                 </Badge>
                                             </Link>
                                         </TableCell>
@@ -469,14 +469,14 @@ export function OrganizationsTable() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                onClick={() => openMetadataView(org.metadata, org.id)}
+                                                onClick={() => openMetadataView(organization.metadata, organization.id)}
                                                 title="View Metadata"
                                             >
                                                 <FileJson className="h-4 w-4" />
                                             </Button>
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                                            {format(new Date(org.createdAt), "MMM d, yyyy")}
+                                            {format(new Date(organization.createdAt), "MMM d, yyyy")}
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <DropdownMenu>
@@ -488,11 +488,11 @@ export function OrganizationsTable() {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem
                                                         className="text-destructive"
-                                                        onClick={() => openDeleteConfirm(org.id, org.name)}
-                                                        disabled={deletingId === org.id}
+                                                        onClick={() => openDeleteConfirm(organization.id, organization.name)}
+                                                        disabled={deletingId === organization.id}
                                                     >
                                                         <Trash2 className="h-4 w-4 mr-2" />
-                                                        {deletingId === org.id ? "Deleting..." : "Delete"}
+                                                        {deletingId === organization.id ? "Deleting..." : "Delete"}
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -580,7 +580,7 @@ export function OrganizationsTable() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Organization</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete &quot;{orgToDelete?.name}&quot;? This action cannot be undone and will remove all members and data associated with this organization.
+                            Are you sure you want to delete &quot;{organizationToDelete?.name}&quot;? This action cannot be undone and will remove all members and data associated with this organization.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions, member } from "@/db/schema";
+import { applications, resources, actions, member } from "@/db/schema";
 import { eq, and, ilike, desc, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -23,35 +23,35 @@ function isWriteRole(role: string): boolean {
     return role === "owner" || role === "admin";
 }
 
-// GET /api/user/organizations/[organizationId]/apps/[appId]/resources
+// GET /api/user/organizations/[organizationId]/applications/[applicationId]/resources
 export async function GET(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
     try {
-        // Verify app belongs to this org
-        const app = await db
-            .select({ id: apps.id, name: apps.name })
-            .from(apps)
-            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+        // Verify application belongs to this organization
+        const application = await db
+            .select({ id: applications.id, name: applications.name })
+            .from(applications)
+            .where(and(eq(applications.id, applicationId), eq(applications.organizationId, organizationId)))
             .limit(1);
 
-        if (app.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (application.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
         const searchParams = request.nextUrl.searchParams;
         const search = searchParams.get("search") || "";
 
         const conditions = search
-            ? and(eq(resources.appId, appId), ilike(resources.name, `%${search}%`))
-            : eq(resources.appId, appId);
+            ? and(eq(resources.applicationId, applicationId), ilike(resources.name, `%${search}%`))
+            : eq(resources.applicationId, applicationId);
 
         const resourcesList = await db
             .select()
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             .select({ resourceId: actions.resourceId, count: count() })
             .from(actions)
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .where(eq(resources.appId, appId))
+            .where(eq(resources.applicationId, applicationId))
             .groupBy(actions.resourceId);
 
         const actionCountMap = new Map(actionCounts.map(a => [a.resourceId, Number(a.count)]));
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const total = Number(countResult[0]?.count || 0);
 
         return NextResponse.json({
-            app: app[0],
+            application: application[0],
             resources: resourcesWithCounts,
             total,
             canWrite: isWriteRole(membership.role),
@@ -91,13 +91,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 }
 
-// POST /api/user/organizations/[organizationId]/apps/[appId]/resources
+// POST /api/user/organizations/[organizationId]/applications/[applicationId]/resources
 export async function POST(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -126,32 +126,32 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Verify app belongs to this org
-        const app = await db
-            .select({ id: apps.id })
-            .from(apps)
-            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+        // Verify application belongs to this organization
+        const application = await db
+            .select({ id: applications.id })
+            .from(applications)
+            .where(and(eq(applications.id, applicationId), eq(applications.organizationId, organizationId)))
             .limit(1);
-        if (app.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (application.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
         // Check if key already exists
         const existing = await db
             .select({ id: resources.id })
             .from(resources)
-            .where(and(eq(resources.appId, appId), eq(resources.key, key)))
+            .where(and(eq(resources.applicationId, applicationId), eq(resources.key, key)))
             .limit(1);
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "Resource with this key already exists in this app" },
+                { error: "Resource with this key already exists in this application" },
                 { status: 400 },
             );
         }
 
         const newResource = await db
             .insert(resources)
-            .values({ appId, key, name, description: description || null })
+            .values({ applicationId, key, name, description: description || null })
             .returning();
 
         return NextResponse.json({ resource: newResource[0] }, { status: 201 });

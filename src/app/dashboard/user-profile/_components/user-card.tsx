@@ -260,7 +260,7 @@ const UserCard = (props: {
 										<DialogHeader>
 											<DialogTitle>Scan QR Code</DialogTitle>
 											<DialogDescription>
-												Scan the QR code with your TOTP app
+												Scan the QR code with your TOTP application
 											</DialogDescription>
 										</DialogHeader>
 										<TwoFactorQrForm />

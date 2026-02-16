@@ -65,7 +65,7 @@ export default async function MagicLinkSentPage({
           </p>
           <div className="grid gap-2">
             <Button asChild>
-              <Link href={callbackUrl}>Return to app</Link>
+              <Link href={callbackUrl}>Return to application</Link>
             </Button>
             <Button asChild variant="link" className="gap-2">
               <Link href={buildSignInUrl(callbackUrl)}>

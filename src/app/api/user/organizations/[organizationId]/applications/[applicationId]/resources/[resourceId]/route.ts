@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions, member } from "@/db/schema";
+import { applications, resources, actions, member } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string; resourceId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string; resourceId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -23,29 +23,29 @@ function isWriteRole(role: string): boolean {
     return role === "owner" || role === "admin";
 }
 
-async function verifyResourceOwnership(appId: string, resourceId: string, organizationId: string) {
+async function verifyResourceOwnership(applicationId: string, resourceId: string, organizationId: string) {
     const result = await db
         .select({ id: resources.id })
         .from(resources)
-        .innerJoin(apps, eq(resources.appId, apps.id))
+        .innerJoin(applications, eq(resources.applicationId, applications.id))
         .where(
             and(
                 eq(resources.id, resourceId),
-                eq(resources.appId, appId),
-                eq(apps.organizationId, organizationId),
+                eq(resources.applicationId, applicationId),
+                eq(applications.organizationId, organizationId),
             ),
         )
         .limit(1);
     return result.length > 0;
 }
 
-// GET /api/user/organizations/[organizationId]/apps/[appId]/resources/[resourceId]
+// GET /api/user/organizations/[organizationId]/applications/[applicationId]/resources/[resourceId]
 export async function GET(_request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, resourceId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId, resourceId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -55,7 +55,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         const resource = await db
             .select({
                 id: resources.id,
-                appId: resources.appId,
+                applicationId: resources.applicationId,
                 key: resources.key,
                 name: resources.name,
                 description: resources.description,
@@ -63,12 +63,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
                 updatedAt: resources.updatedAt,
             })
             .from(resources)
-            .innerJoin(apps, eq(resources.appId, apps.id))
+            .innerJoin(applications, eq(resources.applicationId, applications.id))
             .where(
                 and(
                     eq(resources.id, resourceId),
-                    eq(resources.appId, appId),
-                    eq(apps.organizationId, organizationId),
+                    eq(resources.applicationId, applicationId),
+                    eq(applications.organizationId, organizationId),
                 ),
             )
             .limit(1);
@@ -83,11 +83,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             .from(actions)
             .where(eq(actions.resourceId, resourceId));
 
-        // Get app name for breadcrumb
-        const app = await db
-            .select({ name: apps.name })
-            .from(apps)
-            .where(eq(apps.id, appId))
+        // Get application name for breadcrumb
+        const application = await db
+            .select({ name: applications.name })
+            .from(applications)
+            .where(eq(applications.id, applicationId))
             .limit(1);
 
         return NextResponse.json({
@@ -95,7 +95,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
                 ...resource[0],
                 actionCount: Number(actionCountResult[0]?.count ?? 0),
             },
-            appName: app[0]?.name ?? "",
+            applicationName: application[0]?.name ?? "",
             canWrite: isWriteRole(membership.role),
         });
     } catch (error) {
@@ -103,13 +103,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }
 }
 
-// PUT /api/user/organizations/[organizationId]/apps/[appId]/resources/[resourceId]
+// PUT /api/user/organizations/[organizationId]/applications/[applicationId]/resources/[resourceId]
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, resourceId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId, resourceId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -118,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        if (!(await verifyResourceOwnership(appId, resourceId, organizationId))) {
+        if (!(await verifyResourceOwnership(applicationId, resourceId, organizationId))) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
 
@@ -148,13 +148,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 }
 
-// DELETE /api/user/organizations/[organizationId]/apps/[appId]/resources/[resourceId]
+// DELETE /api/user/organizations/[organizationId]/applications/[applicationId]/resources/[resourceId]
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, resourceId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId, resourceId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -163,7 +163,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        if (!(await verifyResourceOwnership(appId, resourceId, organizationId))) {
+        if (!(await verifyResourceOwnership(applicationId, resourceId, organizationId))) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
 

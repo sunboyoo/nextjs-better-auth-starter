@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { apps, resources, actions, appRoles, member } from "@/db/schema";
+import { applications, resources, actions, applicationRoles, member } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { z } from "zod";
 
 interface RouteParams {
-    params: Promise<{ organizationId: string; appId: string }>;
+    params: Promise<{ organizationId: string; applicationId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -28,53 +28,53 @@ function isWriteRole(role: string): boolean {
     return role === "owner" || role === "admin";
 }
 
-// GET /api/user/organizations/[organizationId]/apps/[appId] - Get app details
+// GET /api/user/organizations/[organizationId]/applications/[applicationId] - Get application details
 export async function GET(_request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
     try {
-        // Fetch app
-        const appResult = await db
+        // Fetch application
+        const applicationResult = await db
             .select()
-            .from(apps)
-            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+            .from(applications)
+            .where(and(eq(applications.id, applicationId), eq(applications.organizationId, organizationId)))
             .limit(1);
 
-        if (appResult.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (applicationResult.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
-        const app = appResult[0];
+        const application = applicationResult[0];
 
         // Count resources
         const resourceCountResult = await db
             .select({ count: count() })
             .from(resources)
-            .where(eq(resources.appId, appId));
+            .where(eq(resources.applicationId, applicationId));
 
         // Count actions (through resources)
         const actionCountResult = await db
             .select({ count: count() })
             .from(actions)
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .where(eq(resources.appId, appId));
+            .where(eq(resources.applicationId, applicationId));
 
         // Count roles
         const roleCountResult = await db
             .select({ count: count() })
-            .from(appRoles)
-            .where(eq(appRoles.appId, appId));
+            .from(applicationRoles)
+            .where(eq(applicationRoles.applicationId, applicationId));
 
         return NextResponse.json({
-            app: {
-                ...app,
+            application: {
+                ...application,
                 resourceCount: Number(resourceCountResult[0]?.count ?? 0),
                 actionCount: Number(actionCountResult[0]?.count ?? 0),
                 roleCount: Number(roleCountResult[0]?.count ?? 0),
@@ -82,22 +82,22 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             canWrite: isWriteRole(membership.role),
         });
     } catch (error) {
-        return handleApiError(error, "fetch app details");
+        return handleApiError(error, "fetch application details");
     }
 }
 
-// PUT /api/user/organizations/[organizationId]/apps/[appId] - Update app
+// PUT /api/user/organizations/[organizationId]/applications/[applicationId] - Update application
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
     if (!isWriteRole(membership.role)) {
-        return NextResponse.json({ error: "Only owner or admin can update apps" }, { status: 403 });
+        return NextResponse.json({ error: "Only owner or admin can update applications" }, { status: 403 });
     }
 
     try {
@@ -113,15 +113,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: result.error.issues }, { status: 400 });
         }
 
-        // Verify app belongs to this org
-        const existingApp = await db
-            .select({ id: apps.id })
-            .from(apps)
-            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+        // Verify application belongs to this organization
+        const existingApplication = await db
+            .select({ id: applications.id })
+            .from(applications)
+            .where(and(eq(applications.id, applicationId), eq(applications.organizationId, organizationId)))
             .limit(1);
 
-        if (existingApp.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (existingApplication.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
         const updateData: Record<string, unknown> = {};
@@ -131,47 +131,47 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         if (result.data.isActive !== undefined) updateData.isActive = result.data.isActive;
 
         const updated = await db
-            .update(apps)
+            .update(applications)
             .set(updateData)
-            .where(eq(apps.id, appId))
+            .where(eq(applications.id, applicationId))
             .returning();
 
-        return NextResponse.json({ app: updated[0] });
+        return NextResponse.json({ application: updated[0] });
     } catch (error) {
-        return handleApiError(error, "update app");
+        return handleApiError(error, "update application");
     }
 }
 
-// DELETE /api/user/organizations/[organizationId]/apps/[appId] - Delete app
+// DELETE /api/user/organizations/[organizationId]/applications/[applicationId] - Delete application
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const { organizationId, applicationId } = await params;
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
     if (!isWriteRole(membership.role)) {
-        return NextResponse.json({ error: "Only owner or admin can delete apps" }, { status: 403 });
+        return NextResponse.json({ error: "Only owner or admin can delete applications" }, { status: 403 });
     }
 
     try {
-        // Verify app belongs to this org
-        const existingApp = await db
-            .select({ id: apps.id })
-            .from(apps)
-            .where(and(eq(apps.id, appId), eq(apps.organizationId, organizationId)))
+        // Verify application belongs to this organization
+        const existingApplication = await db
+            .select({ id: applications.id })
+            .from(applications)
+            .where(and(eq(applications.id, applicationId), eq(applications.organizationId, organizationId)))
             .limit(1);
 
-        if (existingApp.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (existingApplication.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
-        await db.delete(apps).where(eq(apps.id, appId));
+        await db.delete(applications).where(eq(applications.id, applicationId));
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        return handleApiError(error, "delete app");
+        return handleApiError(error, "delete application");
     }
 }

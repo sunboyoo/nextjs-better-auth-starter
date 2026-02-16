@@ -98,9 +98,39 @@ const logConfigOnce = (
   console[level](message);
 };
 
+const parseBooleanEnv = (
+  value: string | undefined,
+  fallback: boolean,
+): boolean => {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "true") {
+    return true;
+  }
+  if (normalized === "false") {
+    return false;
+  }
+
+  return fallback;
+};
+
 const trustedOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const oauthAllowDynamicClientRegistration = parseBooleanEnv(
+  process.env.BETTER_AUTH_OAUTH_ALLOW_DYNAMIC_CLIENT_REGISTRATION,
+  false,
+);
+const oauthAllowUnauthenticatedClientRegistration =
+  oauthAllowDynamicClientRegistration &&
+  parseBooleanEnv(
+    process.env.BETTER_AUTH_OAUTH_ALLOW_UNAUTHENTICATED_CLIENT_REGISTRATION,
+    false,
+  );
 
 const rateLimitEnabled = process.env.BETTER_AUTH_RATE_LIMIT_ENABLED
   ? process.env.BETTER_AUTH_RATE_LIMIT_ENABLED === "true"
@@ -2035,8 +2065,9 @@ const authOptions = {
     oauthProvider({
       loginPage: "/auth/sign-in",
       consentPage: "/auth/oauth/consent",
-      allowDynamicClientRegistration: true,
-      allowUnauthenticatedClientRegistration: true,
+      allowDynamicClientRegistration: oauthAllowDynamicClientRegistration,
+      allowUnauthenticatedClientRegistration:
+        oauthAllowUnauthenticatedClientRegistration,
       scopes: [
         "openid",
         "profile",
@@ -2055,7 +2086,7 @@ const authOptions = {
       customAccessTokenClaims({ referenceId, scopes }) {
         if (referenceId && scopes.includes("read:organization")) {
           return {
-            [`${baseUrl}/org`]: referenceId,
+            [`${baseUrl}/organization`]: referenceId,
           };
         }
         return {};

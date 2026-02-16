@@ -16,47 +16,47 @@ This document provides a mapping of API routes to their usage in the application
 
 | API Route | Methods | Used By |
 |-----------|---------|---------|
-| `/api/admin/organizations` | GET, POST, PUT, DELETE | `/admin/organizations` - `organizations-table.tsx`<br>`org-app-selector.tsx`<br>`organization-add-dialog.tsx`<br>`organization-edit-dialog.tsx` |
+| `/api/admin/organizations` | GET, POST, PUT, DELETE | `/admin/organizations` - `organizations-table.tsx`<br>`organization-application-selector.tsx`<br>`organization-add-dialog.tsx`<br>`organization-edit-dialog.tsx` |
 | `/api/admin/organizations/[organizationId]` | GET | `dashboard-layout.tsx` |
 | `/api/admin/organizations/[organizationId]/members` | GET, POST, DELETE, PUT | `/admin/organizations/[organizationId]/members` - `members-table.tsx`<br>`member-add-dialog.tsx` |
 | `/api/admin/organizations/[organizationId]/roles` | GET, POST, DELETE, PUT | `/admin/organizations/[organizationId]/roles` - `organization-role-table.tsx`<br>`organization-role-add-dialog.tsx`<br>`organization-role-edit-dialog.tsx`<br>`member-add-dialog.tsx` |
 
-### Apps
+### Applications
 
 | API Route | Methods | Used By |
 |-----------|---------|---------|
-| `/api/admin/apps` | GET, POST | `/admin/apps` - `apps-table.tsx`<br>`org-app-selector.tsx`<br>`dashboard-layout.tsx` |
-| `/api/admin/apps/[appId]` | GET, PUT, DELETE | `apps-table.tsx`<br>`app-detail.tsx`<br>`dashboard-layout.tsx` |
-| `/api/admin/apps/[appId]/actions` | GET | Fetch all actions for an app - `organization-app-roles-table.tsx` |
+| `/api/admin/applications` | GET, POST | `/admin/applications` - `applications-table.tsx`<br>`organization-application-selector.tsx`<br>`dashboard-layout.tsx` |
+| `/api/admin/applications/[applicationId]` | GET, PUT, DELETE | `applications-table.tsx`<br>`application-detail.tsx`<br>`dashboard-layout.tsx` |
+| `/api/admin/applications/[applicationId]/actions` | GET | Fetch all actions for an application - `organization-application-roles-table.tsx` |
 
-### Resources (Nested under Apps)
+### Resources (Nested under Applications)
 
 | API Route | Methods | Used By |
 |-----------|---------|---------|
-| `/api/admin/apps/[appId]/resources` | GET, POST | `/admin/apps/[appId]/resources` - `resources-table.tsx`<br>`app-detail.tsx`<br>`dashboard-layout.tsx`<br>`actions page.tsx` |
-| `/api/admin/apps/[appId]/resources/[resourceId]` | GET, PUT, DELETE | `resources-table.tsx`<br>`app-detail.tsx` |
+| `/api/admin/applications/[applicationId]/resources` | GET, POST | `/admin/applications/[applicationId]/resources` - `resources-table.tsx`<br>`application-detail.tsx`<br>`dashboard-layout.tsx`<br>`actions page.tsx` |
+| `/api/admin/applications/[applicationId]/resources/[resourceId]` | GET, PUT, DELETE | `resources-table.tsx`<br>`application-detail.tsx` |
 
 ### Actions (Nested under Resources)
 
 | API Route | Methods | Used By |
 |-----------|---------|---------|
-| `/api/admin/apps/[appId]/resources/[resourceId]/actions` | GET, POST | `/admin/apps/[appId]/resources/[resourceId]/actions` - `actions-table.tsx`<br>`app-detail.tsx` |
-| `/api/admin/apps/[appId]/resources/[resourceId]/actions/[actionId]` | GET, PUT, DELETE | `actions-table.tsx`<br>`app-detail.tsx` |
+| `/api/admin/applications/[applicationId]/resources/[resourceId]/actions` | GET, POST | `/admin/applications/[applicationId]/resources/[resourceId]/actions` - `actions-table.tsx`<br>`application-detail.tsx` |
+| `/api/admin/applications/[applicationId]/resources/[resourceId]/actions/[actionId]` | GET, PUT, DELETE | `actions-table.tsx`<br>`application-detail.tsx` |
 
-### Organization App Roles (Nested under Organization/App)
-
-| API Route | Methods | Used By |
-|-----------|---------|---------|
-| `/api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles` | GET, POST | `/admin/organization-app-roles` - `organization-app-roles-table.tsx`<br>`/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
-| `/api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]` | GET, PUT, DELETE | `organization-app-roles-table.tsx` |
-| `/api/admin/organizations/[organizationId]/apps/[appId]/organization-app-roles/[organizationAppRoleId]/actions` | GET, PUT | `organization-app-roles-table.tsx` |
-
-### Member Organization App Roles (Per Organization/App)
+### Organization Application Roles (Nested under Organization/Application)
 
 | API Route | Methods | Used By |
 |-----------|---------|---------|
-| `/api/admin/organizations/[organizationId]/apps/[appId]/member-organization-app-roles` | GET | `/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
-| `/api/admin/organizations/[organizationId]/apps/[appId]/members/[memberId]/organization-app-roles` | GET, POST, DELETE | `/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
+| `/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles` | GET, POST | `/admin/organization-application-roles` - `organization-application-roles-table.tsx`<br>`/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
+| `/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]` | GET, PUT, DELETE | `organization-application-roles-table.tsx` |
+| `/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]/actions` | GET, PUT | `organization-application-roles-table.tsx` |
+
+### Member Organization Application Roles (Per Organization/Application)
+
+| API Route | Methods | Used By |
+|-----------|---------|---------|
+| `/api/admin/organizations/[organizationId]/applications/[applicationId]/member-organization-application-roles` | GET | `/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
+| `/api/admin/organizations/[organizationId]/applications/[applicationId]/members/[memberId]/organization-application-roles` | GET, POST, DELETE | `/admin/assign-roles-to-members` - `assign-roles-to-members.tsx` |
 
 ---
 
@@ -96,15 +96,15 @@ This document provides a mapping of API routes to their usage in the application
 │   └── [organizationId]/
 │       ├── members                                                        # Organization members
 │       ├── roles                                                          # Organization roles
-│       └── apps/[appId]/
-│           ├── organization-app-roles/                                    # Organization App Roles
-│           │   └── [organizationAppRoleId]/
+│       └── applications/[applicationId]/
+│           ├── organization-application-roles/                                    # Organization Application Roles
+│           │   └── [organizationApplicationRoleId]/
 │           │       └── actions                                            # Role action assignments
-│           ├── member-organization-app-roles                              # Member role assignments
-│           └── members/[memberId]/organization-app-roles                  # Individual member roles
-└── apps/                                                                  # App management
-    └── [appId]/
-        ├── actions                                                        # All actions for an app
+│           ├── member-organization-application-roles                              # Member role assignments
+│           └── members/[memberId]/organization-application-roles                  # Individual member roles
+└── applications/                                                          # Application management
+    └── [applicationId]/
+        ├── actions                                                        # All actions for an application
         └── resources/                                                     # Resource management
             └── [resourceId]/
                 └── actions/                                               # Action management
@@ -129,10 +129,10 @@ This document provides a mapping of API routes to their usage in the application
 |----------|-------------|
 | Admin - Users | 3 |
 | Admin - Organizations | 4 |
-| Admin - Apps | 3 |
+| Admin - Applications | 3 |
 | Admin - Resources | 2 |
 | Admin - Actions | 2 |
-| Admin - Organization App Roles | 5 |
+| Admin - Organization Application Roles | 5 |
 | Auth | 1 |
 | User | 1 |
 | RBAC | 2 |
@@ -142,26 +142,26 @@ This document provides a mapping of API routes to their usage in the application
 
 ## Future RBAC Improvement: Unified Permission Hierarchy
 
-The current RBAC APIs (`/api/rbac/permissions` and `/api/rbac/permissions/check`) only check the bottom layer of permissions: **Organization App Roles**.
+The current RBAC APIs (`/api/rbac/permissions` and `/api/rbac/permissions/check`) only check the bottom layer of permissions: **Organization Application Roles**.
 
 For a complete and robust RBAC system, these APIs should be updated to resolve permissions across all three layers of the hierarchy:
 
 ### 1. Platform Role (Identity Level)
 - **Source**: `user.role` (e.g., `"admin"`, `"user"`)
-- **Logic**: A platform `"admin"` should inherently have **all permissions** across all organizations and apps.
+- **Logic**: A platform `"admin"` should inherently have **all permissions** across all organizations and applications.
 
 ### 2. Organization Role (Membership Level)
 - **Source**: `member.role` (e.g., `"owner"`, `"admin"`, `"member"`)
-- **Logic**: An organization `"owner"` or `"admin"` should usually imply **full access** to all apps within that organization, regardless of specific app role assignments.
+- **Logic**: An organization `"owner"` or `"admin"` should usually imply **full access** to all applications within that organization, regardless of specific application role assignments.
 
-### 3. Organization App Role (Assignment Level)
-- **Source**: `organization_app_roles` (Custom roles like "Editor", "Viewer")
-- **Logic**: Fine-grained permissions explicitly assigned to a member for a specific app. This is the current implementation target.
+### 3. Organization Application Role (Assignment Level)
+- **Source**: `organization_application_roles` (Custom roles like "Editor", "Viewer")
+- **Logic**: Fine-grained permissions explicitly assigned to a member for a specific application. This is the current implementation target.
 
 ### Proposed Resolution Logic
 
 When checking `permissions/check` or listing `permissions`, the API should evaluate in order:
 
 1. **Check Platform Admin**: If `user.role === 'admin'`, return `true` (allow everything).
-2. **Check Org Role**: If `member.role === 'owner'` (for the target org), return `true` (allow everything for this org's apps).
-3. **Check App Roles**: finally, query `organization_app_roles` tables for specific granular permissions (Current Implementation).
+2. **Check Organization Role**: If `member.role === 'owner'` (for the target organization), return `true` (allow everything for this organization's applications).
+3. **Check Application Roles**: finally, query `organization_application_roles` tables for specific granular permissions (Current Implementation).

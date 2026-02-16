@@ -59,7 +59,7 @@ import { generateKeyFromName } from "@/lib/utils";
 
 interface Resource {
     id: string;
-    appId: string;
+    applicationId: string;
     key: string;
     name: string;
     description: string | null;
@@ -69,7 +69,7 @@ interface Resource {
 }
 
 interface ResourcesResponse {
-    app: { id: string; name: string };
+    application: { id: string; name: string };
     resources: Resource[];
     total: number;
     canWrite: boolean;
@@ -119,7 +119,7 @@ export default function ResourcesPage() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    const queryKey = userKeys.orgAppResources(
+    const queryKey = userKeys.organizationApplicationResources(
         organizationId,
         applicationId,
         debouncedSearch,
@@ -131,7 +131,7 @@ export default function ResourcesPage() {
             const params = new URLSearchParams();
             if (debouncedSearch) params.set("search", debouncedSearch);
             return fetcher(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources?${params.toString()}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources?${params.toString()}`,
             );
         },
         refetchOnWindowFocus: false,
@@ -175,7 +175,7 @@ export default function ResourcesPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -220,7 +220,7 @@ export default function ResourcesPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${editId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${editId}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -252,7 +252,7 @@ export default function ResourcesPage() {
         if (!deleteResource) return;
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${deleteResource.id}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${deleteResource.id}`,
                 { method: "DELETE", credentials: "include" },
             );
             if (!res.ok) {

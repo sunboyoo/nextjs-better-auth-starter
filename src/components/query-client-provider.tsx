@@ -6,7 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { getQueryClient } from "@/data/query-client";
 import { authClient } from "@/lib/auth-client";
 
-export function AppQueryClientProvider({
+export function ApplicationQueryClientProvider({
 	children,
 }: {
 	children: ReactNode;

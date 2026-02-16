@@ -14,7 +14,7 @@ interface ResourceLayoutResponse {
         key: string;
         actionCount: number;
     };
-    appName: string;
+    applicationName: string;
     canWrite: boolean;
 }
 
@@ -32,14 +32,14 @@ export default function ResourceDetailLayout({
     const pathname = usePathname();
 
     const { data, isLoading } = useQuery<ResourceLayoutResponse>({
-        queryKey: userKeys.orgAppResource(
+        queryKey: userKeys.organizationApplicationResource(
             organizationId,
             applicationId,
             resourceId,
         ),
         queryFn: () =>
             fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`,
                 {
                     credentials: "include",
                 },

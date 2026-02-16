@@ -1,47 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { actions, resources, apps } from "@/db/schema";
+import { actions, resources, applications } from "@/db/schema";
 import { eq, and, ilike, desc, sql, inArray } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
 import { handleApiError } from "@/lib/api/error-handler";
 
-// GET /api/admin/apps/[appId]/actions - List all actions for an app (across all resources)
+// GET /api/admin/applications/[applicationId]/actions - List all actions for an application (across all resources)
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string }> }
+    { params }: { params: Promise<{ applicationId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { appId } = await params;
+    const { applicationId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const pagination = parsePagination(request);
 
     try {
-        // Verify app exists
-        const app = await db
-            .select({ id: apps.id, name: apps.name })
-            .from(apps)
-            .where(eq(apps.id, appId))
+        // Verify application exists
+        const application = await db
+            .select({ id: applications.id, name: applications.name })
+            .from(applications)
+            .where(eq(applications.id, applicationId))
             .limit(1);
 
-        if (app.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (application.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
-        // Get all resource IDs for this app
-        const appResources = await db
+        // Get all resource IDs for this application
+        const applicationResources = await db
             .select({ id: resources.id })
             .from(resources)
-            .where(eq(resources.appId, appId));
+            .where(eq(resources.applicationId, applicationId));
 
-        const resourceIds = appResources.map(r => r.id);
+        const resourceIds = applicationResources.map(r => r.id);
 
         if (resourceIds.length === 0) {
             return NextResponse.json({
-                app: app[0],
+                application: application[0],
                 actions: [],
                 ...createPaginationMeta(0, pagination),
             });
@@ -90,7 +90,7 @@ export async function GET(
         const total = Number(countResult[0]?.count || 0);
 
         return NextResponse.json({
-            app: app[0],
+            application: application[0],
             actions: actionsWithKeys,
             ...createPaginationMeta(total, pagination),
         });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { actions, resources, apps } from "@/db/schema";
+import { actions, resources, applications } from "@/db/schema";
 import { eq, and, ilike, desc, sql, inArray } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -8,15 +8,15 @@ import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET /api/admin/apps/[appId]/resources/[resourceId]/actions - List actions by resourceId
+// GET /api/admin/applications/[applicationId]/resources/[resourceId]/actions - List actions by resourceId
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { appId, resourceId } = await params;
+    const { applicationId, resourceId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const pagination = parsePagination(request);
@@ -24,7 +24,7 @@ export async function GET(
     try {
         // Verify resource exists
         const resource = await db
-            .select({ id: resources.id, name: resources.name, appId: resources.appId })
+            .select({ id: resources.id, name: resources.name, applicationId: resources.applicationId })
             .from(resources)
             .where(eq(resources.id, resourceId))
             .limit(1);
@@ -50,35 +50,35 @@ export async function GET(
         const resourceIds = [...new Set(actionsList.map(a => a.resourceId))];
         const resourceInfoList = resourceIds.length > 0
             ? await db
-                .select({ id: resources.id, name: resources.name, key: resources.key, appId: resources.appId })
+                .select({ id: resources.id, name: resources.name, key: resources.key, applicationId: resources.applicationId })
                 .from(resources)
                 .where(inArray(resources.id, resourceIds))
             : [];
 
         // Create resource lookup map
-        const resourceInfoMap = new Map(resourceInfoList.map(r => [r.id, { name: r.name, key: r.key, appId: r.appId }]));
+        const resourceInfoMap = new Map(resourceInfoList.map(r => [r.id, { name: r.name, key: r.key, applicationId: r.applicationId }]));
 
-        // Get app info (key) for all unique app IDs
-        const appIds = [...new Set(resourceInfoList.map(r => r.appId))];
-        const appInfoList = appIds.length > 0
+        // Get application info (key) for all unique application IDs
+        const applicationIds = [...new Set(resourceInfoList.map(r => r.applicationId))];
+        const applicationInfoList = applicationIds.length > 0
             ? await db
-                .select({ id: apps.id, key: apps.key })
-                .from(apps)
-                .where(inArray(apps.id, appIds))
+                .select({ id: applications.id, key: applications.key })
+                .from(applications)
+                .where(inArray(applications.id, applicationIds))
             : [];
 
-        // Create app lookup map
-        const appKeyMap = new Map(appInfoList.map(a => [a.id, a.key]));
+        // Create application lookup map
+        const applicationKeyMap = new Map(applicationInfoList.map(a => [a.id, a.key]));
 
-        // Merge resource and app info into actions
+        // Merge resource and application info into actions
         const actionsWithKeys = actionsList.map(action => {
             const resourceInfo = resourceInfoMap.get(action.resourceId);
-            const appKey = resourceInfo?.appId ? appKeyMap.get(resourceInfo.appId) : undefined;
+            const applicationKey = resourceInfo?.applicationId ? applicationKeyMap.get(resourceInfo.applicationId) : undefined;
             return {
                 ...action,
                 resourceName: resourceInfo?.name || null,
                 resourceKey: resourceInfo?.key || null,
-                appKey: appKey || null,
+                applicationKey: applicationKey || null,
             };
         });
 
@@ -99,15 +99,15 @@ export async function GET(
     }
 }
 
-// POST /api/admin/apps/[appId]/resources/[resourceId]/actions - Create a new action
+// POST /api/admin/applications/[applicationId]/resources/[resourceId]/actions - Create a new action
 export async function POST(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string; resourceId: string }> }
+    { params }: { params: Promise<{ applicationId: string; resourceId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { appId, resourceId } = await params;
+    const { applicationId, resourceId } = await params;
 
     try {
         const body = await request.json();
@@ -140,7 +140,7 @@ export async function POST(
 
         // Verify resource exists
         const resource = await db
-            .select({ id: resources.id, appId: resources.appId })
+            .select({ id: resources.id, applicationId: resources.applicationId })
             .from(resources)
             .where(eq(resources.id, resourceId))
             .limit(1);
@@ -175,11 +175,11 @@ export async function POST(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.actions.create",
+            action: "admin.applications.actions.create",
             targetType: "action",
             targetId: newAction[0]?.id ?? null,
             metadata: {
-                appId: resource[0].appId,
+                applicationId: resource[0].applicationId,
                 resourceId,
                 key,
                 name,

@@ -67,18 +67,18 @@ const fetcher = async (url: string) => {
 
 interface Action {
     id: string;
-    appId: string;
+    applicationId: string;
     resourceId: string;
     key: string;
     name: string;
     description: string | null;
     createdAt: string;
-    appKey: string | null;
+    applicationKey: string | null;
     resourceKey: string | null;
 }
 
 interface ActionsTableProps {
-    appId: string;
+    applicationId: string;
     resourceId: string;
     resourceName: string;
 }
@@ -91,7 +91,7 @@ type MutationInput = {
     body?: unknown;
 };
 
-export function ActionsTable({ appId, resourceId, resourceName }: ActionsTableProps) {
+export function ActionsTable({ applicationId, resourceId, resourceName }: ActionsTableProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const pathname = usePathname();
@@ -156,7 +156,7 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
         }
     }, [page, limit, router, pathname, searchParams, debouncedSearch]);
 
-    const actionsUrl = `/api/admin/apps/${appId}/resources/${resourceId}/actions?page=${page}&limit=${limit}&search=${debouncedSearch}`;
+    const actionsUrl = `/api/admin/applications/${applicationId}/resources/${resourceId}/actions?page=${page}&limit=${limit}&search=${debouncedSearch}`;
     const { data, error } = useQuery({
         queryKey: adminKeys.resourceActions(actionsUrl),
         queryFn: () => fetcher(actionsUrl),
@@ -190,7 +190,7 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions`,
+                url: `/api/admin/applications/${applicationId}/resources/${resourceId}/actions`,
                 method: "POST",
                 body: {
                     resourceId,
@@ -229,7 +229,7 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions/${editId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${resourceId}/actions/${editId}`,
                 method: "PUT",
                 body: {
                     name: editName,
@@ -260,7 +260,7 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${appId}/resources/${resourceId}/actions/${deleteId}`,
+                url: `/api/admin/applications/${applicationId}/resources/${resourceId}/actions/${deleteId}`,
                 method: "DELETE",
             });
             if (!response.ok) {
@@ -484,7 +484,7 @@ export function ActionsTable({ appId, resourceId, resourceName }: ActionsTablePr
                                     </TableCell>
                                     <TableCell className="px-4 py-3">
                                         <code className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded font-mono border border-slate-200 dark:border-slate-700">
-                                            {action.appKey}:{action.resourceKey}:{action.key}
+                                            {action.applicationKey}:{action.resourceKey}:{action.key}
                                         </code>
                                     </TableCell>
                                     <TableCell className="px-4 py-3 text-muted-foreground text-sm max-w-[200px] truncate" title={action.description || ""}>

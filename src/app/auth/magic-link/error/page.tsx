@@ -60,7 +60,7 @@ export default async function MagicLinkErrorPage({
             <Button asChild variant="link" className="gap-2">
               <Link href={callbackUrl}>
                 <ArrowLeft size={15} />
-                Return to app
+                Return to application
               </Link>
             </Button>
           </div>

@@ -30,7 +30,7 @@ const SMS_WEBHOOK_DELIVERY: NonNullable<AuthenticationProfile["smsOtpDelivery"]>
 
 /**
  * Default mapping from method -> better-auth ctx.path patterns.
- * IMPORTANT: refine smsOtp patterns after you log ctx.path once in your app.
+ * IMPORTANT: refine smsOtp patterns after you log ctx.path once in your application.
  */
 const DEFAULT_METHOD_PATHS: AuthenticationProfile["server"]["methodToPaths"] = {
   password: [

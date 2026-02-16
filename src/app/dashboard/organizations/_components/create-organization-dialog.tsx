@@ -138,9 +138,9 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="org-name">Name</Label>
+                            <Label htmlFor="organization-name">Name</Label>
                             <Input
-                                id="org-name"
+                                id="organization-name"
                                 placeholder="My Organization"
                                 value={name}
                                 onChange={(e) => handleNameChange(e.target.value)}
@@ -148,10 +148,10 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="org-slug">Slug</Label>
+                            <Label htmlFor="organization-slug">Slug</Label>
                             <div className="relative">
                                 <Input
-                                    id="org-slug"
+                                    id="organization-slug"
                                     placeholder="my-organization"
                                     value={slug}
                                     onChange={(e) => handleSlugChange(e.target.value)}
@@ -175,9 +175,9 @@ export function CreateOrganizationDialog({ onSuccess }: CreateOrganizationDialog
                             </div>
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="org-logo">Logo URL (optional)</Label>
+                            <Label htmlFor="organization-logo">Logo URL (optional)</Label>
                             <Input
-                                id="org-logo"
+                                id="organization-logo"
                                 placeholder="https://example.com/logo.png"
                                 value={logo}
                                 onChange={(e) => setLogo(e.target.value)}

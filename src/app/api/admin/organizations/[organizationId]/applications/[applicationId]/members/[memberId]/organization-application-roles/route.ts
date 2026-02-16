@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberAppRoles, appRoles, member, user } from "@/db/schema";
+import { memberApplicationRoles, applicationRoles, member, user } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET - Get member's assigned roles for this app
+// GET - Get member's assigned roles for this application
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
+    { params }: { params: Promise<{ organizationId: string; applicationId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, memberId } = await params;
+    const { organizationId, applicationId, memberId } = await params;
 
     try {
         // Verify member exists and belongs to the organization
@@ -37,17 +37,17 @@ export async function GET(
 
         const assignedRoles = await db
             .select({
-                roleId: memberAppRoles.appRoleId,
-                createdAt: memberAppRoles.createdAt,
-                roleKey: appRoles.key,
-                roleName: appRoles.name,
+                roleId: memberApplicationRoles.applicationRoleId,
+                createdAt: memberApplicationRoles.createdAt,
+                roleKey: applicationRoles.key,
+                roleName: applicationRoles.name,
             })
-            .from(memberAppRoles)
-            .innerJoin(appRoles, eq(memberAppRoles.appRoleId, appRoles.id))
+            .from(memberApplicationRoles)
+            .innerJoin(applicationRoles, eq(memberApplicationRoles.applicationRoleId, applicationRoles.id))
             .where(
                 and(
-                    eq(memberAppRoles.memberId, memberId),
-                    eq(appRoles.appId, appId)
+                    eq(memberApplicationRoles.memberId, memberId),
+                    eq(applicationRoles.applicationId, applicationId)
                 )
             );
 
@@ -63,12 +63,12 @@ export async function GET(
 // POST - Assign role to member
 export async function POST(
     request: NextRequest,
-    { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
+    { params }: { params: Promise<{ organizationId: string; applicationId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, memberId } = await params;
+    const { organizationId, applicationId, memberId } = await params;
 
     try {
         const body = await request.json();
@@ -105,41 +105,41 @@ export async function POST(
 
         const insertedCount = { count: 0 };
         for (const id of idsToAssign) {
-            // Verify role exists and belongs to this app
+            // Verify role exists and belongs to this application
             const role = await db
-                .select({ id: appRoles.id })
-                .from(appRoles)
+                .select({ id: applicationRoles.id })
+                .from(applicationRoles)
                 .where(
                     and(
-                        eq(appRoles.id, id),
-                        eq(appRoles.appId, appId)
+                        eq(applicationRoles.id, id),
+                        eq(applicationRoles.applicationId, applicationId)
                     )
                 )
                 .limit(1);
 
             if (role.length === 0) {
                 return NextResponse.json(
-                    { error: `Role ${id} not found for this app` },
+                    { error: `Role ${id} not found for this application` },
                     { status: 404 }
                 );
             }
 
             // Check if already assigned
             const existing = await db
-                .select({ memberId: memberAppRoles.memberId })
-                .from(memberAppRoles)
+                .select({ memberId: memberApplicationRoles.memberId })
+                .from(memberApplicationRoles)
                 .where(
                     and(
-                        eq(memberAppRoles.memberId, memberId),
-                        eq(memberAppRoles.appRoleId, id)
+                        eq(memberApplicationRoles.memberId, memberId),
+                        eq(memberApplicationRoles.applicationRoleId, id)
                     )
                 )
                 .limit(1);
 
             if (existing.length === 0) {
-                await db.insert(memberAppRoles).values({
+                await db.insert(memberApplicationRoles).values({
                     memberId,
-                    appRoleId: id,
+                    applicationRoleId: id,
                 });
                 insertedCount.count++;
             }
@@ -147,12 +147,12 @@ export async function POST(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.members.app-roles.assign",
+            action: "admin.organization.members.application-roles.assign",
             targetType: "rbac",
             targetId: memberId,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
                 memberId,
                 roleIds: idsToAssign,
                 assignedCount: insertedCount.count,
@@ -172,12 +172,12 @@ export async function POST(
 // DELETE - Remove role from member
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: Promise<{ organizationId: string; appId: string; memberId: string }> }
+    { params }: { params: Promise<{ organizationId: string; applicationId: string; memberId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { organizationId, appId, memberId } = await params;
+    const { organizationId, applicationId, memberId } = await params;
     const { searchParams } = request.nextUrl;
     const roleId = searchParams.get("roleId");
 
@@ -190,22 +190,22 @@ export async function DELETE(
 
     try {
         await db
-            .delete(memberAppRoles)
+            .delete(memberApplicationRoles)
             .where(
                 and(
-                    eq(memberAppRoles.memberId, memberId),
-                    eq(memberAppRoles.appRoleId, roleId)
+                    eq(memberApplicationRoles.memberId, memberId),
+                    eq(memberApplicationRoles.applicationRoleId, roleId)
                 )
             );
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.organization.members.app-roles.remove",
+            action: "admin.organization.members.application-roles.remove",
             targetType: "rbac",
             targetId: memberId,
             metadata: {
                 organizationId,
-                appId,
+                applicationId,
                 memberId,
                 roleId,
             },

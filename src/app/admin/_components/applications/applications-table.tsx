@@ -72,7 +72,7 @@ import { generateKeyFromName } from "@/lib/utils";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
-interface App {
+interface Application {
     id: string;
     key: string;
     name: string;
@@ -93,7 +93,7 @@ type MutationInput = {
     body?: unknown;
 };
 
-export function AppsTable() {
+export function ApplicationsTable() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -110,28 +110,28 @@ export function AppsTable() {
     const [limit] = useState(urlLimit);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-    const [deleteAppId, setDeleteAppId] = useState<string | null>(null);
+    const [deleteApplicationId, setDeleteApplicationId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [brokenLogos, setBrokenLogos] = useState<Set<string>>(() => new Set());
 
     // Create form state
-    const [newAppKey, setNewAppKey] = useState("");
-    const [newAppName, setNewAppName] = useState("");
-    const [isNewAppKeyManuallyEdited, setIsNewAppKeyManuallyEdited] = useState(false);
-    const [newAppDescription, setNewAppDescription] = useState("");
-    const [newAppLogo, setNewAppLogo] = useState("");
-    const [newAppLogoInvalid, setNewAppLogoInvalid] = useState(false);
+    const [newApplicationKey, setNewApplicationKey] = useState("");
+    const [newApplicationName, setNewApplicationName] = useState("");
+    const [isNewApplicationKeyManuallyEdited, setIsNewApplicationKeyManuallyEdited] = useState(false);
+    const [newApplicationDescription, setNewApplicationDescription] = useState("");
+    const [newApplicationLogo, setNewApplicationLogo] = useState("");
+    const [newApplicationLogoInvalid, setNewApplicationLogoInvalid] = useState(false);
 
     // Edit form state
-    const [editAppId, setEditAppId] = useState<string | null>(null);
-    const [editAppKey, setEditAppKey] = useState("");
-    const [editAppName, setEditAppName] = useState("");
-    const [editAppDescription, setEditAppDescription] = useState("");
-    const [editAppLogo, setEditAppLogo] = useState("");
-    const [editAppLogoInvalid, setEditAppLogoInvalid] = useState(false);
+    const [editApplicationId, setEditApplicationId] = useState<string | null>(null);
+    const [editApplicationKey, setEditApplicationKey] = useState("");
+    const [editApplicationName, setEditApplicationName] = useState("");
+    const [editApplicationDescription, setEditApplicationDescription] = useState("");
+    const [editApplicationLogo, setEditApplicationLogo] = useState("");
+    const [editApplicationLogoInvalid, setEditApplicationLogoInvalid] = useState(false);
 
     // Toggle status state
-    const [toggleStatusApp, setToggleStatusApp] = useState<{ id: string; name: string; newStatus: boolean } | null>(null);
+    const [toggleStatusApplication, setToggleStatusApplication] = useState<{ id: string; name: string; newStatus: boolean } | null>(null);
 
     // Debounce search
     useEffect(() => {
@@ -176,10 +176,10 @@ export function AppsTable() {
 
     // Build SWR key
     const isActiveQuery = statusFilter === "all" ? "" : `&isActive=${statusFilter === "active" ? "true" : "false"}`;
-    const swrKey = `/api/admin/apps?search=${debouncedSearch}&page=${page}&limit=${limit}${isActiveQuery}`;
+    const swrKey = `/api/admin/applications?search=${debouncedSearch}&page=${page}&limit=${limit}${isActiveQuery}`;
 
     const { data, error, isLoading } = useQuery({
-        queryKey: adminKeys.apps(swrKey),
+        queryKey: adminKeys.applications(swrKey),
         queryFn: () => fetcher(swrKey),
         refetchOnWindowFocus: false,
         staleTime: 2000,
@@ -194,17 +194,17 @@ export function AppsTable() {
             }),
     });
 
-    const handleNewAppNameChange = (value: string) => {
-        setNewAppName(value);
-        if (!isNewAppKeyManuallyEdited) {
-            setNewAppKey(generateKeyFromName(value));
+    const handleNewApplicationNameChange = (value: string) => {
+        setNewApplicationName(value);
+        if (!isNewApplicationKeyManuallyEdited) {
+            setNewApplicationKey(generateKeyFromName(value));
         }
     };
 
-    const handleNewAppKeyChange = (value: string) => {
+    const handleNewApplicationKeyChange = (value: string) => {
         const normalized = generateKeyFromName(value);
-        setNewAppKey(normalized);
-        setIsNewAppKeyManuallyEdited(normalized.length > 0);
+        setNewApplicationKey(normalized);
+        setIsNewApplicationKeyManuallyEdited(normalized.length > 0);
     };
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -213,100 +213,100 @@ export function AppsTable() {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: "/api/admin/apps",
+                url: "/api/admin/applications",
                 method: "POST",
                 body: {
-                    key: newAppKey,
-                    name: newAppName,
-                    description: newAppDescription || null,
-                    logo: newAppLogo || null,
+                    key: newApplicationKey,
+                    name: newApplicationName,
+                    description: newApplicationDescription || null,
+                    logo: newApplicationLogo || null,
                 },
             });
 
             if (!response.ok) {
                 const data = await response.json();
-                alert(data.error || "Failed to create app");
+                alert(data.error || "Failed to create application");
                 return;
             }
 
             setIsCreateDialogOpen(false);
-            setNewAppKey("");
-            setNewAppName("");
-            setIsNewAppKeyManuallyEdited(false);
-            setNewAppDescription("");
-            setNewAppLogo("");
-            setNewAppLogoInvalid(false);
+            setNewApplicationKey("");
+            setNewApplicationName("");
+            setIsNewApplicationKeyManuallyEdited(false);
+            setNewApplicationDescription("");
+            setNewApplicationLogo("");
+            setNewApplicationLogoInvalid(false);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.apps(swrKey),
+                queryKey: adminKeys.applications(swrKey),
             });
         } catch (error) {
-            console.error("Error creating app:", error);
-            alert("Failed to create app");
+            console.error("Error creating application:", error);
+            alert("Failed to create application");
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleDelete = async () => {
-        if (!deleteAppId) return;
+        if (!deleteApplicationId) return;
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${deleteAppId}`,
+                url: `/api/admin/applications/${deleteApplicationId}`,
                 method: "DELETE",
             });
 
             if (!response.ok) {
-                alert("Failed to delete app");
+                alert("Failed to delete application");
                 return;
             }
 
-            setDeleteAppId(null);
+            setDeleteApplicationId(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.apps(swrKey),
+                queryKey: adminKeys.applications(swrKey),
             });
         } catch (error) {
-            console.error("Error deleting app:", error);
-            alert("Failed to delete app");
+            console.error("Error deleting application:", error);
+            alert("Failed to delete application");
         }
     };
 
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!editAppId) return;
+        if (!editApplicationId) return;
 
         setIsSubmitting(true);
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/apps/${editAppId}`,
+                url: `/api/admin/applications/${editApplicationId}`,
                 method: "PUT",
                 body: {
-                    name: editAppName,
-                    description: editAppDescription || null,
-                    logo: editAppLogo || null,
+                    name: editApplicationName,
+                    description: editApplicationDescription || null,
+                    logo: editApplicationLogo || null,
                 },
             });
 
             if (!response.ok) {
                 const data = await response.json();
-                alert(data.error || "Failed to update app");
+                alert(data.error || "Failed to update application");
                 return;
             }
 
             setIsUpdateDialogOpen(false);
-            setEditAppId(null);
-            setEditAppKey("");
-            setEditAppName("");
-            setEditAppDescription("");
-            setEditAppLogo("");
-            setEditAppLogoInvalid(false);
+            setEditApplicationId(null);
+            setEditApplicationKey("");
+            setEditApplicationName("");
+            setEditApplicationDescription("");
+            setEditApplicationLogo("");
+            setEditApplicationLogoInvalid(false);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.apps(swrKey),
+                queryKey: adminKeys.applications(swrKey),
             });
         } catch (error) {
-            console.error("Error updating app:", error);
-            alert("Failed to update app");
+            console.error("Error updating application:", error);
+            alert("Failed to update application");
         } finally {
             setIsSubmitting(false);
         }
@@ -317,7 +317,7 @@ export function AppsTable() {
         return (
             <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-4">
                 <div className="text-sm text-muted-foreground">
-                    Showing <span className="font-medium">{apps.length}</span> of <span className="font-medium">{total}</span> applications
+                    Showing <span className="font-medium">{applications.length}</span> of <span className="font-medium">{total}</span> applications
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground mr-2">
@@ -352,7 +352,7 @@ export function AppsTable() {
 
     if (error) return <div>Failed to load applications</div>;
 
-    const apps: App[] = data?.apps || [];
+    const applications: Application[] = data?.applications || [];
     const total = data?.total || 0;
     const totalPages = data?.totalPages || 1;
 
@@ -435,12 +435,12 @@ export function AppsTable() {
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">App Name</Label>
+                                <Label htmlFor="name">Application Name</Label>
                                 <Input
                                     id="name"
                                     placeholder="Order System"
-                                    value={newAppName}
-                                    onChange={(e) => handleNewAppNameChange(e.target.value)}
+                                    value={newApplicationName}
+                                    onChange={(e) => handleNewApplicationNameChange(e.target.value)}
                                     required
                                 />
                             </div>
@@ -449,8 +449,8 @@ export function AppsTable() {
                                 <Input
                                     id="key"
                                     placeholder="order_system"
-                                    value={newAppKey}
-                                    onChange={(e) => handleNewAppKeyChange(e.target.value)}
+                                    value={newApplicationKey}
+                                    onChange={(e) => handleNewApplicationKeyChange(e.target.value)}
                                     required
                                 />
                                 <p className="text-xs text-muted-foreground">
@@ -465,10 +465,10 @@ export function AppsTable() {
                                         <Input
                                             id="logo"
                                             placeholder="https://example.com/logo.png"
-                                            value={newAppLogo}
+                                            value={newApplicationLogo}
                                             onChange={(e) => {
-                                                setNewAppLogo(e.target.value);
-                                                if (newAppLogoInvalid) setNewAppLogoInvalid(false);
+                                                setNewApplicationLogo(e.target.value);
+                                                if (newApplicationLogoInvalid) setNewApplicationLogoInvalid(false);
                                             }}
                                         />
                                         <p className="text-[0.8rem] text-muted-foreground mt-1.5">
@@ -477,17 +477,17 @@ export function AppsTable() {
                                     </div>
                                     <div className="shrink-0">
                                         <div className="h-20 w-20 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden relative">
-                                            {newAppLogo ? (
-                                                newAppLogoInvalid ? (
+                                            {newApplicationLogo ? (
+                                                newApplicationLogoInvalid ? (
                                                     <span className="text-xs text-muted-foreground font-medium">Invalid</span>
                                                 ) : (
                                                     <Image
-                                                        src={newAppLogo}
+                                                        src={newApplicationLogo}
                                                         alt="Preview"
                                                         fill
                                                         className="object-cover"
                                                         unoptimized
-                                                        onError={() => setNewAppLogoInvalid(true)}
+                                                        onError={() => setNewApplicationLogoInvalid(true)}
                                                     />
                                                 )
                                             ) : (
@@ -503,8 +503,8 @@ export function AppsTable() {
                                 <Textarea
                                     id="description"
                                     placeholder="Order management application"
-                                    value={newAppDescription}
-                                    onChange={(e) => setNewAppDescription(e.target.value)}
+                                    value={newApplicationDescription}
+                                    onChange={(e) => setNewApplicationDescription(e.target.value)}
                                     rows={3}
                                 />
                             </div>
@@ -591,29 +591,29 @@ export function AppsTable() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {apps.length === 0 ? (
+                        {applications.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                     No applications found
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            apps.map((app) => {
-                                const logoKey = `${app.id}:${app.logo ?? ""}`;
-                                const showLogo = Boolean(app.logo) && !brokenLogos.has(logoKey);
+                            applications.map((application) => {
+                                const logoKey = `${application.id}:${application.logo ?? ""}`;
+                                const showLogo = Boolean(application.logo) && !brokenLogos.has(logoKey);
 
                                 return (
-                                    <TableRow key={app.id}>
+                                    <TableRow key={application.id}>
                                         <TableCell className="px-4 py-3">
                                             <div
                                                 className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity group"
                                                 onClick={() => {
-                                                    setEditAppId(app.id);
-                                                    setEditAppKey(app.key);
-                                                    setEditAppName(app.name);
-                                                    setEditAppDescription(app.description || "");
-                                                    setEditAppLogo(app.logo || "");
-                                                    setEditAppLogoInvalid(false);
+                                                    setEditApplicationId(application.id);
+                                                    setEditApplicationKey(application.key);
+                                                    setEditApplicationName(application.name);
+                                                    setEditApplicationDescription(application.description || "");
+                                                    setEditApplicationLogo(application.logo || "");
+                                                    setEditApplicationLogoInvalid(false);
                                                     setIsUpdateDialogOpen(true);
                                                 }}
                                                 title="Click to update application details"
@@ -621,8 +621,8 @@ export function AppsTable() {
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary overflow-hidden border border-border/50 group-hover:border-primary/50 transition-colors relative">
                                                     {showLogo ? (
                                                         <Image
-                                                            src={app.logo ?? ""}
-                                                            alt={app.name}
+                                                            src={application.logo ?? ""}
+                                                            alt={application.name}
                                                             fill
                                                             className="object-cover"
                                                             unoptimized
@@ -632,51 +632,51 @@ export function AppsTable() {
                                                         <Box className="h-5 w-5" />
                                                     )}
                                                 </div>
-                                                <span className="font-medium group-hover:text-primary transition-colors">{app.name}</span>
+                                                <span className="font-medium group-hover:text-primary transition-colors">{application.name}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-mono">
-                                                {app.key}
+                                                {application.key}
                                             </code>
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">
-                                            {app.description || "-"}
+                                            {application.description || "-"}
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <button
-                                                onClick={() => router.push(`/admin/apps/${app.id}/resources`)}
+                                                onClick={() => router.push(`/admin/applications/${application.id}/resources`)}
                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/30 text-xs font-medium hover:bg-muted/50 transition-colors cursor-pointer"
                                             >
                                                 <Layers className="h-3.5 w-3.5 opacity-70" />
-                                                {app.resourceCount || 0}
+                                                {application.resourceCount || 0}
                                             </button>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/30 text-xs font-medium text-muted-foreground">
                                                 <Zap className="h-3.5 w-3.5 opacity-70" />
-                                                {app.actionCount || 0}
+                                                {application.actionCount || 0}
                                             </span>
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <div className="flex items-center gap-2">
                                                 <Switch
-                                                    checked={app.isActive}
+                                                    checked={application.isActive}
                                                     onCheckedChange={(checked) => {
-                                                        setToggleStatusApp({
-                                                            id: app.id,
-                                                            name: app.name,
+                                                        setToggleStatusApplication({
+                                                            id: application.id,
+                                                            name: application.name,
                                                             newStatus: checked,
                                                         });
                                                     }}
                                                 />
-                                                <span className={`text-xs font-medium ${app.isActive ? 'text-green-600 dark:text-green-500' : 'text-muted-foreground'}`}>
-                                                    {app.isActive ? 'Active' : 'Inactive'}
+                                                <span className={`text-xs font-medium ${application.isActive ? 'text-green-600 dark:text-green-500' : 'text-muted-foreground'}`}>
+                                                    {application.isActive ? 'Active' : 'Inactive'}
                                                 </span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                                            {format(new Date(app.createdAt), "MMM d, yyyy")}
+                                            {format(new Date(application.createdAt), "MMM d, yyyy")}
                                         </TableCell>
                                         <TableCell className="px-4 py-3">
                                             <DropdownMenu>
@@ -689,12 +689,12 @@ export function AppsTable() {
                                                     <DropdownMenuItem
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setEditAppId(app.id);
-                                                            setEditAppKey(app.key);
-                                                            setEditAppName(app.name);
-                                                            setEditAppDescription(app.description || "");
-                                                            setEditAppLogo(app.logo || "");
-                                                            setEditAppLogoInvalid(false);
+                                                            setEditApplicationId(application.id);
+                                                            setEditApplicationKey(application.key);
+                                                            setEditApplicationName(application.name);
+                                                            setEditApplicationDescription(application.description || "");
+                                                            setEditApplicationLogo(application.logo || "");
+                                                            setEditApplicationLogoInvalid(false);
                                                             setIsUpdateDialogOpen(true);
                                                         }}
                                                     >
@@ -706,7 +706,7 @@ export function AppsTable() {
                                                         className="text-destructive"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setDeleteAppId(app.id);
+                                                            setDeleteApplicationId(application.id);
                                                         }}
                                                     >
                                                         <Trash2 className="h-4 w-4 mr-2" />
@@ -726,7 +726,7 @@ export function AppsTable() {
             </div>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={!!deleteAppId} onOpenChange={() => setDeleteAppId(null)}>
+            <AlertDialog open={!!deleteApplicationId} onOpenChange={() => setDeleteApplicationId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete application?</AlertDialogTitle>
@@ -767,8 +767,8 @@ export function AppsTable() {
                                 <Input
                                     id="edit-name"
                                     placeholder="Order System"
-                                    value={editAppName}
-                                    onChange={(e) => setEditAppName(e.target.value)}
+                                    value={editApplicationName}
+                                    onChange={(e) => setEditApplicationName(e.target.value)}
                                     required
                                 />
                             </div>
@@ -776,7 +776,7 @@ export function AppsTable() {
                                 <Label htmlFor="edit-key">Key</Label>
                                 <Input
                                     id="edit-key"
-                                    value={editAppKey}
+                                    value={editApplicationKey}
                                     disabled
                                     className="bg-muted"
                                 />
@@ -792,10 +792,10 @@ export function AppsTable() {
                                         <Input
                                             id="edit-logo"
                                             placeholder="https://example.com/logo.png"
-                                            value={editAppLogo}
+                                            value={editApplicationLogo}
                                             onChange={(e) => {
-                                                setEditAppLogo(e.target.value);
-                                                if (editAppLogoInvalid) setEditAppLogoInvalid(false);
+                                                setEditApplicationLogo(e.target.value);
+                                                if (editApplicationLogoInvalid) setEditApplicationLogoInvalid(false);
                                             }}
                                         />
                                         <p className="text-[0.8rem] text-muted-foreground mt-1.5">
@@ -804,17 +804,17 @@ export function AppsTable() {
                                     </div>
                                     <div className="shrink-0">
                                         <div className="h-20 w-20 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden relative">
-                                            {editAppLogo ? (
-                                                editAppLogoInvalid ? (
+                                            {editApplicationLogo ? (
+                                                editApplicationLogoInvalid ? (
                                                     <span className="text-xs text-muted-foreground font-medium">Invalid</span>
                                                 ) : (
                                                     <Image
-                                                        src={editAppLogo}
+                                                        src={editApplicationLogo}
                                                         alt="Preview"
                                                         fill
                                                         className="object-cover"
                                                         unoptimized
-                                                        onError={() => setEditAppLogoInvalid(true)}
+                                                        onError={() => setEditApplicationLogoInvalid(true)}
                                                     />
                                                 )
                                             ) : (
@@ -830,8 +830,8 @@ export function AppsTable() {
                                 <Textarea
                                     id="edit-description"
                                     placeholder="Order management application"
-                                    value={editAppDescription}
-                                    onChange={(e) => setEditAppDescription(e.target.value)}
+                                    value={editApplicationDescription}
+                                    onChange={(e) => setEditApplicationDescription(e.target.value)}
                                     rows={3}
                                 />
                             </div>
@@ -853,16 +853,16 @@ export function AppsTable() {
             </Dialog>
 
             {/* Toggle Status Confirmation Dialog */}
-            <AlertDialog open={!!toggleStatusApp} onOpenChange={(open) => !open && setToggleStatusApp(null)}>
+            <AlertDialog open={!!toggleStatusApplication} onOpenChange={(open) => !open && setToggleStatusApplication(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {toggleStatusApp?.newStatus ? "Activate" : "Deactivate"} application?
+                            {toggleStatusApplication?.newStatus ? "Activate" : "Deactivate"} application?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to {toggleStatusApp?.newStatus ? "activate" : "deactivate"}{" "}
-                            <strong>{toggleStatusApp?.name}</strong>?
-                            {!toggleStatusApp?.newStatus && (
+                            Are you sure you want to {toggleStatusApplication?.newStatus ? "activate" : "deactivate"}{" "}
+                            <strong>{toggleStatusApplication?.name}</strong>?
+                            {!toggleStatusApplication?.newStatus && (
                                 <span className="block mt-2 text-destructive">
                                     Deactivating may affect users who depend on this application.
                                 </span>
@@ -873,16 +873,16 @@ export function AppsTable() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={async () => {
-                                if (!toggleStatusApp) return;
+                                if (!toggleStatusApplication) return;
                                 try {
                                     const response = await requestMutation.mutateAsync({
-                                        url: `/api/admin/apps/${toggleStatusApp.id}`,
+                                        url: `/api/admin/applications/${toggleStatusApplication.id}`,
                                         method: "PUT",
-                                        body: { isActive: toggleStatusApp.newStatus },
+                                        body: { isActive: toggleStatusApplication.newStatus },
                                     });
                                     if (response.ok) {
                                         await queryClient.invalidateQueries({
-                                            queryKey: adminKeys.apps(swrKey),
+                                            queryKey: adminKeys.applications(swrKey),
                                         });
                                     } else {
                                         alert("Failed to update status");
@@ -890,10 +890,10 @@ export function AppsTable() {
                                 } catch {
                                     alert("Failed to update status");
                                 }
-                                setToggleStatusApp(null);
+                                setToggleStatusApplication(null);
                             }}
                         >
-                            {toggleStatusApp?.newStatus ? "Activate" : "Deactivate"}
+                            {toggleStatusApplication?.newStatus ? "Activate" : "Deactivate"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -16,7 +16,7 @@ const BUILT_IN_ROLE_NAMES = new Set(
     BUILT_IN_ORGANIZATION_ROLES.map((r) => r.role),
 );
 
-async function getOrgMembership(userId: string, organizationId: string) {
+async function getOrganizationMembership(userId: string, organizationId: string) {
     const result = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -50,7 +50,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, roleId } = await params;
-    const membership = await getOrgMembership(authResult.user.id, organizationId);
+    const membership = await getOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -123,7 +123,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, roleId } = await params;
-    const membership = await getOrgMembership(authResult.user.id, organizationId);
+    const membership = await getOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -164,7 +164,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const updatedRaw = await extendedAuthApi.updateOrgRole({
+        const updatedRaw = await extendedAuthApi.updateOrganizationRole({
             body: {
                 organizationId,
                 roleId,
@@ -215,7 +215,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, roleId } = await params;
-    const membership = await getOrgMembership(authResult.user.id, organizationId);
+    const membership = await getOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -229,7 +229,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        await extendedAuthApi.deleteOrgRole({
+        await extendedAuthApi.deleteOrganizationRole({
             body: {
                 organizationId,
                 roleId,

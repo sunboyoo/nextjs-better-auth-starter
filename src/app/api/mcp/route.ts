@@ -29,14 +29,14 @@ const handler = mcpHandler(
             },
           },
           async ({ message }) => {
-            const org = jwt?.[`${baseUrl}/org`];
+            const organization = jwt?.[`${baseUrl}/organization`];
             return {
               content: [
                 {
                   type: "text",
                   text: `Echo: ${message}${
                     jwt?.sub ? ` for user ${jwt.sub}` : ""
-                  }${org ? ` for organization ${String(org)}` : ""}`,
+                  }${organization ? ` for organization ${String(organization)}` : ""}`,
                 },
               ],
             };

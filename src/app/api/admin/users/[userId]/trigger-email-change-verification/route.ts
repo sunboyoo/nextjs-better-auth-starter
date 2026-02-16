@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createEmailVerificationToken } from "better-auth/api";
 import { auth } from "@/lib/auth";
+import { getSafeCallbackUrl } from "@/lib/auth-callback";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -71,9 +72,9 @@ export async function POST(
       );
     }
 
-    const callbackURL = parsed.data.callbackURL
-      ? encodeURIComponent(parsed.data.callbackURL)
-      : encodeURIComponent("/");
+    const callbackURL = encodeURIComponent(
+      getSafeCallbackUrl(parsed.data.callbackURL ?? null, "/"),
+    );
 
     const sendConfirmation =
       ctx.options.user.changeEmail.sendChangeEmailConfirmation ||

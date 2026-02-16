@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/lib/auth";
-import { GoBackBtn, SelectOrganizationBtn } from "./org-buttons";
+import { GoBackBtn, SelectOrganizationBtn } from "./organization-buttons";
 
 export const metadata: Metadata = {
 	title: "Select Organization",

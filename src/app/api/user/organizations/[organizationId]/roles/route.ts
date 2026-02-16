@@ -16,7 +16,7 @@ const BUILT_IN_ROLE_NAMES = new Set(
     BUILT_IN_ORGANIZATION_ROLES.map((r) => r.role),
 );
 
-async function getOrgMembership(userId: string, organizationId: string) {
+async function getOrganizationMembership(userId: string, organizationId: string) {
     const result = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -45,7 +45,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
-    const membership = await getOrgMembership(authResult.user.id, organizationId);
+    const membership = await getOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId } = await params;
-    const membership = await getOrgMembership(authResult.user.id, organizationId);
+    const membership = await getOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        const newRole = await extendedAuthApi.createOrgRole({
+        const newRole = await extendedAuthApi.createOrganizationRole({
             body: {
                 organizationId,
                 role,

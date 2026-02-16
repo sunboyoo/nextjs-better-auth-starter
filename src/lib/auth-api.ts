@@ -116,11 +116,11 @@ export type ExtendedAuthApi = {
     };
     headers: Headers;
   }) => Promise<unknown>;
-  listOrgRoles: (input: {
+  listOrganizationRoles: (input: {
     query: { organizationId?: string };
     headers: Headers;
   }) => Promise<unknown>;
-  createOrgRole: (input: {
+  createOrganizationRole: (input: {
     body: {
       organizationId?: string;
       role: string;
@@ -128,7 +128,7 @@ export type ExtendedAuthApi = {
     };
     headers: Headers;
   }) => Promise<unknown>;
-  updateOrgRole: (input: {
+  updateOrganizationRole: (input: {
     body: {
       organizationId?: string;
       roleId?: string;
@@ -140,7 +140,7 @@ export type ExtendedAuthApi = {
     };
     headers: Headers;
   }) => Promise<unknown>;
-  deleteOrgRole: (input: {
+  deleteOrganizationRole: (input: {
     body: {
       organizationId?: string;
       roleId?: string;
@@ -148,7 +148,7 @@ export type ExtendedAuthApi = {
     };
     headers: Headers;
   }) => Promise<unknown>;
-  getOrgRole: (input: {
+  getOrganizationRole: (input: {
     query: {
       organizationId?: string;
       roleId?: string;

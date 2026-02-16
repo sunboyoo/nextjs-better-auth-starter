@@ -57,28 +57,28 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
 
     const cloneJson = (value: any) => JSON.parse(JSON.stringify(value ?? {}));
 
-    const org: Organization | null = data?.organization ?? null;
+    const organization: Organization | null = data?.organization ?? null;
 
     const parsedMetadata = (() => {
-        if (!org?.metadata) return {};
+        if (!organization?.metadata) return {};
         try {
-            return JSON.parse(org.metadata);
+            return JSON.parse(organization.metadata);
         } catch {
             return {};
         }
     })();
 
     useEffect(() => {
-        if (org?.metadata) {
+        if (organization?.metadata) {
             try {
-                setEditedMetadata(JSON.parse(org.metadata));
+                setEditedMetadata(JSON.parse(organization.metadata));
             } catch {
                 setEditedMetadata({});
             }
         } else {
             setEditedMetadata({});
         }
-    }, [org?.metadata]);
+    }, [organization?.metadata]);
 
     const handleSaveMetadata = async () => {
         setIsSavingMetadata(true);
@@ -112,7 +112,7 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
         );
     }
 
-    if (isLoading || !org) {
+    if (isLoading || !organization) {
         return (
             <div className="space-y-6">
                 <Card>
@@ -130,7 +130,7 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
         );
     }
 
-    const showLogo = Boolean(org.logo) && !brokenLogo;
+    const showLogo = Boolean(organization.logo) && !brokenLogo;
     const handleOrganizationProfileSuccess = () => {
         void queryClient.invalidateQueries({
             queryKey: adminKeys.organization(organizationUrl),
@@ -163,15 +163,15 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
                     <div className="grid gap-6 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs uppercase tracking-wider">Name</Label>
-                            <p className="font-medium">{org.name}</p>
+                            <p className="font-medium">{organization.name}</p>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs uppercase tracking-wider">Slug</Label>
-                            <p className="font-mono text-sm bg-muted/50 px-2 py-1 rounded w-fit">{org.slug}</p>
+                            <p className="font-mono text-sm bg-muted/50 px-2 py-1 rounded w-fit">{organization.slug}</p>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs uppercase tracking-wider">Created At</Label>
-                            <p className="text-sm">{format(new Date(org.createdAt), "MMMM d, yyyy 'at' h:mm a")}</p>
+                            <p className="text-sm">{format(new Date(organization.createdAt), "MMMM d, yyyy 'at' h:mm a")}</p>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground text-xs uppercase tracking-wider">Logo</Label>
@@ -179,8 +179,8 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
                                 <div className="h-12 w-12 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden relative">
                                     {showLogo ? (
                                         <Image
-                                            src={org.logo ?? ""}
-                                            alt={org.name}
+                                            src={organization.logo ?? ""}
+                                            alt={organization.name}
                                             fill
                                             className="object-cover"
                                             unoptimized
@@ -191,7 +191,7 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
                                     )}
                                 </div>
                                 <span className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                    {org.logo || "No logo set"}
+                                    {organization.logo || "No logo set"}
                                 </span>
                             </div>
                         </div>
@@ -267,7 +267,7 @@ export function OrganizationProfileTab({ organizationId }: OrganizationProfileTa
                 isOpen={isEditDialogOpen}
                 onClose={() => setIsEditDialogOpen(false)}
                 onSuccess={handleOrganizationProfileSuccess}
-                organization={org}
+                organization={organization}
             />
         </div>
     );

@@ -22,13 +22,13 @@ export async function GET(
 
     try {
         // Verify organization exists
-        const org = await db
+        const organizationRows = await db
             .select({ id: organization.id, name: organization.name, slug: organization.slug })
             .from(organization)
             .where(eq(organization.id, organizationId))
             .limit(1);
 
-        if (org.length === 0) {
+        if (organizationRows.length === 0) {
             return NextResponse.json({ error: "Organization not found" }, { status: 404 });
         }
 
@@ -92,7 +92,7 @@ export async function GET(
         );
 
         return NextResponse.json({
-            organization: org[0],
+            organization: organizationRows[0],
             teams,
             ...createPaginationMeta(total, pagination),
         });

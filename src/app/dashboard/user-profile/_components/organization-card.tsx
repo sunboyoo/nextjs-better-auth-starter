@@ -83,18 +83,18 @@ const OrganizationCard = (props: { session: Session | null }) => {
 							>
 								<p className="text-sm sm">Personal</p>
 							</DropdownMenuItem>
-							{organizations?.map((org) => (
+							{organizations?.map((organization) => (
 								<DropdownMenuItem
 									className="py-1"
-									key={org.id}
+									key={organization.id}
 									onClick={() => {
-										if (org.id === activeOrganization?.id) {
+										if (organization.id === activeOrganization?.id) {
 											return;
 										}
-										setActiveMutation.mutate({ organizationId: org.id });
+										setActiveMutation.mutate({ organizationId: organization.id });
 									}}
 								>
-									<p className="text-sm sm">{org.name}</p>
+									<p className="text-sm sm">{organization.name}</p>
 								</DropdownMenuItem>
 							))}
 						</DropdownMenuContent>
@@ -250,9 +250,9 @@ const OrganizationCard = (props: { session: Session | null }) => {
 														)}
 													</Button>
 													<div>
-														<CopyButton
-															textToCopy={`${window.location.origin}/accept-invitation/${invitation.id}`}
-														/>
+															<CopyButton
+																textToCopy={`${window.location.origin}/auth/accept-invitation/${invitation.id}`}
+															/>
 													</div>
 												</div>
 											</motion.div>

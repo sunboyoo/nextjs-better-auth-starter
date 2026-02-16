@@ -42,7 +42,7 @@ import {
 
 interface ResourceDetail {
     id: string;
-    appId: string;
+    applicationId: string;
     key: string;
     name: string;
     description: string | null;
@@ -53,7 +53,7 @@ interface ResourceDetail {
 
 interface ResourceResponse {
     resource: ResourceDetail;
-    appName: string;
+    applicationName: string;
     canWrite: boolean;
 }
 
@@ -78,7 +78,7 @@ export default function ResourceDetailPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    const queryKey = userKeys.orgAppResource(
+    const queryKey = userKeys.organizationApplicationResource(
         organizationId,
         applicationId,
         resourceId,
@@ -88,7 +88,7 @@ export default function ResourceDetailPage() {
         queryKey,
         queryFn: () =>
             fetcher(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`,
             ),
         refetchOnWindowFocus: false,
     });
@@ -108,7 +108,7 @@ export default function ResourceDetailPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -138,7 +138,7 @@ export default function ResourceDetailPage() {
     const handleDelete = async () => {
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}`,
                 { method: "DELETE", credentials: "include" },
             );
             if (!res.ok) {

@@ -9,7 +9,7 @@ interface RouteParams {
     params: Promise<{ organizationId: string; teamId: string; teamMemberId: string }>;
 }
 
-async function verifyOrgMembership(userId: string, organizationId: string) {
+async function verifyOrganizationMembership(userId: string, organizationId: string) {
     const memberRecord = await db
         .select({ id: member.id, role: member.role })
         .from(member)
@@ -24,13 +24,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, teamId, teamMemberId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
 
     try {
-        // Verify team belongs to org
+        // Verify team belongs to organization
         const teamResult = await db
             .select({ id: team.id, name: team.name, organizationId: team.organizationId })
             .from(team)
@@ -85,7 +85,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     if (!authResult.success) return authResult.response;
 
     const { organizationId, teamId, teamMemberId } = await params;
-    const membership = await verifyOrgMembership(authResult.user.id, organizationId);
+    const membership = await verifyOrganizationMembership(authResult.user.id, organizationId);
     if (!membership) {
         return NextResponse.json({ error: "Not a member of this organization" }, { status: 403 });
     }
@@ -94,7 +94,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     try {
-        // Verify team belongs to org
+        // Verify team belongs to organization
         const teamResult = await db
             .select({ id: team.id, organizationId: team.organizationId })
             .from(team)

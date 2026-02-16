@@ -118,7 +118,7 @@ export default function ActionsPage() {
         return () => clearTimeout(timer);
     }, [search]);
 
-    const queryKey = userKeys.orgAppResourceActions(
+    const queryKey = userKeys.organizationApplicationResourceActions(
         organizationId,
         applicationId,
         resourceId,
@@ -131,7 +131,7 @@ export default function ActionsPage() {
             const params = new URLSearchParams();
             if (debouncedSearch) params.set("search", debouncedSearch);
             return fetcher(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions?${params.toString()}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions?${params.toString()}`,
             );
         },
         refetchOnWindowFocus: false,
@@ -175,7 +175,7 @@ export default function ActionsPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -220,7 +220,7 @@ export default function ActionsPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${editId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${editId}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -252,7 +252,7 @@ export default function ActionsPage() {
         if (!deleteAction) return;
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${deleteAction.id}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${deleteAction.id}`,
                 { method: "DELETE", credentials: "include" },
             );
             if (!res.ok) {

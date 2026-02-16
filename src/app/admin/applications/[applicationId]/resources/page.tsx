@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { ResourcesTable } from "../../../_components/apps/resources-table";
+import { ResourcesTable } from "../../../_components/applications/resources-table";
 
 export const metadata: Metadata = {
     title: "Resources | Admin Dashboard",
@@ -11,15 +11,15 @@ export const metadata: Metadata = {
 };
 
 interface ResourcesPageProps {
-    params: Promise<{ appId: string }>;
+    params: Promise<{ applicationId: string }>;
 }
 
-async function getApp(appId: string) {
+async function getApp(applicationId: string) {
     const headersList = await headers();
     const host = headersList.get("host") || "localhost:3000";
     const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
 
-    const res = await fetch(`${protocol}://${host}/api/admin/apps/${appId}`, {
+    const res = await fetch(`${protocol}://${host}/api/admin/applications/${applicationId}`, {
         headers: {
             cookie: headersList.get("cookie") || "",
         },
@@ -34,29 +34,29 @@ async function getApp(appId: string) {
 }
 
 export default async function ResourcesPage({ params }: ResourcesPageProps) {
-    const { appId } = await params;
+    const { applicationId } = await params;
 
-    const data = await getApp(appId);
+    const data = await getApp(applicationId);
 
-    if (!data?.app) {
+    if (!data?.application) {
         notFound();
     }
 
-    const appData = data.app;
+    const applicationData = data.application;
 
     return (
         <div className="flex flex-col gap-4 p-4 md:p-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <Link
-                    href="/admin/apps"
+                    href="/admin/applications"
                     className="flex items-center gap-1 hover:text-foreground"
                 >
                     <ChevronLeft className="h-4 w-4" />
-                    Back to Apps
+                    Back to Applications
                 </Link>
             </div>
 
-            <ResourcesTable appId={appId} />
+            <ResourcesTable applicationId={applicationId} />
         </div>
     );
 }

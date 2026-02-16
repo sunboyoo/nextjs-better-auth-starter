@@ -53,7 +53,7 @@ interface ActionResponse {
     action: ActionDetail;
     resourceName: string;
     resourceKey: string;
-    appName: string;
+    applicationName: string;
     canWrite: boolean;
 }
 
@@ -80,7 +80,7 @@ export default function ActionDetailPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-    const queryKey = userKeys.orgAppResourceAction(
+    const queryKey = userKeys.organizationApplicationResourceAction(
         organizationId,
         applicationId,
         resourceId,
@@ -91,7 +91,7 @@ export default function ActionDetailPage() {
         queryKey,
         queryFn: () =>
             fetcher(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${actionId}`,
             ),
         refetchOnWindowFocus: false,
     });
@@ -111,7 +111,7 @@ export default function ActionDetailPage() {
         setIsSubmitting(true);
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${actionId}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -141,7 +141,7 @@ export default function ActionDetailPage() {
     const handleDelete = async () => {
         try {
             const res = await fetch(
-                `/api/user/organizations/${organizationId}/apps/${applicationId}/resources/${resourceId}/actions/${actionId}`,
+                `/api/user/organizations/${organizationId}/applications/${applicationId}/resources/${resourceId}/actions/${actionId}`,
                 { method: "DELETE", credentials: "include" },
             );
             if (!res.ok) {

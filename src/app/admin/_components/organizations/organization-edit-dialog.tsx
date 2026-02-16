@@ -55,8 +55,8 @@ export function OrganizationEditDialog({
         }
     }
 
-    const updateOrgMutation = useMutation({
-        mutationFn: async (payload: { orgId: string; name: string; slug: string; logo: string | null; excludeOrganizationId: string }) => {
+    const updateOrganizationMutation = useMutation({
+        mutationFn: async (payload: { organizationId: string; name: string; slug: string; logo: string | null; excludeOrganizationId: string }) => {
             // Step 1: Check slug availability
             const slugCheckResponse = await fetch(
                 `/api/admin/organizations/check-slug?slug=${encodeURIComponent(payload.slug)}&excludeOrganizationId=${encodeURIComponent(payload.excludeOrganizationId)}`,
@@ -70,7 +70,7 @@ export function OrganizationEditDialog({
             }
 
             // Step 2: Update organization
-            const response = await fetch(`/api/admin/organizations/${payload.orgId}`, {
+            const response = await fetch(`/api/admin/organizations/${payload.organizationId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: payload.name, slug: payload.slug, logo: payload.logo }),
@@ -89,8 +89,8 @@ export function OrganizationEditDialog({
         setError(null);
 
         try {
-            await updateOrgMutation.mutateAsync({
-                orgId: organization.id,
+            await updateOrganizationMutation.mutateAsync({
+                organizationId: organization.id,
                 name,
                 slug: slug || generateSlugFromName(name),
                 logo: logo || null,
@@ -204,8 +204,8 @@ export function OrganizationEditDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={updateOrgMutation.isPending || !name}>
-                            {updateOrgMutation.isPending ? "Saving..." : "Save changes"}
+                        <Button type="submit" disabled={updateOrganizationMutation.isPending || !name}>
+                            {updateOrganizationMutation.isPending ? "Saving..." : "Save changes"}
                         </Button>
                     </DialogFooter>
                 </form>

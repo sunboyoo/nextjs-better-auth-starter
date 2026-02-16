@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberAppRoles, appRoleAction, actions, resources, apps, member } from "@/db/schema";
+import { memberApplicationRoles, applicationRoleAction, actions, resources, applications, member } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -11,8 +11,8 @@ const permissionCheckCache = new Map<string, { data: boolean; timestamp: number 
 const CACHE_TTL = 60 * 1000; // 60 seconds
 const MAX_CACHE_ENTRIES = 1000;
 
-function getCacheKey(memberId: string, appKey: string, resourceKey: string, actionKey: string): string {
-    return `${memberId}:${appKey}:${resourceKey}:${actionKey}`;
+function getCacheKey(memberId: string, applicationKey: string, resourceKey: string, actionKey: string): string {
+    return `${memberId}:${applicationKey}:${resourceKey}:${actionKey}`;
 }
 
 function getFromCache(key: string): boolean | null {
@@ -35,7 +35,7 @@ function setCache(key: string, data: boolean): void {
 }
 
 // GET /api/rbac/permissions/check - Check if member has permission
-// Query params: memberId, appKey, resourceKey, actionKey
+// Query params: memberId, applicationKey, resourceKey, actionKey
 export async function GET(request: NextRequest) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
@@ -43,13 +43,13 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const memberId = searchParams.get("memberId");
-    const appKey = searchParams.get("appKey");
+    const applicationKey = searchParams.get("applicationKey");
     const resourceKey = searchParams.get("resourceKey");
     const actionKey = searchParams.get("actionKey");
 
-    if (!memberId || !appKey || !resourceKey || !actionKey) {
+    if (!memberId || !applicationKey || !resourceKey || !actionKey) {
         return NextResponse.json(
-            { error: "memberId, appKey, resourceKey, and actionKey are required" },
+            { error: "memberId, applicationKey, resourceKey, and actionKey are required" },
             { status: 400 }
         );
     }
@@ -82,19 +82,19 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             hasPermission: true,
             memberId,
-            appKey,
+            applicationKey,
             resourceKey,
             actionKey,
             reason: "PLATFORM_ADMIN",
         });
     }
 
-    // Hierarchy layer 2: organization owner/admin inherits full app-level access.
+    // Hierarchy layer 2: organization owner/admin inherits full application-level access.
     if (targetMember.role === "owner" || targetMember.role === "admin") {
         return NextResponse.json({
             hasPermission: true,
             memberId,
-            appKey,
+            applicationKey,
             resourceKey,
             actionKey,
             reason: "ORGANIZATION_ROLE_INHERIT",
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 hasPermission: permissionResult.success === true,
                 memberId,
-                appKey,
+                applicationKey,
                 resourceKey,
                 actionKey,
                 reason: "BETTER_AUTH_ORGANIZATION_PERMISSION",
@@ -134,13 +134,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Check cache
-    const cacheKey = getCacheKey(memberId, appKey, resourceKey, actionKey);
+    const cacheKey = getCacheKey(memberId, applicationKey, resourceKey, actionKey);
     const cachedResult = getFromCache(cacheKey);
     if (cachedResult !== null) {
         return NextResponse.json({
             hasPermission: cachedResult,
             memberId,
-            appKey,
+            applicationKey,
             resourceKey,
             actionKey,
             cached: true,
@@ -150,28 +150,28 @@ export async function GET(request: NextRequest) {
     try {
         // Optimized: Single query to check permission using JOINs
         const permissionCheck = await db
-            .select({ roleId: memberAppRoles.appRoleId })
-            .from(memberAppRoles)
+            .select({ roleId: memberApplicationRoles.applicationRoleId })
+            .from(memberApplicationRoles)
             .innerJoin(
-                appRoleAction,
-                eq(memberAppRoles.appRoleId, appRoleAction.roleId)
+                applicationRoleAction,
+                eq(memberApplicationRoles.applicationRoleId, applicationRoleAction.roleId)
             )
             .innerJoin(
                 actions,
-                eq(appRoleAction.actionId, actions.id)
+                eq(applicationRoleAction.actionId, actions.id)
             )
             .innerJoin(
                 resources,
                 eq(actions.resourceId, resources.id)
             )
             .innerJoin(
-                apps,
-                eq(resources.appId, apps.id)
+                applications,
+                eq(resources.applicationId, applications.id)
             )
             .where(
                 and(
-                    eq(memberAppRoles.memberId, memberId),
-                    eq(apps.key, appKey),
+                    eq(memberApplicationRoles.memberId, memberId),
+                    eq(applications.key, applicationKey),
                     eq(resources.key, resourceKey),
                     eq(actions.key, actionKey)
                 )
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             hasPermission,
             memberId,
-            appKey,
+            applicationKey,
             resourceKey,
             actionKey,
         });

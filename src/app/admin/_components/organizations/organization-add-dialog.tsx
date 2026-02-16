@@ -35,7 +35,7 @@ export function OrganizationAddDialog({
     const [logoInvalid, setLogoInvalid] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const createOrgMutation = useMutation({
+    const createOrganizationMutation = useMutation({
         mutationFn: async (payload: { name: string; slug: string; logo?: string }) => {
             // Step 1: Check slug availability
             const slugCheckResponse = await fetch(
@@ -78,7 +78,7 @@ export function OrganizationAddDialog({
         }
 
         try {
-            await createOrgMutation.mutateAsync(requestBody);
+            await createOrganizationMutation.mutateAsync(requestBody);
             setName("");
             setSlug("");
             setIsSlugManuallyEdited(false);
@@ -192,8 +192,8 @@ export function OrganizationAddDialog({
                         <Button type="button" variant="outline" onClick={onClose}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={createOrgMutation.isPending || !name}>
-                            {createOrgMutation.isPending ? "Creating..." : "Create"}
+                        <Button type="submit" disabled={createOrganizationMutation.isPending || !name}>
+                            {createOrganizationMutation.isPending ? "Creating..." : "Create"}
                         </Button>
                     </DialogFooter>
                 </form>

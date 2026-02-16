@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
         ) as OrganizationSummary[];
         const lowerSearch = search.trim().toLowerCase();
         const filteredOrganizations = lowerSearch
-            ? normalizedOrganizations.filter((org) => {
-                  const name = (org.name ?? "").toLowerCase();
-                  const slug = (org.slug ?? "").toLowerCase();
+            ? normalizedOrganizations.filter((organization) => {
+                  const name = (organization.name ?? "").toLowerCase();
+                  const slug = (organization.slug ?? "").toLowerCase();
                   return name.includes(lowerSearch) || slug.includes(lowerSearch);
               })
             : normalizedOrganizations;
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
             pagination.offset,
             pagination.offset + pagination.limit,
         );
-        const organizationIds = paginatedOrganizations.map((org) => org.id);
+        const organizationIds = paginatedOrganizations.map((organization) => organization.id);
         let memberCountMap = new Map<string, number>();
         let customRoleCountMap = new Map<string, number>();
 
@@ -91,15 +91,15 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const organizations = paginatedOrganizations.map((org) => ({
-            id: org.id,
-            name: org.name,
-            slug: org.slug,
-            logo: org.logo ?? null,
-            createdAt: org.createdAt,
-            metadata: org.metadata ?? null,
-            memberCount: memberCountMap.get(org.id) ?? 0,
-            roleCount: (customRoleCountMap.get(org.id) ?? 0) + 3,
+        const organizations = paginatedOrganizations.map((organization) => ({
+            id: organization.id,
+            name: organization.name,
+            slug: organization.slug,
+            logo: organization.logo ?? null,
+            createdAt: organization.createdAt,
+            metadata: organization.metadata ?? null,
+            memberCount: memberCountMap.get(organization.id) ?? 0,
+            roleCount: (customRoleCountMap.get(organization.id) ?? 0) + 3,
         }));
 
         return NextResponse.json({
@@ -130,13 +130,13 @@ export async function POST(request: NextRequest) {
         const { name, slug, logo } = result.data;
 
         // Generate slug if not provided
-        const orgSlug = toSafeSlug(slug || name);
+        const organizationSlug = toSafeSlug(slug || name);
 
         // Check if slug already exists
         const existing = await db
             .select({ id: organization.id })
             .from(organization)
-            .where(eq(organization.slug, orgSlug))
+            .where(eq(organization.slug, organizationSlug))
             .limit(1);
 
         if (existing.length > 0) {
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
             logo?: string;
         } = {
             name,
-            slug: orgSlug,
+            slug: organizationSlug,
         };
         if (typeof logo === "string" && logo.trim().length > 0) {
             createBody.logo = logo;
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
             targetId: createdOrganizationId,
             metadata: {
                 name,
-                slug: orgSlug,
+                slug: organizationSlug,
             },
             headers: authResult.headers,
         });

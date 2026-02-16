@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { resources, apps, actions } from "@/db/schema";
+import { resources, applications, actions } from "@/db/schema";
 import { eq, and, ilike, desc, sql, count } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { parsePagination, createPaginationMeta } from "@/lib/api/pagination";
@@ -8,34 +8,34 @@ import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
 
-// GET /api/admin/apps/[appId]/resources - List resources by appId
+// GET /api/admin/applications/[applicationId]/resources - List resources by applicationId
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string }> }
+    { params }: { params: Promise<{ applicationId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { appId } = await params;
+    const { applicationId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const pagination = parsePagination(request);
 
     try {
-        // Verify app exists
-        const app = await db
-            .select({ id: apps.id, name: apps.name })
-            .from(apps)
-            .where(eq(apps.id, appId))
+        // Verify application exists
+        const application = await db
+            .select({ id: applications.id, name: applications.name })
+            .from(applications)
+            .where(eq(applications.id, applicationId))
             .limit(1);
 
-        if (app.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (application.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
         const conditions = search
-            ? and(eq(resources.appId, appId), ilike(resources.name, `%${search}%`))
-            : eq(resources.appId, appId);
+            ? and(eq(resources.applicationId, applicationId), ilike(resources.name, `%${search}%`))
+            : eq(resources.applicationId, applicationId);
 
         // Fetch resources
         const resourcesList = await db
@@ -54,7 +54,7 @@ export async function GET(
             })
             .from(actions)
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .where(eq(resources.appId, appId))
+            .where(eq(resources.applicationId, applicationId))
             .groupBy(actions.resourceId);
 
         // Create lookup map
@@ -74,7 +74,7 @@ export async function GET(
         const total = Number(countResult[0]?.count || 0);
 
         return NextResponse.json({
-            app: app[0],
+            application: application[0],
             resources: resourcesWithCounts,
             ...createPaginationMeta(total, pagination),
         });
@@ -83,15 +83,15 @@ export async function GET(
     }
 }
 
-// POST /api/admin/apps/[appId]/resources - Create a new resource
+// POST /api/admin/applications/[applicationId]/resources - Create a new resource
 export async function POST(
     request: NextRequest,
-    { params }: { params: Promise<{ appId: string }> }
+    { params }: { params: Promise<{ applicationId: string }> }
 ) {
-    const authResult = await requireAdminAction("apps.manage");
+    const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { appId } = await params;
+    const { applicationId } = await params;
 
     try {
         const body = await request.json();
@@ -122,27 +122,27 @@ export async function POST(
             );
         }
 
-        // Verify app exists
-        const app = await db
-            .select({ id: apps.id })
-            .from(apps)
-            .where(eq(apps.id, appId))
+        // Verify application exists
+        const application = await db
+            .select({ id: applications.id })
+            .from(applications)
+            .where(eq(applications.id, applicationId))
             .limit(1);
 
-        if (app.length === 0) {
-            return NextResponse.json({ error: "App not found" }, { status: 404 });
+        if (application.length === 0) {
+            return NextResponse.json({ error: "Application not found" }, { status: 404 });
         }
 
-        // Check if resource key already exists for this app
+        // Check if resource key already exists for this application
         const existing = await db
             .select({ id: resources.id })
             .from(resources)
-            .where(and(eq(resources.appId, appId), eq(resources.key, key)))
+            .where(and(eq(resources.applicationId, applicationId), eq(resources.key, key)))
             .limit(1);
 
         if (existing.length > 0) {
             return NextResponse.json(
-                { error: "Resource with this key already exists in this app" },
+                { error: "Resource with this key already exists in this application" },
                 { status: 400 }
             );
         }
@@ -150,7 +150,7 @@ export async function POST(
         const newResource = await db
             .insert(resources)
             .values({
-                appId,
+                applicationId,
                 key,
                 name,
                 description: description || null,
@@ -159,11 +159,11 @@ export async function POST(
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,
-            action: "admin.apps.resources.create",
+            action: "admin.applications.resources.create",
             targetType: "resource",
             targetId: newResource[0]?.id ?? null,
             metadata: {
-                appId,
+                applicationId,
                 key,
                 name,
             },

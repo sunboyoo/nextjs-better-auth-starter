@@ -29,7 +29,7 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select";
-import { OrgAppSelector } from "./org-app-selector";
+import { OrganizationApplicationSelector } from "./organization-application-selector";
 import {
     Dialog,
     DialogContent,
@@ -51,7 +51,7 @@ interface Organization {
     slug: string;
 }
 
-interface App {
+interface Application {
     id: string;
     key: string;
     name: string;
@@ -97,8 +97,8 @@ export function AssignRolesToMembers() {
     const urlPage = parseInt(searchParams.get("page") || String(DEFAULT_PAGE));
     const urlLimit = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT));
 
-    const [selectedOrgId, setSelectedOrgId] = useState(searchParams.get("organizationId") || "");
-    const [selectedAppId, setSelectedAppId] = useState(searchParams.get("appId") || "");
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(searchParams.get("organizationId") || "");
+    const [selectedApplicationId, setSelectedApplicationId] = useState(searchParams.get("applicationId") || "");
     const [page, setPage] = useState(urlPage);
     const [limit] = useState(urlLimit);
 
@@ -116,8 +116,8 @@ export function AssignRolesToMembers() {
 
     // Fetch members with pagination
     const membersUrl =
-        selectedOrgId && selectedOrgId !== "all"
-            ? `/api/admin/organizations/${selectedOrgId}/members?page=${page}&limit=${limit}`
+        selectedOrganizationId && selectedOrganizationId !== "all"
+            ? `/api/admin/organizations/${selectedOrganizationId}/members?page=${page}&limit=${limit}`
             : null;
     const { data: membersData } = useQuery({
         queryKey: adminKeys.organizationMembers(membersUrl),
@@ -131,20 +131,20 @@ export function AssignRolesToMembers() {
     // Update URL when filters or page change
     useEffect(() => {
         const params = new URLSearchParams();
-        if (selectedOrgId) params.set("organizationId", selectedOrgId);
-        if (selectedAppId) params.set("appId", selectedAppId);
+        if (selectedOrganizationId) params.set("organizationId", selectedOrganizationId);
+        if (selectedApplicationId) params.set("applicationId", selectedApplicationId);
         params.set("page", String(page));
         params.set("limit", String(limit));
         router.replace(`${pathname}?${params.toString()}`);
-    }, [selectedOrgId, selectedAppId, page, limit, router, pathname]);
+    }, [selectedOrganizationId, selectedApplicationId, page, limit, router, pathname]);
 
-    // Fetch roles for selected org + app
+    // Fetch roles for selected organization + application
     const rolesUrl =
-        selectedOrgId && selectedAppId
-            ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles?limit=${SELECTOR_PAGE_LIMIT}`
+        selectedOrganizationId && selectedApplicationId
+            ? `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles?limit=${SELECTOR_PAGE_LIMIT}`
             : null;
     const { data: rolesData } = useQuery({
-        queryKey: adminKeys.appRoles(rolesUrl),
+        queryKey: adminKeys.applicationRoles(rolesUrl),
         queryFn: () => fetcher(rolesUrl!),
         enabled: Boolean(rolesUrl),
     });
@@ -168,13 +168,13 @@ export function AssignRolesToMembers() {
         );
     });
 
-    // Fetch member-role assignments for selected org + app
+    // Fetch member-role assignments for selected organization + application
     const assignmentsUrl =
-        selectedOrgId && selectedAppId
-            ? `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/member-organization-app-roles`
+        selectedOrganizationId && selectedApplicationId
+            ? `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/member-organization-application-roles`
             : null;
     const { data: assignmentsData } = useQuery({
-        queryKey: adminKeys.memberAppRoles(assignmentsUrl),
+        queryKey: adminKeys.memberApplicationRoles(assignmentsUrl),
         queryFn: () => fetcher(assignmentsUrl!),
         enabled: Boolean(assignmentsUrl),
     });
@@ -228,7 +228,7 @@ export function AssignRolesToMembers() {
     };
 
     const saveMemberRoles = async () => {
-        if (!editingMember || !selectedOrgId || !selectedAppId) return;
+        if (!editingMember || !selectedOrganizationId || !selectedApplicationId) return;
         setIsSavingMemberRoles(true);
 
         try {
@@ -239,7 +239,7 @@ export function AssignRolesToMembers() {
             // Add new roles
             if (toAdd.length > 0) {
                 await requestMutation.mutateAsync({
-                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles`,
+                    url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/members/${editingMember.id}/organization-application-roles`,
                     method: "POST",
                     body: { roleIds: toAdd },
                 });
@@ -248,13 +248,13 @@ export function AssignRolesToMembers() {
             // Remove roles
             for (const roleId of toRemove) {
                 await requestMutation.mutateAsync({
-                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${editingMember.id}/organization-app-roles?roleId=${roleId}`,
+                    url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/members/${editingMember.id}/organization-application-roles?roleId=${roleId}`,
                     method: "DELETE",
                 });
             }
 
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.memberAppRoles(assignmentsUrl),
+                queryKey: adminKeys.memberApplicationRoles(assignmentsUrl),
             });
             setEditingMember(null);
         } catch (error) {
@@ -271,7 +271,7 @@ export function AssignRolesToMembers() {
     };
 
     const saveRoleMembers = async () => {
-        if (!editingRole || !selectedOrgId || !selectedAppId) return;
+        if (!editingRole || !selectedOrganizationId || !selectedApplicationId) return;
         setIsSavingRoleMembers(true);
 
         try {
@@ -282,7 +282,7 @@ export function AssignRolesToMembers() {
             // Add role to new members
             for (const memberId of toAdd) {
                 await requestMutation.mutateAsync({
-                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles`,
+                    url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/members/${memberId}/organization-application-roles`,
                     method: "POST",
                     body: { roleId: editingRole.id },
                 });
@@ -291,13 +291,13 @@ export function AssignRolesToMembers() {
             // Remove role from members
             for (const memberId of toRemove) {
                 await requestMutation.mutateAsync({
-                    url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/members/${memberId}/organization-app-roles?roleId=${editingRole.id}`,
+                    url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/members/${memberId}/organization-application-roles?roleId=${editingRole.id}`,
                     method: "DELETE",
                 });
             }
 
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.memberAppRoles(assignmentsUrl),
+                queryKey: adminKeys.memberApplicationRoles(assignmentsUrl),
             });
             setEditingRole(null);
         } catch (error) {
@@ -346,22 +346,22 @@ export function AssignRolesToMembers() {
         </div>
     );
 
-    const handleOrgChange = (orgId: string) => {
-        setSelectedOrgId(orgId);
+    const handleOrganizationChange = (organizationId: string) => {
+        setSelectedOrganizationId(organizationId);
         setPage(1);
     };
 
-    const handleAppChange = (appId: string) => {
-        setSelectedAppId(appId);
+    const handleAppChange = (applicationId: string) => {
+        setSelectedApplicationId(applicationId);
         setPage(1);
     };
 
     const filterControls = (
-        <OrgAppSelector
-            selectedOrgId={selectedOrgId}
-            onOrgChange={handleOrgChange}
-            selectedAppId={selectedAppId}
-            onAppChange={handleAppChange}
+        <OrganizationApplicationSelector
+            selectedOrganizationId={selectedOrganizationId}
+            onOrganizationChange={handleOrganizationChange}
+            selectedApplicationId={selectedApplicationId}
+            onApplicationChange={handleAppChange}
         />
     );
 
@@ -372,15 +372,15 @@ export function AssignRolesToMembers() {
                     <TableRow>
                         <TableHead className="px-4 py-3">Member</TableHead>
                         <TableHead className="px-4 py-3">Organization Role</TableHead>
-                        <TableHead className="px-4 py-3">Organization App Roles</TableHead>
+                        <TableHead className="px-4 py-3">Organization Application Roles</TableHead>
                         <TableHead className="px-4 py-3 w-[120px]">Actions</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {!selectedOrgId || !selectedAppId ? (
+                    {!selectedOrganizationId || !selectedApplicationId ? (
                         <TableRow>
                             <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                Select organization and app to view members.
+                                Select organization and application to view members.
                             </TableCell>
                         </TableRow>
                     ) : filteredMembers.length === 0 ? (
@@ -444,7 +444,7 @@ export function AssignRolesToMembers() {
                     )}
                 </TableBody>
             </Table>
-            {selectedOrgId && selectedAppId && members.length > 0 && renderPagination()}
+            {selectedOrganizationId && selectedApplicationId && members.length > 0 && renderPagination()}
         </div>
     );
 
@@ -453,7 +453,7 @@ export function AssignRolesToMembers() {
             <Table className="text-sm">
                 <TableHeader className="bg-muted">
                     <TableRow>
-                        <TableHead className="px-4 py-3">Organization App Role</TableHead>
+                        <TableHead className="px-4 py-3">Organization Application Role</TableHead>
                         <TableHead className="px-4 py-3">Key</TableHead>
                         <TableHead className="px-4 py-3">Description</TableHead>
                         <TableHead className="px-4 py-3">Members</TableHead>
@@ -461,16 +461,16 @@ export function AssignRolesToMembers() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {!selectedOrgId || !selectedAppId ? (
+                    {!selectedOrganizationId || !selectedApplicationId ? (
                         <TableRow>
                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                Select organization and app to view roles.
+                                Select organization and application to view roles.
                             </TableCell>
                         </TableRow>
                     ) : filteredRoles.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                {roleSearchQuery ? "No roles match your search." : "No roles defined for this app. Create roles in \"Org App Roles\" first."}
+                                {roleSearchQuery ? "No roles match your search." : "No roles defined for this application. Create roles in \"Organization Application Roles\" first."}
                             </TableCell>
                         </TableRow>
                     ) : (
@@ -536,7 +536,7 @@ export function AssignRolesToMembers() {
                     )}
                 </TableBody>
             </Table>
-            {selectedOrgId && selectedAppId && filteredRoles.length > 0 && (
+            {selectedOrganizationId && selectedApplicationId && filteredRoles.length > 0 && (
                 <div className="flex items-center justify-between border-t bg-muted/20 px-4 py-4">
                     <div className="text-sm text-muted-foreground">
                         Showing <span className="font-medium">{paginatedRoles.length}</span> of <span className="font-medium">{totalFilteredRoles}</span> roles
@@ -681,7 +681,7 @@ export function AssignRolesToMembers() {
                                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
                                             <UserCog className="h-10 w-10 opacity-30" />
                                             <p className="text-sm font-medium">No roles available</p>
-                                            <p className="text-xs">Create roles in Organization App Roles</p>
+                                            <p className="text-xs">Create roles in Organization Application Roles</p>
                                         </div>
                                     ) : (() => {
                                         const availableRoles = roles.filter(role => {

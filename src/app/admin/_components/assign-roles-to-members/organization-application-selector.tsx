@@ -30,26 +30,26 @@ interface Organization {
     slug: string;
 }
 
-interface App {
+interface Application {
     id: string;
     key: string;
     name: string;
     isActive: boolean;
 }
 
-interface OrgAppSelectorProps {
-    selectedOrgId: string;
-    onOrgChange: (orgId: string) => void;
-    selectedAppId: string;
-    onAppChange: (appId: string) => void;
+interface OrganizationApplicationSelectorProps {
+    selectedOrganizationId: string;
+    onOrganizationChange: (organizationId: string) => void;
+    selectedApplicationId: string;
+    onApplicationChange: (applicationId: string) => void;
 }
 
-export function OrgAppSelector({
-    selectedOrgId,
-    onOrgChange,
-    selectedAppId,
-    onAppChange,
-}: OrgAppSelectorProps) {
+export function OrganizationApplicationSelector({
+    selectedOrganizationId,
+    onOrganizationChange,
+    selectedApplicationId,
+    onApplicationChange,
+}: OrganizationApplicationSelectorProps) {
     const [openOrg, setOpenOrg] = useState(false);
     const [openApp, setOpenApp] = useState(false);
 
@@ -61,13 +61,13 @@ export function OrgAppSelector({
     });
     const organizations: Organization[] = orgsData?.organizations || [];
 
-    // Fetch apps
-    const appsUrl = `/api/admin/apps?limit=${SELECTOR_PAGE_LIMIT}`;
-    const { data: appsData } = useQuery({
-        queryKey: adminKeys.apps(appsUrl),
-        queryFn: () => fetcher(appsUrl),
+    // Fetch applications
+    const applicationsUrl = `/api/admin/applications?limit=${SELECTOR_PAGE_LIMIT}`;
+    const { data: applicationsData } = useQuery({
+        queryKey: adminKeys.applications(applicationsUrl),
+        queryFn: () => fetcher(applicationsUrl),
     });
-    const allApps: App[] = appsData?.apps || [];
+    const allApplications: Application[] = applicationsData?.applications || [];
 
     return (
         <div className="flex flex-wrap gap-3 items-end">
@@ -81,8 +81,8 @@ export function OrgAppSelector({
                             aria-expanded={openOrg}
                             className="w-[350px] justify-between"
                         >
-                            {selectedOrgId
-                                ? organizations.find((org) => org.id === selectedOrgId)?.name
+                            {selectedOrganizationId
+                                ? organizations.find((organization) => organization.id === selectedOrganizationId)?.name
                                 : "Select organization"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
@@ -93,22 +93,22 @@ export function OrgAppSelector({
                             <CommandList>
                                 <CommandEmpty>No organization found.</CommandEmpty>
                                 <CommandGroup>
-                                    {organizations.map((org) => (
+                                    {organizations.map((organization) => (
                                         <CommandItem
-                                            key={org.id}
-                                            value={org.name}
+                                            key={organization.id}
+                                            value={organization.name}
                                             onSelect={() => {
-                                                onOrgChange(org.id);
+                                                onOrganizationChange(organization.id);
                                                 setOpenOrg(false);
                                             }}
                                         >
                                             <Check
                                                 className={cn(
                                                     "mr-2 h-4 w-4",
-                                                    selectedOrgId === org.id ? "opacity-100" : "opacity-0"
+                                                    selectedOrganizationId === organization.id ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {org.name}
+                                            {organization.name}
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
@@ -118,7 +118,7 @@ export function OrgAppSelector({
                 </Popover>
             </div>
             <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">App</Label>
+                <Label className="text-xs text-muted-foreground">Application</Label>
                 <Popover open={openApp} onOpenChange={setOpenApp}>
                     <PopoverTrigger asChild>
                         <Button
@@ -126,36 +126,36 @@ export function OrgAppSelector({
                             role="combobox"
                             aria-expanded={openApp}
                             className="w-[300px] justify-between"
-                            disabled={!selectedOrgId}
+                            disabled={!selectedOrganizationId}
                         >
-                            {selectedAppId
-                                ? allApps.find((app) => app.id === selectedAppId)?.name
-                                : "Select app"}
+                            {selectedApplicationId
+                                ? allApplications.find((application) => application.id === selectedApplicationId)?.name
+                                : "Select application"}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[300px] p-0">
                         <Command>
-                            <CommandInput placeholder="Search app..." />
+                            <CommandInput placeholder="Search application..." />
                             <CommandList>
-                                <CommandEmpty>No app found.</CommandEmpty>
+                                <CommandEmpty>No application found.</CommandEmpty>
                                 <CommandGroup>
-                                    {allApps.map((app) => (
+                                    {allApplications.map((application) => (
                                         <CommandItem
-                                            key={app.id}
-                                            value={app.name}
+                                            key={application.id}
+                                            value={application.name}
                                             onSelect={() => {
-                                                onAppChange(app.id);
+                                                onApplicationChange(application.id);
                                                 setOpenApp(false);
                                             }}
                                         >
                                             <Check
                                                 className={cn(
                                                     "mr-2 h-4 w-4",
-                                                    selectedAppId === app.id ? "opacity-100" : "opacity-0"
+                                                    selectedApplicationId === application.id ? "opacity-100" : "opacity-0"
                                                 )}
                                             />
-                                            {app.name}
+                                            {application.name}
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>

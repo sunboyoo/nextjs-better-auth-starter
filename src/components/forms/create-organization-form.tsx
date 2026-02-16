@@ -106,9 +106,9 @@ export function CreateOrganizationForm({
 					control={control}
 					render={({ field }) => (
 						<Field>
-							<FieldLabel htmlFor="org-name">Organization Name</FieldLabel>
+							<FieldLabel htmlFor="organization-name">Organization Name</FieldLabel>
 							<Input
-								id="org-name"
+								id="organization-name"
 								placeholder="My Organization"
 								disabled={createMutation.isPending}
 								{...field}
@@ -123,9 +123,9 @@ export function CreateOrganizationForm({
 					control={control}
 					render={({ field }) => (
 						<Field>
-							<FieldLabel htmlFor="org-slug">Organization Slug</FieldLabel>
+							<FieldLabel htmlFor="organization-slug">Organization Slug</FieldLabel>
 							<Input
-								id="org-slug"
+								id="organization-slug"
 								placeholder="my-organization"
 								disabled={createMutation.isPending}
 								{...field}
@@ -136,7 +136,7 @@ export function CreateOrganizationForm({
 				/>
 
 				<Field>
-					<FieldLabel htmlFor="org-logo">Logo</FieldLabel>
+					<FieldLabel htmlFor="organization-logo">Logo</FieldLabel>
 					<div className="flex items-end gap-4">
 						{imagePreview && (
 							<div className="relative w-16 h-16 rounded-sm overflow-hidden">
@@ -150,7 +150,7 @@ export function CreateOrganizationForm({
 						)}
 						<div className="flex items-center gap-2 w-full">
 							<Input
-								id="org-logo"
+								id="organization-logo"
 								type="file"
 								accept="image/*"
 								onChange={handleImageChange}

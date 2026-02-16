@@ -67,9 +67,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn, generateKeyFromName } from "@/lib/utils";
 
-import { OrgAppSelector } from "./org-app-selector";
-import { AppResourceActionTreeSelector } from "@/components/shared/app-resource-action-tree-selector";
-import { AppResourceActionTreeDisplay } from "@/components/shared/app-resource-action-tree-display";
+import { OrganizationApplicationSelector } from "./organization-application-selector";
+import { ApplicationResourceActionTreeSelector } from "@/components/shared/application-resource-action-tree-selector";
+import { ApplicationResourceActionTreeDisplay } from "@/components/shared/application-resource-action-tree-display";
 
 const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then((res) => res.json());
 
@@ -79,17 +79,17 @@ interface Organization {
     slug: string;
 }
 
-interface App {
+interface Application {
     id: string;
     key: string;
     name: string;
     isActive: boolean;
 }
 
-interface OrganizationAppRole {
+interface OrganizationApplicationRole {
     id: string;
     organizationId: string;
-    appId: string;
+    applicationId: string;
     key: string;
     name: string;
     description: string | null;
@@ -97,10 +97,10 @@ interface OrganizationAppRole {
     createdAt: string;
     updatedAt: string;
     organizationName: string | null;
-    appName: string | null;
-    appKey: string | null;
+    applicationName: string | null;
+    applicationKey: string | null;
     actionCount: number;
-    appResourceActions: string[];
+    applicationResourceActions: string[];
 }
 
 interface Action {
@@ -120,7 +120,7 @@ type MutationInput = {
     body?: unknown;
 };
 
-export function OrganizationAppRolesTable() {
+export function OrganizationApplicationRolesTable() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -129,8 +129,8 @@ export function OrganizationAppRolesTable() {
     const urlPage = parseInt(searchParams.get("page") || String(DEFAULT_PAGE));
     const urlLimit = parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT));
 
-    const [selectedOrgId, setSelectedOrgId] = useState(searchParams.get("organizationId") || "");
-    const [selectedAppId, setSelectedAppId] = useState(searchParams.get("appId") || "");
+    const [selectedOrganizationId, setSelectedOrganizationId] = useState(searchParams.get("organizationId") || "");
+    const [selectedApplicationId, setSelectedApplicationId] = useState(searchParams.get("applicationId") || "");
     const [search, setSearch] = useState(searchParams.get("search") || "");
     const [debouncedSearch, setDebouncedSearch] = useState(search);
     const [statusFilter, setStatusFilter] = useState(searchParams.get("isActive") || "all");
@@ -159,25 +159,25 @@ export function OrganizationAppRolesTable() {
     // Toggle status state
     const [toggleStatusRole, setToggleStatusRole] = useState<{ id: string; name: string; newStatus: boolean } | null>(null);
 
-    // Fetch available actions for the selected app
-    const actionsUrl = selectedAppId
-        ? `/api/admin/apps/${selectedAppId}/actions?limit=200`
+    // Fetch available actions for the selected application
+    const actionsUrl = selectedApplicationId
+        ? `/api/admin/applications/${selectedApplicationId}/actions?limit=200`
         : null;
     const { data: actionsData } = useQuery({
-        queryKey: adminKeys.appActions(actionsUrl),
+        queryKey: adminKeys.applicationActions(actionsUrl),
         queryFn: () => fetcher(actionsUrl!),
         enabled: Boolean(actionsUrl),
     });
     const availableActions: Action[] = actionsData?.actions || [];
 
-    // Fetch selected app details for name
-    const appUrl = selectedAppId ? `/api/admin/apps/${selectedAppId}` : null;
-    const { data: appData } = useQuery({
-        queryKey: adminKeys.app(appUrl),
-        queryFn: () => fetcher(appUrl!),
-        enabled: Boolean(appUrl),
+    // Fetch selected application details for name
+    const applicationUrl = selectedApplicationId ? `/api/admin/applications/${selectedApplicationId}` : null;
+    const { data: applicationData } = useQuery({
+        queryKey: adminKeys.application(applicationUrl),
+        queryFn: () => fetcher(applicationUrl!),
+        enabled: Boolean(applicationUrl),
     });
-    const appName = appData?.app?.name || "App";
+    const applicationName = applicationData?.application?.name || "Application";
 
     // Debounce search
     useEffect(() => {
@@ -190,29 +190,29 @@ export function OrganizationAppRolesTable() {
     // Update URL when filters change
     useEffect(() => {
         const params = new URLSearchParams();
-        if (selectedOrgId) params.set("organizationId", selectedOrgId);
-        if (selectedAppId) params.set("appId", selectedAppId);
+        if (selectedOrganizationId) params.set("organizationId", selectedOrganizationId);
+        if (selectedApplicationId) params.set("applicationId", selectedApplicationId);
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (statusFilter !== "all") params.set("isActive", statusFilter === "active" ? "true" : "false");
         params.set("page", String(page));
         params.set("limit", String(limit));
         router.replace(`${pathname}?${params.toString()}`);
-    }, [selectedOrgId, selectedAppId, debouncedSearch, page, router, pathname, limit, statusFilter]);
+    }, [selectedOrganizationId, selectedApplicationId, debouncedSearch, page, router, pathname, limit, statusFilter]);
 
     // Build SWR key for roles
     const buildSwrKey = useCallback(() => {
-        if (!selectedOrgId || !selectedAppId) return null;
+        if (!selectedOrganizationId || !selectedApplicationId) return null;
         const params = new URLSearchParams();
         if (debouncedSearch) params.set("search", debouncedSearch);
         if (statusFilter !== "all") params.set("isActive", statusFilter === "active" ? "true" : "false");
         params.set("page", String(page));
         params.set("limit", String(limit));
-        return `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles?${params.toString()}`;
-    }, [selectedOrgId, selectedAppId, debouncedSearch, statusFilter, page, limit]);
+        return `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles?${params.toString()}`;
+    }, [selectedOrganizationId, selectedApplicationId, debouncedSearch, statusFilter, page, limit]);
 
     const rolesUrl = buildSwrKey();
     const { data, error, isLoading } = useQuery({
-        queryKey: adminKeys.appRoles(rolesUrl),
+        queryKey: adminKeys.applicationRoles(rolesUrl),
         queryFn: () => fetcher(rolesUrl!),
         enabled: Boolean(rolesUrl),
         refetchOnWindowFocus: false,
@@ -243,15 +243,15 @@ export function OrganizationAppRolesTable() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedOrgId || !selectedAppId) {
-            alert("Please select organization and app first");
+        if (!selectedOrganizationId || !selectedApplicationId) {
+            alert("Please select organization and application first");
             return;
         }
         setIsSubmitting(true);
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles`,
+                url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles`,
                 method: "POST",
                 body: {
                     key: newRoleKey,
@@ -274,7 +274,7 @@ export function OrganizationAppRolesTable() {
             setNewRoleDescription("");
             setSelectedActionIds([]);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appRoles(rolesUrl),
+                queryKey: adminKeys.applicationRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error creating role:", error);
@@ -292,7 +292,7 @@ export function OrganizationAppRolesTable() {
         try {
             // Update role details
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}`,
+                url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles/${editRoleId}`,
                 method: "PUT",
                 body: {
                     name: editRoleName,
@@ -308,7 +308,7 @@ export function OrganizationAppRolesTable() {
 
             // Update role actions
             await requestMutation.mutateAsync({
-                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${editRoleId}/actions`,
+                url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles/${editRoleId}/actions`,
                 method: "PUT",
                 body: {
                     actionIds: editSelectedActionIds,
@@ -322,7 +322,7 @@ export function OrganizationAppRolesTable() {
             setEditRoleDescription("");
             setEditSelectedActionIds([]);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appRoles(rolesUrl),
+                queryKey: adminKeys.applicationRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error updating role:", error);
@@ -337,7 +337,7 @@ export function OrganizationAppRolesTable() {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${deleteRoleId}`,
+                url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles/${deleteRoleId}`,
                 method: "DELETE",
             });
 
@@ -348,7 +348,7 @@ export function OrganizationAppRolesTable() {
 
             setDeleteRoleId(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appRoles(rolesUrl),
+                queryKey: adminKeys.applicationRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error deleting role:", error);
@@ -361,7 +361,7 @@ export function OrganizationAppRolesTable() {
 
         try {
             const response = await requestMutation.mutateAsync({
-                url: `/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${toggleStatusRole.id}`,
+                url: `/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles/${toggleStatusRole.id}`,
                 method: "PUT",
                 body: { isActive: toggleStatusRole.newStatus },
             });
@@ -373,7 +373,7 @@ export function OrganizationAppRolesTable() {
 
             setToggleStatusRole(null);
             await queryClient.invalidateQueries({
-                queryKey: adminKeys.appRoles(rolesUrl),
+                queryKey: adminKeys.applicationRoles(rolesUrl),
             });
         } catch (error) {
             console.error("Error updating status:", error);
@@ -381,7 +381,7 @@ export function OrganizationAppRolesTable() {
         }
     };
 
-    const openEditDialog = async (role: OrganizationAppRole) => {
+    const openEditDialog = async (role: OrganizationApplicationRole) => {
         setEditRoleId(role.id);
         setEditRoleKey(role.key);
         setEditRoleName(role.name);
@@ -389,7 +389,7 @@ export function OrganizationAppRolesTable() {
 
         // Fetch current actions for this role
         try {
-            const res = await fetch(`/api/admin/organizations/${selectedOrgId}/apps/${selectedAppId}/organization-app-roles/${role.id}/actions`);
+            const res = await fetch(`/api/admin/organizations/${selectedOrganizationId}/applications/${selectedApplicationId}/organization-application-roles/${role.id}/actions`);
             const data = await res.json();
             setEditSelectedActionIds(data.actionIds || []);
         } catch {
@@ -399,7 +399,7 @@ export function OrganizationAppRolesTable() {
         setIsEditDialogOpen(true);
     };
 
-    const roles: OrganizationAppRole[] = data?.roles || [];
+    const roles: OrganizationApplicationRole[] = data?.roles || [];
     const total = data?.total || 0;
     const totalPages = data?.totalPages || 1;
 
@@ -441,21 +441,21 @@ export function OrganizationAppRolesTable() {
     );
 
     const selectorRow = (
-        <OrgAppSelector
-            selectedOrgId={selectedOrgId}
-            onOrgChange={(id) => {
-                setSelectedOrgId(id);
+        <OrganizationApplicationSelector
+            selectedOrganizationId={selectedOrganizationId}
+            onOrganizationChange={(id) => {
+                setSelectedOrganizationId(id);
                 setPage(1);
             }}
-            selectedAppId={selectedAppId}
-            onAppChange={(id) => {
-                setSelectedAppId(id);
+            selectedApplicationId={selectedApplicationId}
+            onApplicationChange={(id) => {
+                setSelectedApplicationId(id);
                 setPage(1);
             }}
         />
     );
 
-    const hasValidSelection = selectedOrgId && selectedAppId && selectedOrgId !== "all" && selectedAppId !== "all";
+    const hasValidSelection = selectedOrganizationId && selectedApplicationId && selectedOrganizationId !== "all" && selectedApplicationId !== "all";
 
     const filterControls = (
         <div className="flex flex-wrap gap-3 items-end">
@@ -493,7 +493,7 @@ export function OrganizationAppRolesTable() {
                 <DialogTrigger asChild>
                     <Button className="flex items-center gap-2" disabled={!hasValidSelection}>
                         <Plus className="h-4 w-4" />
-                        Create organization app role
+                        Create organization application role
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
@@ -501,10 +501,10 @@ export function OrganizationAppRolesTable() {
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <UserCog className="h-5 w-5" />
-                                Create organization app role
+                                Create organization application role
                             </DialogTitle>
                             <DialogDescription>
-                                Create business role for this organization and app.
+                                Create business role for this organization and application.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -542,10 +542,10 @@ export function OrganizationAppRolesTable() {
                             <div className="grid gap-2">
                                 <Label>Assign Actions</Label>
                                 {availableActions.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No actions available for this app.</p>
+                                    <p className="text-sm text-muted-foreground">No actions available for this application.</p>
                                 ) : (
-                                    <AppResourceActionTreeSelector
-                                        appName={appName}
+                                    <ApplicationResourceActionTreeSelector
+                                        applicationName={applicationName}
                                         actions={availableActions}
                                         selectedActionIds={selectedActionIds}
                                         onSelectionChange={setSelectedActionIds}
@@ -567,7 +567,7 @@ export function OrganizationAppRolesTable() {
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <div className="flex flex-col items-center justify-center py-16 text-center">
                 <UserCog className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                <p className="text-muted-foreground">Select organization and app to view roles.</p>
+                <p className="text-muted-foreground">Select organization and application to view roles.</p>
             </div>
         </div>
     );
@@ -578,7 +578,7 @@ export function OrganizationAppRolesTable() {
         { label: "Description" },
 
 
-        { label: "App Resources and Actions" },
+        { label: "Application Resources and Actions" },
         { label: "Status" },
         { label: "Created" },
         { label: "", className: "w-[50px]" },
@@ -588,7 +588,7 @@ export function OrganizationAppRolesTable() {
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold tracking-tight">Organization App Roles</h2>
+                    <h2 className="text-xl font-semibold tracking-tight">Organization Application Roles</h2>
                 </div>
                 {selectorRow}
                 {noSelectionPlaceholder}
@@ -600,7 +600,7 @@ export function OrganizationAppRolesTable() {
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold tracking-tight">Organization App Roles</h2>
+                    <h2 className="text-xl font-semibold tracking-tight">Organization Application Roles</h2>
                 </div>
                 {selectorRow}
                 {filterControls}
@@ -627,7 +627,7 @@ export function OrganizationAppRolesTable() {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold tracking-tight">Organization App Roles</h2>
+                <h2 className="text-xl font-semibold tracking-tight">Organization Application Roles</h2>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/50 text-xs font-medium text-muted-foreground">
                     <UserCog className="h-3.5 w-3.5" />
                     <span>{total}</span>
@@ -685,9 +685,9 @@ export function OrganizationAppRolesTable() {
 
 
                                     <TableCell className="px-4 py-3">
-                                        <AppResourceActionTreeDisplay
-                                            appName={role.appName || appName}
-                                            actionStrings={role.appResourceActions}
+                                        <ApplicationResourceActionTreeDisplay
+                                            applicationName={role.applicationName || applicationName}
+                                            actionStrings={role.applicationResourceActions}
                                             availableActions={availableActions}
                                         />
                                     </TableCell>
@@ -806,10 +806,10 @@ export function OrganizationAppRolesTable() {
                             <div className="grid gap-2">
                                 <Label>Assign Actions</Label>
                                 {availableActions.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No actions available for this app.</p>
+                                    <p className="text-sm text-muted-foreground">No actions available for this application.</p>
                                 ) : (
-                                    <AppResourceActionTreeSelector
-                                        appName={appName}
+                                    <ApplicationResourceActionTreeSelector
+                                        applicationName={applicationName}
                                         actions={availableActions}
                                         selectedActionIds={editSelectedActionIds}
                                         onSelectionChange={setEditSelectedActionIds}

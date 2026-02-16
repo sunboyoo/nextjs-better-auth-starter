@@ -440,7 +440,7 @@ export const organizationRole = table(
   (table) => [
     index("organizationRole_organizationId_idx").on(table.organizationId),
     index("organizationRole_role_idx").on(table.role),
-    uniqueIndex("organizationRole_org_role_uidx").on(
+    uniqueIndex("organizationRole_organization_role_uidx").on(
       table.organizationId,
       table.role,
     ),
@@ -467,7 +467,7 @@ export const member = table(
   (table) => [
     index("member_organizationId_idx").on(table.organizationId),
     index("member_userId_idx").on(table.userId),
-    uniqueIndex("member_org_user_uidx").on(table.organizationId, table.userId),
+    uniqueIndex("member_organization_user_uidx").on(table.organizationId, table.userId),
   ],
 );
 
@@ -648,7 +648,7 @@ export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
   teams: many(team),
-  apps: many(apps),
+  applications: many(applications),
 }));
 
 export const organizationRoleRelations = relations(
@@ -768,8 +768,8 @@ export const teamMemberRelations = relations(teamMember, ({ one }) => ({
 // RBAC Extension Tables
 // =========================================================
 
-export const apps = table(
-  "app",
+export const applications = table(
+  "application",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: text("organization_id")
@@ -790,12 +790,12 @@ export const apps = table(
   },
   (table) => [
     check(
-      "apps_key_format_chk",
+      "applications_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
-    index("idx_apps_org").on(table.organizationId),
-    uniqueIndex("apps_org_key_uniq").on(table.organizationId, table.key),
-    uniqueIndex("apps_org_name_uniq").on(table.organizationId, table.name),
+    index("idx_applications_org").on(table.organizationId),
+    uniqueIndex("applications_organization_key_uniq").on(table.organizationId, table.key),
+    uniqueIndex("applications_organization_name_uniq").on(table.organizationId, table.name),
   ],
 );
 
@@ -803,9 +803,9 @@ export const resources = table(
   "resource",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    appId: uuid("app_id")
+    applicationId: uuid("application_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => applications.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -822,10 +822,10 @@ export const resources = table(
       "resources_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
-    index("idx_resources_app").on(table.appId),
-    unique("uq_resources_id_app").on(table.id, table.appId),
-    uniqueIndex("resources_app_key_uniq").on(table.appId, table.key),
-    uniqueIndex("resources_app_name_uniq").on(table.appId, table.name),
+    index("idx_resources_application").on(table.applicationId),
+    unique("uq_resources_id_application").on(table.id, table.applicationId),
+    uniqueIndex("resources_application_key_uniq").on(table.applicationId, table.key),
+    uniqueIndex("resources_application_name_uniq").on(table.applicationId, table.name),
   ],
 );
 
@@ -858,13 +858,13 @@ export const actions = table(
   ],
 );
 
-export const appRoles = table(
-  "app_role",
+export const applicationRoles = table(
+  "application_role",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    appId: uuid("app_id")
+    applicationId: uuid("application_id")
       .notNull()
-      .references(() => apps.id, { onDelete: "cascade" }),
+      .references(() => applications.id, { onDelete: "cascade" }),
     key: text("key").notNull(),
     name: text("name").notNull(),
     description: text("description"),
@@ -879,21 +879,21 @@ export const appRoles = table(
   },
   (table) => [
     check(
-      "app_roles_key_format_chk",
+      "application_roles_key_format_chk",
       sql`${table.key} ~ '^[a-z0-9]+(_[a-z0-9]+)*$'`,
     ),
-    index("idx_app_roles_app").on(table.appId),
-    uniqueIndex("app_roles_app_key_uniq").on(table.appId, table.key),
-    uniqueIndex("app_roles_app_name_uniq").on(table.appId, table.name),
+    index("idx_application_roles_application").on(table.applicationId),
+    uniqueIndex("application_roles_application_key_uniq").on(table.applicationId, table.key),
+    uniqueIndex("application_roles_application_name_uniq").on(table.applicationId, table.name),
   ],
 );
 
-export const appRoleAction = table(
-  "app_role_action",
+export const applicationRoleAction = table(
+  "application_role_action",
   {
     roleId: uuid("role_id")
       .notNull()
-      .references(() => appRoles.id, { onDelete: "cascade" }),
+      .references(() => applicationRoles.id, { onDelete: "cascade" }),
     actionId: uuid("action_id")
       .notNull()
       .references(() => actions.id, { onDelete: "cascade" }),
@@ -908,23 +908,23 @@ export const appRoleAction = table(
   ],
 );
 
-export const memberAppRoles = table(
-  "member_app_role",
+export const memberApplicationRoles = table(
+  "member_application_role",
   {
     memberId: text("member_id")
       .notNull()
       .references(() => member.id, { onDelete: "cascade" }),
-    appRoleId: uuid("app_role_id")
+    applicationRoleId: uuid("application_role_id")
       .notNull()
-      .references(() => appRoles.id, { onDelete: "cascade" }),
+      .references(() => applicationRoles.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.memberId, table.appRoleId] }),
+    primaryKey({ columns: [table.memberId, table.applicationRoleId] }),
     index("idx_mar_member").on(table.memberId),
-    index("idx_mar_role").on(table.appRoleId),
+    index("idx_mar_role").on(table.applicationRoleId),
   ],
 );
 
@@ -932,19 +932,19 @@ export const memberAppRoles = table(
 // RBAC Relations
 // =========================================================
 
-export const appsRelations = relations(apps, ({ one, many }) => ({
+export const applicationsRelations = relations(applications, ({ one, many }) => ({
   organization: one(organization, {
-    fields: [apps.organizationId],
+    fields: [applications.organizationId],
     references: [organization.id],
   }),
   resources: many(resources),
-  appRoles: many(appRoles),
+  applicationRoles: many(applicationRoles),
 }));
 
 export const resourcesRelations = relations(resources, ({ one, many }) => ({
-  app: one(apps, {
-    fields: [resources.appId],
-    references: [apps.id],
+  application: one(applications, {
+    fields: [resources.applicationId],
+    references: [applications.id],
   }),
   actions: many(actions),
 }));
@@ -954,46 +954,45 @@ export const actionsRelations = relations(actions, ({ one, many }) => ({
     fields: [actions.resourceId],
     references: [resources.id],
   }),
-  roleActions: many(appRoleAction),
+  roleActions: many(applicationRoleAction),
 }));
 
-export const appRolesRelations = relations(
-  appRoles,
+export const applicationRolesRelations = relations(
+  applicationRoles,
   ({ one, many }) => ({
-    app: one(apps, {
-      fields: [appRoles.appId],
-      references: [apps.id],
+    application: one(applications, {
+      fields: [applicationRoles.applicationId],
+      references: [applications.id],
     }),
-    roleActions: many(appRoleAction),
-    memberRoles: many(memberAppRoles),
+    roleActions: many(applicationRoleAction),
+    memberRoles: many(memberApplicationRoles),
   }),
 );
 
-export const appRoleActionRelations = relations(
-  appRoleAction,
+export const applicationRoleActionRelations = relations(
+  applicationRoleAction,
   ({ one }) => ({
-    role: one(appRoles, {
-      fields: [appRoleAction.roleId],
-      references: [appRoles.id],
+    role: one(applicationRoles, {
+      fields: [applicationRoleAction.roleId],
+      references: [applicationRoles.id],
     }),
     action: one(actions, {
-      fields: [appRoleAction.actionId],
+      fields: [applicationRoleAction.actionId],
       references: [actions.id],
     }),
   }),
 );
 
-export const memberAppRolesRelations = relations(
-  memberAppRoles,
+export const memberApplicationRolesRelations = relations(
+  memberApplicationRoles,
   ({ one }) => ({
     member: one(member, {
-      fields: [memberAppRoles.memberId],
+      fields: [memberApplicationRoles.memberId],
       references: [member.id],
     }),
-    role: one(appRoles, {
-      fields: [memberAppRoles.appRoleId],
-      references: [appRoles.id],
+    role: one(applicationRoles, {
+      fields: [memberApplicationRoles.applicationRoleId],
+      references: [applicationRoles.id],
     }),
   }),
 );
-

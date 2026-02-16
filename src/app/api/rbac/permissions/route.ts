@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberAppRoles, appRoleAction, appRoles, actions, resources, apps, member } from "@/db/schema";
+import { memberApplicationRoles, applicationRoleAction, applicationRoles, actions, resources, applications, member } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
@@ -10,8 +10,8 @@ const permissionsCache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 60 * 1000; // 60 seconds
 const MAX_CACHE_ENTRIES = 500;
 
-function getCacheKey(memberId: string, appId: string): string {
-    return `${memberId}:${appId}`;
+function getCacheKey(memberId: string, applicationId: string): string {
+    return `${memberId}:${applicationId}`;
 }
 
 function getFromCache(key: string): unknown | null {
@@ -33,8 +33,8 @@ function setCache(key: string, data: unknown): void {
     permissionsCache.set(key, { data, timestamp: Date.now() });
 }
 
-// GET /api/rbac/permissions - Get all permissions for a member in an app
-// Query params: memberId, appKey (or appId)
+// GET /api/rbac/permissions - Get all permissions for a member in an application
+// Query params: memberId, applicationKey (or applicationId)
 export async function GET(request: NextRequest) {
     const authResult = await requireAuth();
     if (!authResult.success) return authResult.response;
@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const memberId = searchParams.get("memberId");
-    const appKey = searchParams.get("appKey");
-    const appId = searchParams.get("appId");
+    const applicationKey = searchParams.get("applicationKey");
+    const applicationId = searchParams.get("applicationId");
 
     if (!memberId) {
         return NextResponse.json(
@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    if (!appKey && !appId) {
+    if (!applicationKey && !applicationId) {
         return NextResponse.json(
-            { error: "appKey or appId is required" },
+            { error: "applicationKey or applicationId is required" },
             { status: 400 }
         );
     }
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     if (userRole === "admin") {
         return NextResponse.json({
             memberId,
-            appId: appId || null,
+            applicationId: applicationId || null,
             roles: [{ roleKey: "platform-admin", roleName: "Platform Admin" }],
             permissions: [
                 {
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     if (targetMember.role === "owner" || targetMember.role === "admin") {
         return NextResponse.json({
             memberId,
-            appId: appId || null,
+            applicationId: applicationId || null,
             roles: [
                 {
                     roleKey: targetMember.role,
@@ -125,50 +125,50 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Find the app
-        let targetAppId: string;
-        if (appId) {
-            targetAppId = appId;
+        // Find the application
+        let targetApplicationId: string;
+        if (applicationId) {
+            targetApplicationId = applicationId;
         } else {
-            const app = await db
-                .select({ id: apps.id })
-                .from(apps)
-                .where(eq(apps.key, appKey!))
+            const application = await db
+                .select({ id: applications.id })
+                .from(applications)
+                .where(eq(applications.key, applicationKey!))
                 .limit(1);
 
-            if (app.length === 0) {
-                return NextResponse.json({ permissions: [], reason: "App not found" });
+            if (application.length === 0) {
+                return NextResponse.json({ permissions: [], reason: "Application not found" });
             }
-            targetAppId = app[0].id;
+            targetApplicationId = application[0].id;
         }
 
         // Check cache
-        const cacheKey = getCacheKey(memberId, targetAppId);
+        const cacheKey = getCacheKey(memberId, targetApplicationId);
         const cachedResult = getFromCache(cacheKey);
         if (cachedResult) {
             return NextResponse.json(cachedResult);
         }
 
-        // Get member's roles for this app (filter through appRoles.appId)
+        // Get member's roles for this application (filter through applicationRoles.applicationId)
         const memberRoles = await db
             .select({
-                roleId: memberAppRoles.appRoleId,
-                roleKey: appRoles.key,
-                roleName: appRoles.name,
+                roleId: memberApplicationRoles.applicationRoleId,
+                roleKey: applicationRoles.key,
+                roleName: applicationRoles.name,
             })
-            .from(memberAppRoles)
-            .innerJoin(appRoles, eq(memberAppRoles.appRoleId, appRoles.id))
+            .from(memberApplicationRoles)
+            .innerJoin(applicationRoles, eq(memberApplicationRoles.applicationRoleId, applicationRoles.id))
             .where(
                 and(
-                    eq(memberAppRoles.memberId, memberId),
-                    eq(appRoles.appId, targetAppId)
+                    eq(memberApplicationRoles.memberId, memberId),
+                    eq(applicationRoles.applicationId, targetApplicationId)
                 )
             );
 
         if (memberRoles.length === 0) {
             const result = {
                 memberId,
-                appId: targetAppId,
+                applicationId: targetApplicationId,
                 roles: [],
                 permissions: [],
             };
@@ -180,18 +180,18 @@ export async function GET(request: NextRequest) {
         const roleIds = memberRoles.map(r => r.roleId);
         const allRoleActions = await db
             .select({
-                roleId: appRoleAction.roleId,
-                actionId: appRoleAction.actionId,
+                roleId: applicationRoleAction.roleId,
+                actionId: applicationRoleAction.actionId,
                 actionKey: actions.key,
                 actionName: actions.name,
                 resourceId: actions.resourceId,
                 resourceKey: resources.key,
                 resourceName: resources.name,
             })
-            .from(appRoleAction)
-            .innerJoin(actions, eq(appRoleAction.actionId, actions.id))
+            .from(applicationRoleAction)
+            .innerJoin(actions, eq(applicationRoleAction.actionId, actions.id))
             .innerJoin(resources, eq(actions.resourceId, resources.id))
-            .where(inArray(appRoleAction.roleId, roleIds));
+            .where(inArray(applicationRoleAction.roleId, roleIds));
 
         // Create role lookup map
         const roleMap = new Map(memberRoles.map(r => [r.roleId, { roleKey: r.roleKey, roleName: r.roleName }]));
@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
 
         const result = {
             memberId,
-            appId: targetAppId,
+            applicationId: targetApplicationId,
             roles: memberRoles,
             permissions: uniquePermissions,
         };

@@ -237,7 +237,7 @@ const UserInvitationsCard = () => {
             <CardContent>
                 <div className="space-y-4">
                     {invitations.map((invitation) => {
-                        const org = getOrganizationInfo(invitation);
+                        const organization = getOrganizationInfo(invitation);
                         const inviter = getInviterInfo(invitation);
                         const isProcessing = processingId === invitation.id;
 
@@ -248,11 +248,11 @@ const UserInvitationsCard = () => {
                             >
                                 <div className="flex items-center gap-4">
                                     {/* Organization Logo */}
-                                    {org.logo ? (
+                                    {organization.logo ? (
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img
-                                            src={org.logo}
-                                            alt={org.name}
+                                            src={organization.logo}
+                                            alt={organization.name}
                                             className="h-12 w-12 rounded-lg object-cover"
                                         />
                                     ) : (
@@ -262,7 +262,7 @@ const UserInvitationsCard = () => {
                                     )}
 
                                     <div className="flex flex-col gap-1">
-                                        <span className="font-semibold">{org.name}</span>
+                                        <span className="font-semibold">{organization.name}</span>
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                             <Badge variant="outline" className="capitalize">
                                                 {invitation.role || "member"}
