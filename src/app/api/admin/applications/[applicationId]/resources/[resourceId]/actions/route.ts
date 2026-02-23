@@ -26,7 +26,12 @@ export async function GET(
         const resource = await db
             .select({ id: resources.id, name: resources.name, applicationId: resources.applicationId })
             .from(resources)
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (resource.length === 0) {
@@ -142,7 +147,12 @@ export async function POST(
         const resource = await db
             .select({ id: resources.id, applicationId: resources.applicationId })
             .from(resources)
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (resource.length === 0) {

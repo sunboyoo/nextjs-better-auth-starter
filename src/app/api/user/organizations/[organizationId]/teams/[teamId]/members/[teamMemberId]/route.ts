@@ -4,6 +4,7 @@ import { user, team, teamMember, member } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { extendedAuthApi } from "@/lib/auth-api";
 
 interface RouteParams {
     params: Promise<{ organizationId: string; teamId: string; teamMemberId: string }>;
@@ -107,7 +108,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
 
         // Verify team member exists
         const tmResult = await db
-            .select({ id: teamMember.id })
+            .select({ id: teamMember.id, userId: teamMember.userId })
             .from(teamMember)
             .where(and(eq(teamMember.id, teamMemberId), eq(teamMember.teamId, teamId)))
             .limit(1);
@@ -116,7 +117,13 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "Team member not found" }, { status: 404 });
         }
 
-        await db.delete(teamMember).where(eq(teamMember.id, teamMemberId));
+        await extendedAuthApi.removeTeamMember({
+            body: {
+                teamId,
+                userId: tmResult[0].userId,
+            },
+            headers: authResult.headers,
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {

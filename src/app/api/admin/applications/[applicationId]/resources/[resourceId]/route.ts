@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { resources, actions } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, count } from "drizzle-orm";
+import { eq, count, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -16,7 +16,7 @@ export async function GET(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { resourceId } = await params;
+    const { applicationId, resourceId } = await params;
 
     try {
         const resource = await db
@@ -30,7 +30,12 @@ export async function GET(
                 updatedAt: resources.updatedAt,
             })
             .from(resources)
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (resource.length === 0) {
@@ -61,7 +66,7 @@ export async function PUT(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { resourceId } = await params;
+    const { applicationId, resourceId } = await params;
 
     try {
         const body = await request.json();
@@ -78,7 +83,12 @@ export async function PUT(
         const existing = await db
             .select({ id: resources.id })
             .from(resources)
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (existing.length === 0) {
@@ -92,7 +102,12 @@ export async function PUT(
         const updated = await db
             .update(resources)
             .set(withUpdatedAt(updateData))
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .returning();
 
         await writeAdminAuditLog({
@@ -120,20 +135,32 @@ export async function DELETE(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { resourceId } = await params;
+    const { applicationId, resourceId } = await params;
 
     try {
         const existing = await db
             .select({ id: resources.id })
             .from(resources)
-            .where(eq(resources.id, resourceId))
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (existing.length === 0) {
             return NextResponse.json({ error: "Resource not found" }, { status: 404 });
         }
 
-        await db.delete(resources).where(eq(resources.id, resourceId));
+        await db
+            .delete(resources)
+            .where(
+                and(
+                    eq(resources.id, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            );
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,

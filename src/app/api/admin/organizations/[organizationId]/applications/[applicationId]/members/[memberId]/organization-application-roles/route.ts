@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { memberApplicationRoles, applicationRoles, member, user } from "@/db/schema";
+import { memberApplicationRoles, applicationRoles, applications, member, user } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
 import { z } from "zod";
+
+async function verifyApplicationOwnership(
+    organizationId: string,
+    applicationId: string,
+): Promise<boolean> {
+    const application = await db
+        .select({ id: applications.id })
+        .from(applications)
+        .where(
+            and(
+                eq(applications.id, applicationId),
+                eq(applications.organizationId, organizationId),
+            ),
+        )
+        .limit(1);
+    return application.length > 0;
+}
 
 // GET - Get member's assigned roles for this application
 export async function GET(
@@ -18,6 +35,17 @@ export async function GET(
     const { organizationId, applicationId, memberId } = await params;
 
     try {
+        const applicationExists = await verifyApplicationOwnership(
+            organizationId,
+            applicationId,
+        );
+        if (!applicationExists) {
+            return NextResponse.json(
+                { error: "Application not found in this organization" },
+                { status: 404 },
+            );
+        }
+
         // Verify member exists and belongs to the organization
         const memberRecord = await db
             .select({
@@ -71,6 +99,17 @@ export async function POST(
     const { organizationId, applicationId, memberId } = await params;
 
     try {
+        const applicationExists = await verifyApplicationOwnership(
+            organizationId,
+            applicationId,
+        );
+        if (!applicationExists) {
+            return NextResponse.json(
+                { error: "Application not found in this organization" },
+                { status: 404 },
+            );
+        }
+
         const body = await request.json();
         const schema = z.object({
             roleId: z.string().trim().min(1).max(100).optional().nullable(),
@@ -189,6 +228,17 @@ export async function DELETE(
     }
 
     try {
+        const applicationExists = await verifyApplicationOwnership(
+            organizationId,
+            applicationId,
+        );
+        if (!applicationExists) {
+            return NextResponse.json(
+                { error: "Application not found in this organization" },
+                { status: 404 },
+            );
+        }
+
         await db
             .delete(memberApplicationRoles)
             .where(

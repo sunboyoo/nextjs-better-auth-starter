@@ -4,6 +4,7 @@ import { user, team, teamMember, member } from "@/db/schema";
 import { eq, and, inArray, notInArray } from "drizzle-orm";
 import { requireAuth } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
+import { extendedAuthApi } from "@/lib/auth-api";
 import { z } from "zod";
 
 interface RouteParams {
@@ -157,19 +158,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ error: "User is already a member of this team" }, { status: 400 });
         }
 
-        // Add - generate a random ID similar to better-auth pattern
-        const newId = crypto.randomUUID().replace(/-/g, "").slice(0, 32);
-        const newMember = await db
-            .insert(teamMember)
-            .values({
-                id: newId,
-                teamId,
-                userId,
-                createdAt: new Date(),
-            })
-            .returning();
+        const newMember = await extendedAuthApi.addTeamMember({
+            body: { teamId, userId },
+            headers: authResult.headers,
+        });
+        const memberPayload =
+            (newMember as { member?: unknown } | null)?.member ?? newMember;
 
-        return NextResponse.json({ member: newMember[0] }, { status: 201 });
+        return NextResponse.json({ member: memberPayload }, { status: 201 });
     } catch (error) {
         return handleApiError(error, "add team member");
     }

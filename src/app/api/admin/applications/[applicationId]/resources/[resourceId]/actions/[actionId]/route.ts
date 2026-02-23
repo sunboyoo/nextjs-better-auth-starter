@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { actions, resources } from "@/db/schema";
 import { withUpdatedAt } from "@/db/with-updated-at";
-import { eq, sql } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { requireAdminAction } from "@/lib/api/auth-guard";
 import { handleApiError } from "@/lib/api/error-handler";
 import { writeAdminAuditLog } from "@/lib/api/admin-audit";
@@ -16,7 +16,7 @@ export async function GET(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { actionId } = await params;
+    const { applicationId, resourceId, actionId } = await params;
 
     try {
         const action = await db
@@ -28,11 +28,18 @@ export async function GET(
                 description: actions.description,
                 createdAt: actions.createdAt,
                 updatedAt: actions.updatedAt,
-                resourceName: sql<string>`(SELECT name FROM ${resources} WHERE ${resources.id} = ${actions.resourceId})`,
-                resourceKey: sql<string>`(SELECT key FROM ${resources} WHERE ${resources.id} = ${actions.resourceId})`,
+                resourceName: resources.name,
+                resourceKey: resources.key,
             })
             .from(actions)
-            .where(eq(actions.id, actionId))
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(
+                and(
+                    eq(actions.id, actionId),
+                    eq(actions.resourceId, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (action.length === 0) {
@@ -53,7 +60,7 @@ export async function PUT(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { actionId } = await params;
+    const { applicationId, resourceId, actionId } = await params;
 
     try {
         const body = await request.json();
@@ -70,7 +77,14 @@ export async function PUT(
         const existing = await db
             .select({ id: actions.id })
             .from(actions)
-            .where(eq(actions.id, actionId))
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(
+                and(
+                    eq(actions.id, actionId),
+                    eq(actions.resourceId, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (existing.length === 0) {
@@ -84,7 +98,12 @@ export async function PUT(
         const updated = await db
             .update(actions)
             .set(withUpdatedAt(updateData))
-            .where(eq(actions.id, actionId))
+            .where(
+                and(
+                    eq(actions.id, actionId),
+                    eq(actions.resourceId, resourceId),
+                ),
+            )
             .returning();
 
         await writeAdminAuditLog({
@@ -112,20 +131,34 @@ export async function DELETE(
     const authResult = await requireAdminAction("applications.manage");
     if (!authResult.success) return authResult.response;
 
-    const { actionId } = await params;
+    const { applicationId, resourceId, actionId } = await params;
 
     try {
         const existing = await db
             .select({ id: actions.id })
             .from(actions)
-            .where(eq(actions.id, actionId))
+            .innerJoin(resources, eq(actions.resourceId, resources.id))
+            .where(
+                and(
+                    eq(actions.id, actionId),
+                    eq(actions.resourceId, resourceId),
+                    eq(resources.applicationId, applicationId),
+                ),
+            )
             .limit(1);
 
         if (existing.length === 0) {
             return NextResponse.json({ error: "Action not found" }, { status: 404 });
         }
 
-        await db.delete(actions).where(eq(actions.id, actionId));
+        await db
+            .delete(actions)
+            .where(
+                and(
+                    eq(actions.id, actionId),
+                    eq(actions.resourceId, resourceId),
+                ),
+            );
 
         await writeAdminAuditLog({
             actorUserId: authResult.user.id,

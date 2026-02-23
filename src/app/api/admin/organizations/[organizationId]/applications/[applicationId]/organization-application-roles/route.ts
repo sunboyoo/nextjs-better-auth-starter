@@ -12,6 +12,23 @@ interface RouteParams {
     params: Promise<{ organizationId: string; applicationId: string }>;
 }
 
+async function verifyApplicationOwnership(
+    organizationId: string,
+    applicationId: string,
+): Promise<boolean> {
+    const application = await db
+        .select({ id: applications.id })
+        .from(applications)
+        .where(
+            and(
+                eq(applications.id, applicationId),
+                eq(applications.organizationId, organizationId),
+            ),
+        )
+        .limit(1);
+    return application.length > 0;
+}
+
 // GET /api/admin/organizations/[organizationId]/applications/[applicationId]/roles - List roles
 export async function GET(request: NextRequest, { params }: RouteParams) {
     const authResult = await requireAdminAction("applications.manage");
@@ -24,6 +41,17 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const pagination = parsePagination(request);
 
     try {
+        const applicationExists = await verifyApplicationOwnership(
+            organizationId,
+            applicationId,
+        );
+        if (!applicationExists) {
+            return NextResponse.json(
+                { error: "Application not found in this organization" },
+                { status: 404 },
+            );
+        }
+
         // Build filter conditions — organizationId is verified through application ownership
         const conditions = [
             eq(applicationRoles.applicationId, applicationId),
@@ -129,6 +157,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const { organizationId, applicationId } = await params;
 
     try {
+        const applicationExists = await verifyApplicationOwnership(
+            organizationId,
+            applicationId,
+        );
+        if (!applicationExists) {
+            return NextResponse.json(
+                { error: "Application not found in this organization" },
+                { status: 404 },
+            );
+        }
+
         const body = await request.json();
         const schema = z.object({
             key: z.string().trim().min(1).max(50),
