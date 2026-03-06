@@ -19,9 +19,9 @@ export default async function AdminApiDocsPage() {
       title="Admin API Reference"
       description="Reference for platform developers integrating administrative workflows and admin-role API routes."
       usageHeading="Endpoints Used by /admin"
-      usageDescription="Detected from endpoint literals in src/app/admin/** plus indirect Better Auth usage."
+      usageDescription="Detected from endpoint literals in src/app/admin/** plus indirect Better Auth usage. Notes highlight enforced ownership and authorization semantics."
       designedHeading='Endpoints Designed for user.role = "admin"'
-      designedDescription="Extracted from src/app/api/admin/** route handlers and their exported HTTP methods."
+      designedDescription="Extracted from src/app/api/admin/** route handlers and their exported HTTP methods. Notes include nested resource constraints for org/application/resource paths."
       siblingHref="/docs/api/user"
       siblingLabel="User API Reference"
       data={data}

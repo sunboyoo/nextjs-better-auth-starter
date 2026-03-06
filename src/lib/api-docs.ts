@@ -24,6 +24,7 @@ export type EndpointRecord = {
   methods: HttpMethod[];
   sourceFiles: string[];
   unresolved: boolean;
+  note?: string;
 };
 
 export type ApiDocsPageData = {
@@ -43,6 +44,29 @@ type RouteDefinition = {
 type UsageAccumulator = {
   endpoint: string;
   sourceFiles: Set<string>;
+};
+
+const ENDPOINT_NOTES: Record<string, string> = {
+  "/api/user/organizations/[organizationId]/teams/[teamId]/members":
+    "POST now delegates team-member creation to Better Auth organization API (addTeamMember) after membership and role checks.",
+  "/api/user/organizations/[organizationId]/teams/[teamId]/members/[teamMemberId]":
+    "DELETE resolves teamMember -> userId and delegates removal to Better Auth organization API (removeTeamMember).",
+  "/api/admin/applications/[applicationId]/resources/[resourceId]":
+    "GET/PUT/DELETE now enforce that resourceId belongs to the applicationId path segment.",
+  "/api/admin/applications/[applicationId]/resources/[resourceId]/actions":
+    "GET/POST now enforce resource ownership under applicationId before action queries or mutations.",
+  "/api/admin/applications/[applicationId]/resources/[resourceId]/actions/[actionId]":
+    "GET/PUT/DELETE now enforce action -> resource -> application ownership chain from URL params.",
+  "/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles":
+    "List/create now require applicationId to belong to organizationId before processing role operations.",
+  "/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]":
+    "Read/update/delete now require organizationId -> applicationId ownership before role access.",
+  "/api/admin/organizations/[organizationId]/applications/[applicationId]/organization-application-roles/[organizationApplicationRoleId]/actions":
+    "Role action read/replace now require organizationId -> applicationId ownership before updates.",
+  "/api/admin/organizations/[organizationId]/applications/[applicationId]/members/[memberId]/organization-application-roles":
+    "Member role list/assign/remove now require organizationId -> applicationId ownership validation.",
+  "/api/admin/organizations/[organizationId]/applications/[applicationId]/member-organization-application-roles":
+    "Batch member-role listing now requires organizationId -> applicationId ownership validation.",
 };
 
 function toPosix(filePath: string): string {
@@ -88,6 +112,13 @@ function endpointKey(endpoint: string): string {
     .replace(/\[[^\]]+\]/g, "[]")
     .replace(/\/+/g, "/");
 }
+
+const ENDPOINT_NOTE_BY_KEY = new Map(
+  Object.entries(ENDPOINT_NOTES).map(([endpoint, note]) => [
+    endpointKey(endpoint),
+    note,
+  ]),
+);
 
 async function listFilesRecursive(dirPath: string): Promise<string[]> {
   try {
@@ -244,6 +275,9 @@ async function getUsedEndpointsByScope(
         methods: routeDefinition?.methods ?? [],
         sourceFiles: Array.from(usage.sourceFiles).sort(),
         unresolved: routeDefinition === undefined,
+        note: ENDPOINT_NOTE_BY_KEY.get(
+          endpointKey(routeDefinition?.endpoint ?? usage.endpoint),
+        ),
       } satisfies EndpointRecord;
     })
     .sort((a, b) => a.endpoint.localeCompare(b.endpoint));
@@ -255,6 +289,9 @@ async function getUsedEndpointsByScope(
       methods: authRouteDefinition?.methods ?? [],
       sourceFiles: Array.from(authClientUsageFiles).sort(),
       unresolved: authRouteDefinition === undefined,
+      note: ENDPOINT_NOTE_BY_KEY.get(
+        endpointKey(authRouteDefinition?.endpoint ?? "/api/auth/[...all]"),
+      ),
     };
 
     const existingIndex = records.findIndex(
@@ -291,6 +328,7 @@ async function getRoleDesignedEndpoints(
     methods: definition.methods,
     sourceFiles: [definition.sourceFile],
     unresolved: false,
+    note: ENDPOINT_NOTE_BY_KEY.get(endpointKey(definition.endpoint)),
   }));
 }
 

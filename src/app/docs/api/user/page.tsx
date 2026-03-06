@@ -19,9 +19,9 @@ export default async function UserApiDocsPage() {
       title="User API Reference"
       description="Reference for platform developers integrating dashboard workflows and user-role API routes."
       usageHeading="Endpoints Used by /dashboard"
-      usageDescription="Detected from endpoint literals in src/app/dashboard/** plus indirect Better Auth usage."
+      usageDescription="Detected from endpoint literals in src/app/dashboard/** plus indirect Better Auth usage. Notes highlight Better Auth-backed mutations and access constraints."
       designedHeading='Endpoints Designed for user.role = "user"'
-      designedDescription="Extracted from src/app/api/user/** route handlers and their exported HTTP methods."
+      designedDescription="Extracted from src/app/api/user/** route handlers and their exported HTTP methods. Notes include team/member behavior delegated to Better Auth APIs."
       siblingHref="/docs/api/admin"
       siblingLabel="Admin API Reference"
       data={data}

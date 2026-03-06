@@ -33,6 +33,8 @@ function EndpointTable({
     );
   }
 
+  const hasNotes = records.some((record) => Boolean(record.note));
+
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
@@ -40,6 +42,9 @@ function EndpointTable({
           <tr className="border-b">
             <th className="px-4 py-3 text-left font-semibold">Endpoint</th>
             <th className="px-4 py-3 text-left font-semibold">Methods</th>
+            {hasNotes ? (
+              <th className="px-4 py-3 text-left font-semibold">Notes</th>
+            ) : null}
             <th className="px-4 py-3 text-left font-semibold">Source Files</th>
           </tr>
         </thead>
@@ -59,6 +64,11 @@ function EndpointTable({
               <td className="px-4 py-3 font-mono text-xs">
                 {formatMethods(record.methods)}
               </td>
+              {hasNotes ? (
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {record.note ?? "—"}
+                </td>
+              ) : null}
               <td className="px-4 py-3">
                 <div className="text-xs text-muted-foreground">
                   {record.sourceFiles.length} file
